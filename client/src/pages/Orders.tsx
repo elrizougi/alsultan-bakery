@@ -12,7 +12,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, MoreVertical, Trash2, Edit } from "lucide-react";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -116,16 +122,35 @@ export default function OrdersPage() {
                       <StatusBadge status={order.status} className="text-[10px]" />
                     </TableCell>
                     <TableCell className="text-left">
-                      {order.status === 'DRAFT' && (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-8 text-primary"
-                          onClick={() => updateOrderStatus(order.id, 'CONFIRMED')}
-                        >
-                          تأكيد
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {order.status === 'DRAFT' && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="h-8 text-primary font-bold px-3 hover:bg-primary/5"
+                            onClick={() => updateOrderStatus(order.id, 'CONFIRMED')}
+                          >
+                            تأكيد
+                          </Button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100">
+                              <MoreVertical className="h-4 w-4 text-slate-400" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="text-right">
+                            <DropdownMenuItem className="flex items-center gap-2 justify-end font-medium">
+                              تعديل الطلب
+                              <Edit className="h-4 w-4" />
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="flex items-center gap-2 justify-end font-medium text-destructive">
+                              حذف الطلب
+                              <Trash2 className="h-4 w-4" />
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
