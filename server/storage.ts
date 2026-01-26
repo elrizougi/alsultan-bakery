@@ -31,6 +31,14 @@ export interface IStorage {
   getAllRoutes(): Promise<Route[]>;
   getRoute(id: string): Promise<Route | undefined>;
   createRoute(route: InsertRoute): Promise<Route>;
+  updateRoute(id: string, route: Partial<InsertRoute>): Promise<Route | undefined>;
+  deleteRoute(id: string): Promise<boolean>;
+  
+  // Users (extended)
+  updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
+  updateUserPassword(id: string, password: string): Promise<User | undefined>;
+  toggleUserActive(id: string, isActive: boolean): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
 
   // Customers
   getAllCustomers(): Promise<Customer[]>;
@@ -131,6 +139,37 @@ export class DatabaseStorage implements IStorage {
   async createRoute(route: InsertRoute): Promise<Route> {
     const [newRoute] = await db.insert(routes).values(route).returning();
     return newRoute;
+  }
+
+  async updateRoute(id: string, route: Partial<InsertRoute>): Promise<Route | undefined> {
+    const [updated] = await db.update(routes).set(route).where(eq(routes.id, id)).returning();
+    return updated;
+  }
+
+  async deleteRoute(id: string): Promise<boolean> {
+    await db.delete(routes).where(eq(routes.id, id));
+    return true;
+  }
+
+  // Users (extended)
+  async updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined> {
+    const [updated] = await db.update(users).set(user).where(eq(users.id, id)).returning();
+    return updated;
+  }
+
+  async updateUserPassword(id: string, password: string): Promise<User | undefined> {
+    const [updated] = await db.update(users).set({ password }).where(eq(users.id, id)).returning();
+    return updated;
+  }
+
+  async toggleUserActive(id: string, isActive: boolean): Promise<User | undefined> {
+    const [updated] = await db.update(users).set({ isActive }).where(eq(users.id, id)).returning();
+    return updated;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    await db.delete(users).where(eq(users.id, id));
+    return true;
   }
 
   // Customers

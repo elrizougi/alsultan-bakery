@@ -123,6 +123,81 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/routes/:id", async (req, res) => {
+    try {
+      const route = await storage.updateRoute(req.params.id, req.body);
+      if (!route) {
+        return res.status(404).json({ message: "خط التوزيع غير موجود" });
+      }
+      res.json(route);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.delete("/api/routes/:id", async (req, res) => {
+    try {
+      await storage.deleteRoute(req.params.id);
+      res.json({ message: "تم حذف خط التوزيع" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  // ============ USERS MANAGEMENT ============
+  app.patch("/api/users/:id", async (req, res) => {
+    try {
+      const { password, ...userData } = req.body;
+      const user = await storage.updateUser(req.params.id, userData);
+      if (!user) {
+        return res.status(404).json({ message: "المستخدم غير موجود" });
+      }
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.patch("/api/users/:id/password", async (req, res) => {
+    try {
+      const { password } = req.body;
+      if (!password || password.length < 6) {
+        return res.status(400).json({ message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+      }
+      const user = await storage.updateUserPassword(req.params.id, password);
+      if (!user) {
+        return res.status(404).json({ message: "المستخدم غير موجود" });
+      }
+      res.json({ message: "تم تغيير كلمة المرور بنجاح" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.patch("/api/users/:id/toggle-active", async (req, res) => {
+    try {
+      const { isActive } = req.body;
+      const user = await storage.toggleUserActive(req.params.id, isActive);
+      if (!user) {
+        return res.status(404).json({ message: "المستخدم غير موجود" });
+      }
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      await storage.deleteUser(req.params.id);
+      res.json({ message: "تم حذف المستخدم" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // ============ CUSTOMERS ============
   app.get("/api/customers", async (req, res) => {
     try {

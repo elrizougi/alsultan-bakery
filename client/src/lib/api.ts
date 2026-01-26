@@ -11,6 +11,7 @@ export interface User {
   username: string;
   name: string;
   role: Role;
+  isActive?: boolean;
 }
 
 export interface Product {
@@ -176,5 +177,43 @@ export const api = {
   getUsers: async (): Promise<User[]> => {
     const res = await fetch("/api/users");
     return res.json();
+  },
+
+  createUser: async (user: { username: string; password: string; name: string; role: Role }): Promise<User> => {
+    const res = await apiRequest("POST", "/api/auth/register", user);
+    return res.json();
+  },
+
+  updateUser: async (id: string, user: Partial<{ name: string; role: Role }>): Promise<User> => {
+    const res = await apiRequest("PATCH", `/api/users/${id}`, user);
+    return res.json();
+  },
+
+  changePassword: async (id: string, password: string): Promise<void> => {
+    await apiRequest("PATCH", `/api/users/${id}/password`, { password });
+  },
+
+  toggleUserActive: async (id: string, isActive: boolean): Promise<User> => {
+    const res = await apiRequest("PATCH", `/api/users/${id}/toggle-active`, { isActive });
+    return res.json();
+  },
+
+  deleteUser: async (id: string): Promise<void> => {
+    await apiRequest("DELETE", `/api/users/${id}`);
+  },
+
+  // Routes Management
+  createRoute: async (route: { name: string; driverName: string }): Promise<Route> => {
+    const res = await apiRequest("POST", "/api/routes", route);
+    return res.json();
+  },
+
+  updateRoute: async (id: string, route: Partial<{ name: string; driverName: string }>): Promise<Route> => {
+    const res = await apiRequest("PATCH", `/api/routes/${id}`, route);
+    return res.json();
+  },
+
+  deleteRoute: async (id: string): Promise<void> => {
+    await apiRequest("DELETE", `/api/routes/${id}`);
   },
 };

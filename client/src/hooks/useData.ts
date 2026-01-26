@@ -160,3 +160,88 @@ export function useCreateReturn() {
     },
   });
 }
+
+// Users
+export function useUsers() {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: api.getUsers,
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.createUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; role?: string }) => api.updateUser(id, data as any),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) => api.changePassword(id, password),
+  });
+}
+
+export function useToggleUserActive() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => api.toggleUserActive(id, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+// Routes Management
+export function useCreateRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.createRoute,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+    },
+  });
+}
+
+export function useUpdateRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; driverName?: string }) => api.updateRoute(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+    },
+  });
+}
+
+export function useDeleteRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteRoute,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+    },
+  });
+}

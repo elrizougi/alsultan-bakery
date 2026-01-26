@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,6 +16,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   role: roleEnum("role").notNull().default('SALES'),
+  isActive: boolean("is_active").notNull().default(true),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
