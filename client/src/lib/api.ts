@@ -95,6 +95,20 @@ export const api = {
     return res.json();
   },
 
+  createProduct: async (product: Omit<Product, "id">): Promise<Product> => {
+    const res = await apiRequest("POST", "/api/products", product);
+    return res.json();
+  },
+
+  updateProduct: async (id: string, product: Partial<Product>): Promise<Product> => {
+    const res = await apiRequest("PATCH", `/api/products/${id}`, product);
+    return res.json();
+  },
+
+  deleteProduct: async (id: string): Promise<void> => {
+    await apiRequest("DELETE", `/api/products/${id}`);
+  },
+
   // Customers
   getCustomers: async (): Promise<Customer[]> => {
     const res = await fetch("/api/customers");

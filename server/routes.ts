@@ -100,6 +100,30 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/products/:id", async (req, res) => {
+    try {
+      const product = await storage.updateProduct(req.params.id, req.body);
+      if (!product) {
+        return res.status(404).json({ message: "المنتج غير موجود" });
+      }
+      res.json(product);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteProduct(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "المنتج غير موجود" });
+      }
+      res.json({ message: "تم حذف المنتج" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // ============ ROUTES ============
   app.get("/api/routes", async (req, res) => {
     try {

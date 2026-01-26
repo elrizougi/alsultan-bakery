@@ -19,6 +19,36 @@ export function useUpdateProductStock() {
   });
 }
 
+export function useCreateProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.createProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useUpdateProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...product }: Partial<Product> & { id: string }) => api.updateProduct(id, product),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useDeleteProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
 // Customers
 export function useCustomers() {
   return useQuery({

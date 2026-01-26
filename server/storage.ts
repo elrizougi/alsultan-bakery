@@ -26,6 +26,7 @@ export interface IStorage {
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
   updateProductStock(id: string, stock: number): Promise<Product | undefined>;
+  deleteProduct(id: string): Promise<boolean>;
 
   // Routes
   getAllRoutes(): Promise<Route[]>;
@@ -124,6 +125,11 @@ export class DatabaseStorage implements IStorage {
   async updateProductStock(id: string, stock: number): Promise<Product | undefined> {
     const [updated] = await db.update(products).set({ stock }).where(eq(products.id, id)).returning();
     return updated;
+  }
+
+  async deleteProduct(id: string): Promise<boolean> {
+    const result = await db.delete(products).where(eq(products.id, id)).returning();
+    return result.length > 0;
   }
 
   // Routes
