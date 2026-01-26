@@ -1,0 +1,71 @@
+# Bakery Distribution Management System
+
+## Overview
+
+This is a comprehensive bakery distribution and logistics management system built with a React frontend and Express backend. The application is designed for Arabic-speaking users (RTL layout) and provides functionality for managing bakery orders, dispatch runs, delivery tracking, inventory management, customer relationships, and returns processing.
+
+The system supports three user roles: Admin (full access), Driver (dispatch operations), and Sales (order management), with role-based access control throughout the application.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Routing**: Wouter for client-side routing
+- **State Management**: Zustand with persistence middleware for global state (user session, authentication)
+- **Data Fetching**: TanStack React Query for server state management and caching
+- **UI Components**: shadcn/ui component library built on Radix UI primitives
+- **Styling**: Tailwind CSS v4 with custom theme variables, RTL (right-to-left) layout support
+- **Build Tool**: Vite with custom plugins for Replit integration
+
+### Backend Architecture
+- **Framework**: Express.js 5 with TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Schema Validation**: Zod with drizzle-zod for type-safe schema generation
+- **API Pattern**: RESTful API endpoints under `/api` prefix
+- **Session Management**: Express sessions with connect-pg-simple for PostgreSQL session storage
+
+### Data Layer
+- **ORM**: Drizzle ORM with PostgreSQL dialect
+- **Schema Location**: `shared/schema.ts` contains all database table definitions
+- **Migrations**: Drizzle Kit for database migrations (`drizzle-kit push`)
+- **Shared Types**: Schema types are shared between frontend and backend via the `@shared` path alias
+
+### Key Entities
+- **Users**: Authentication with role-based permissions (ADMIN, DRIVER, SALES)
+- **Products**: Bakery items with SKU, pricing, and stock tracking
+- **Customers**: Customer profiles with delivery addresses and route assignments
+- **Routes**: Delivery routes with assigned drivers
+- **Orders**: Customer orders with line items and status workflow (DRAFT → CONFIRMED → ASSIGNED → DELIVERED → CLOSED)
+- **Dispatch Runs**: Delivery runs grouping multiple orders with status tracking (DRAFT → LOADED → OUT → RETURNED → CLOSED)
+- **Returns**: Product return tracking with reason codes (GOOD, DAMAGED, EXPIRED)
+
+### Build System
+- **Development**: Vite dev server with HMR for frontend, tsx for backend
+- **Production**: Custom build script using esbuild for server bundling, Vite for client
+- **Output**: Compiled to `dist/` directory with server as CommonJS module
+
+## External Dependencies
+
+### Database
+- **PostgreSQL**: Primary database, connection via `DATABASE_URL` environment variable
+- **connect-pg-simple**: Session storage in PostgreSQL
+
+### UI Framework
+- **Radix UI**: Comprehensive set of accessible UI primitives (dialogs, dropdowns, forms, etc.)
+- **shadcn/ui**: Pre-built component library with New York style variant
+- **Lucide React**: Icon library
+
+### Development Tools
+- **Replit Plugins**: 
+  - `@replit/vite-plugin-runtime-error-modal`: Error overlay
+  - `@replit/vite-plugin-cartographer`: Development tooling
+  - `@replit/vite-plugin-dev-banner`: Development banner
+
+### Fonts
+- **Cairo**: Primary Arabic font
+- **Inter**: Secondary Latin font
+- **JetBrains Mono**: Monospace font for code/data display
