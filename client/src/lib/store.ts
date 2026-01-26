@@ -30,6 +30,7 @@ export interface Customer {
   id: string;
   name: string;
   address: string;
+  locationUrl?: string;
   routeId: string;
   phone: string;
 }
@@ -95,11 +96,11 @@ const ROUTES: Route[] = [
 ];
 
 const CUSTOMERS: Customer[] = [
-  { id: 'c1', name: 'مقهى ديلي جريند', address: 'شارع الملك فهد', routeId: 'r1', phone: '555-0101' },
-  { id: 'c2', name: 'فندق صنسيت', address: 'طريق الكورنيش', routeId: 'r2', phone: '555-0102' },
-  { id: 'c3', name: 'مطبخ الشركات', address: 'مجمع الأعمال', routeId: 'r3', phone: '555-0103' },
-  { id: 'c4', name: 'جوز ديلي', address: 'سوق البلد', routeId: 'r1', phone: '555-0104' },
-  { id: 'c5', name: 'مقهى الجامعة', address: 'طريق الجامعة', routeId: 'r2', phone: '555-0105' },
+  { id: 'c1', name: 'مقهى ديلي جريند', address: 'شارع الملك فهد', locationUrl: 'https://maps.google.com', routeId: 'r1', phone: '555-0101' },
+  { id: 'c2', name: 'فندق صنسيت', address: 'طريق الكورنيش', locationUrl: 'https://maps.google.com', routeId: 'r2', phone: '555-0102' },
+  { id: 'c3', name: 'مطبخ الشركات', address: 'مجمع الأعمال', locationUrl: 'https://maps.google.com', routeId: 'r3', phone: '555-0103' },
+  { id: 'c4', name: 'جوز ديلي', address: 'سوق البلد', locationUrl: 'https://maps.google.com', routeId: 'r1', phone: '555-0104' },
+  { id: 'c5', name: 'مقهى الجامعة', address: 'طريق الجامعة', locationUrl: 'https://maps.google.com', routeId: 'r2', phone: '555-0105' },
 ];
 
 const TODAY = format(new Date(), 'yyyy-MM-dd');
@@ -144,6 +145,7 @@ interface AppState {
   createDispatchRun: (run: DispatchRun) => void;
   updateRunStatus: (id: string, status: RunStatus) => void;
   addReturn: (ret: ReturnRecord) => void;
+  addCustomer: (customer: Customer) => void;
   assignOrderToRun: (runId: string, orderId: string) => void;
   updateProductStock: (productId: string, newStock: number) => void;
 }
@@ -177,6 +179,8 @@ export const useStore = create<AppState>()(
       })),
 
       addReturn: (ret) => set((state) => ({ returns: [ret, ...state.returns] })),
+      
+      addCustomer: (customer) => set((state) => ({ customers: [...state.customers, customer] })),
 
       assignOrderToRun: (runId, orderId) => set((state) => {
         const updatedOrders = state.orders.map(o => o.id === orderId ? { ...o, status: 'ASSIGNED' as Status } : o);
