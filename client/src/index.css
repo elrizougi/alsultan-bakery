@@ -7,11 +7,12 @@
   --font-sans: 'Cairo', 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
 
-  --color-background: hsl(0 0% 100%);
+  --color-background: hsl(210 40% 98%);
   --color-foreground: hsl(222 47% 11%);
 
   --color-card: hsl(0 0% 100%);
@@ -39,12 +40,6 @@
   --color-input: hsl(214.3 31.8% 91.4%);
   --color-ring: hsl(221 83% 53%);
 
-  --color-chart-1: hsl(221 83% 53%);
-  --color-chart-2: hsl(173 58% 39%);
-  --color-chart-3: hsl(197 37% 24%);
-  --color-chart-4: hsl(43 74% 66%);
-  --color-chart-5: hsl(27 87% 67%);
-
   --color-sidebar: hsl(222 47% 11%);
   --color-sidebar-foreground: hsl(210 40% 98%);
   --color-sidebar-primary: hsl(221 83% 53%);
@@ -52,19 +47,6 @@
   --color-sidebar-accent: hsl(217 33% 17%);
   --color-sidebar-accent-foreground: hsl(210 40% 98%);
   --color-sidebar-border: hsl(217 33% 17%);
-  --color-sidebar-ring: hsl(224.3 76.3% 48%);
-}
-
-/* Custom Status Colors */
-@layer utilities {
-  .bg-status-draft { background-color: hsl(220 14% 94%); color: hsl(220 14% 40%); }
-  .bg-status-confirmed { background-color: hsl(200 90% 94%); color: hsl(200 90% 30%); }
-  .bg-status-assigned { background-color: hsl(260 80% 94%); color: hsl(260 80% 30%); }
-  .bg-status-loaded { background-color: hsl(45 90% 90%); color: hsl(45 90% 30%); }
-  .bg-status-out { background-color: hsl(30 90% 90%); color: hsl(30 90% 30%); }
-  .bg-status-delivered { background-color: hsl(140 80% 92%); color: hsl(140 80% 25%); }
-  .bg-status-returned { background-color: hsl(0 80% 94%); color: hsl(0 80% 35%); }
-  .bg-status-closed { background-color: hsl(220 14% 90%); color: hsl(220 14% 30%); border: 1px solid hsl(220 14% 80%); }
 }
 
 @layer base {
@@ -73,5 +55,17 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+  .gradient-primary {
+    @apply bg-gradient-to-br from-primary to-blue-600;
+  }
+  .soft-shadow {
+    @apply shadow-[0_8px_30px_rgb(0,0,0,0.04)];
   }
 }

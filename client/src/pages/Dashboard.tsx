@@ -16,71 +16,83 @@ export default function Dashboard() {
 
   return (
     <AdminLayout>
-      <div className="flex flex-col gap-6" dir="rtl">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">لوحة التحكم</h1>
-          <p className="text-sm text-muted-foreground text-wrap">نظرة عامة على عمليات المخبز اليوم.</p>
+      <div className="flex flex-col gap-8 animate-in fade-in duration-700" dir="rtl">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-primary via-blue-600 to-indigo-700 p-8 md:p-12 text-white shadow-2xl shadow-primary/20">
+          <div className="relative z-10">
+            <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-2">أهلاً بك، {useStore.getState().user?.name}</h1>
+            <p className="text-primary-foreground/90 text-lg md:text-xl font-medium max-w-2xl">هذا هو ملخص عمليات المخبز ليوم {format(new Date(), 'eeee, d MMMM yyyy', { locale: undefined })}.</p>
+          </div>
+          <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 h-48 w-48 rounded-full bg-blue-400/20 blur-2xl" />
         </div>
 
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Card className="col-span-1">
-            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-3 pb-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
+        <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1">
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
+              <div className="h-10 w-10 rounded-2xl bg-blue-50 flex items-center justify-center">
+                <Package className="h-5 w-5 text-blue-600" />
+              </div>
             </CardHeader>
-            <CardContent className="text-right p-3 pt-0">
-              <div className="text-lg md:text-2xl font-bold">{todaysOrders.length}</div>
-              <p className="text-[10px] text-muted-foreground truncate">إجمالي الطلبات</p>
+            <CardContent className="text-right p-6 pt-0">
+              <div className="text-3xl font-black text-slate-800">{todaysOrders.length}</div>
+              <p className="text-sm font-medium text-slate-500 mt-1">إجمالي الطلبات</p>
             </CardContent>
           </Card>
-          <Card className="col-span-1">
-            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-3 pb-2">
-              <Truck className="h-4 w-4 text-muted-foreground" />
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1">
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
+              <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
+                <Truck className="h-5 w-5 text-indigo-600" />
+              </div>
             </CardHeader>
-            <CardContent className="text-right p-3 pt-0">
-              <div className="text-lg md:text-2xl font-bold">{activeRuns.length}</div>
-              <p className="text-[10px] text-muted-foreground truncate">الرحلات النشطة</p>
+            <CardContent className="text-right p-6 pt-0">
+              <div className="text-3xl font-black text-slate-800">{activeRuns.length}</div>
+              <p className="text-sm font-medium text-slate-500 mt-1">الرحلات النشطة</p>
             </CardContent>
           </Card>
-          <Card className="col-span-1">
-            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-3 pb-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1">
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
+              <div className="h-10 w-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-emerald-600" />
+              </div>
             </CardHeader>
-            <CardContent className="text-right p-3 pt-0">
-              <div className="text-lg md:text-2xl font-bold truncate">{totalRevenue.toFixed(0)} ر.س</div>
-              <p className="text-[10px] text-muted-foreground truncate">الإيرادات</p>
+            <CardContent className="text-right p-6 pt-0">
+              <div className="text-3xl font-black text-slate-800">{totalRevenue.toFixed(0)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <p className="text-sm font-medium text-slate-500 mt-1">الإيرادات المحققة</p>
             </CardContent>
           </Card>
-          <Card className="col-span-1 border-destructive/50">
-            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-3 pb-2">
-              <AlertCircle className="h-4 w-4 text-destructive" />
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1">
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
+              <div className="h-10 w-10 rounded-2xl bg-amber-50 flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+              </div>
             </CardHeader>
-            <CardContent className="text-right p-3 pt-0">
-              <div className="text-lg md:text-2xl font-bold text-destructive">
+            <CardContent className="text-right p-6 pt-0">
+              <div className="text-3xl font-black text-amber-600">
                 {todaysOrders.filter(o => o.status === 'DRAFT').length}
               </div>
-              <p className="text-[10px] text-muted-foreground truncate">طلبات مسودة</p>
+              <p className="text-sm font-medium text-slate-500 mt-1">طلبات قيد المراجعة</p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
-          <Card className="lg:col-span-4">
-            <CardHeader className="text-right px-4">
-              <CardTitle className="text-base md:text-lg">أحدث الطلبات</CardTitle>
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
+          <Card className="lg:col-span-4 rounded-3xl border-0 shadow-sm">
+            <CardHeader className="text-right px-8 py-6">
+              <CardTitle className="text-xl font-bold text-slate-800">أحدث الطلبات</CardTitle>
             </CardHeader>
-            <CardContent className="px-4">
-              <div className="space-y-3">
+            <CardContent className="px-8 pb-8">
+              <div className="space-y-4">
                 {orders.slice(0, 5).map(order => {
                   const customer = customers.find(c => c.id === order.customerId);
                   return (
-                    <div key={order.id} className="flex items-center justify-between border-b pb-2 last:border-0 flex-row-reverse gap-2">
+                    <div key={order.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors flex-row-reverse gap-4 border border-slate-100/50">
                       <div className="text-right flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{customer?.name || 'غير معروف'}</div>
-                        <div className="text-xs text-muted-foreground">{order.items.length} صنف • {order.date}</div>
+                        <div className="font-bold text-slate-800 truncate">{customer?.name || 'عميل غير مسجل'}</div>
+                        <div className="text-xs font-medium text-slate-400 mt-0.5">{order.items.length} أصناف • {order.date}</div>
                       </div>
-                      <div className="flex flex-col items-start gap-1">
-                        <div className="font-bold text-xs whitespace-nowrap">{order.totalAmount.toFixed(1)} ر.س</div>
-                        <StatusBadge status={order.status} className="text-[8px] px-1.5 py-0" />
+                      <div className="flex flex-col items-start gap-1.5">
+                        <div className="font-black text-sm text-slate-700">{order.totalAmount.toFixed(1)} <span className="text-[10px]">ر.س</span></div>
+                        <StatusBadge status={order.status} className="text-[10px] px-3 py-1 rounded-full font-bold" />
                       </div>
                     </div>
                   );
@@ -88,24 +100,24 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card className="lg:col-span-3">
-            <CardHeader className="text-right px-4">
-              <CardTitle className="text-base md:text-lg">حالة التوزيع</CardTitle>
+          <Card className="lg:col-span-3 rounded-3xl border-0 shadow-sm">
+            <CardHeader className="text-right px-8 py-6">
+              <CardTitle className="text-xl font-bold text-slate-800">مراقبة الرحلات</CardTitle>
             </CardHeader>
-            <CardContent className="px-4">
-              <div className="space-y-3">
+            <CardContent className="px-8 pb-8">
+              <div className="space-y-4">
                  {dispatchRuns.map(run => (
-                   <div key={run.id} className="flex items-center justify-between flex-row-reverse gap-2">
-                     <div className="flex items-center gap-2 flex-row-reverse flex-1 min-w-0">
-                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                          <Truck className="h-4 w-4" />
+                   <div key={run.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 flex-row-reverse gap-3 border border-slate-100">
+                     <div className="flex items-center gap-3 flex-row-reverse flex-1 min-w-0">
+                        <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <Truck className="h-5 w-5 text-indigo-500" />
                         </div>
                         <div className="text-right truncate">
-                          <div className="font-medium text-sm truncate">{run.routeId.toUpperCase()}</div>
-                          <div className="text-xs text-muted-foreground truncate">{run.driverName}</div>
+                          <div className="font-bold text-slate-800 truncate">{run.routeId.toUpperCase()}</div>
+                          <div className="text-xs font-medium text-slate-400 truncate">{run.driverName}</div>
                         </div>
                      </div>
-                     <StatusBadge status={run.status} className="text-[8px] px-1.5 py-0" />
+                     <StatusBadge status={run.status} className="text-[10px] px-3 py-1 rounded-full font-bold" />
                    </div>
                  ))}
               </div>
