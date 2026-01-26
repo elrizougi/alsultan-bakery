@@ -7,6 +7,7 @@ import Dashboard from "@/pages/Dashboard";
 import OrdersPage from "@/pages/Orders";
 import DispatchPage from "@/pages/Dispatch";
 import RunDetailsPage from "@/pages/RunDetails";
+import InventoryPage from "@/pages/Inventory";
 
 function Router() {
   return (
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/orders" component={OrdersPage} />
       <Route path="/dispatch" component={DispatchPage} />
       <Route path="/dispatch/:id" component={RunDetailsPage} />
+      <Route path="/inventory" component={InventoryPage} />
       <Route component={NotFound} />
     </Switch>
   );
