@@ -8,7 +8,8 @@ import {
   Users, 
   Settings,
   PlusSquare,
-  FileText
+  FileText,
+  Shield
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useStore } from "@/lib/store";
@@ -25,6 +26,7 @@ export function Sidebar({ className }: SidebarProps) {
     { icon: Truck, label: "رحلات التوزيع", href: "/dispatch", roles: ['ADMIN', 'DRIVER'] },
     { icon: Package, label: "مستودع الخبز", href: "/inventory", roles: ['ADMIN'] },
     { icon: Users, label: "قائمة العملاء", href: "/customers", roles: ['ADMIN', 'SALES'] },
+    { icon: Shield, label: "الموظفين والصلاحيات", href: "/users", roles: ['ADMIN'] },
     { icon: FileText, label: "تقارير المبيعات", href: "/reports", roles: ['ADMIN'] },
   ].filter(item => !item.roles || (user && item.roles.includes(user.role)));
 

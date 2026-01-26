@@ -13,6 +13,7 @@ import CustomersPage from "@/pages/Customers";
 import SettingsPage from "@/pages/Settings";
 import LoginPage from "@/pages/Login";
 import ReportsPage from "@/pages/Reports";
+import UsersPermissionsPage from "@/pages/UsersPermissions";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/customers" component={CustomersPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/reports" component={ReportsPage} />
+      <Route path="/users" component={UsersPermissionsPage} />
       <Route component={NotFound} />
     </Switch>
   );
