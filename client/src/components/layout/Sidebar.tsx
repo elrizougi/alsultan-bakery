@@ -36,17 +36,17 @@ export function Sidebar({ className }: SidebarProps) {
             key={item.href} 
             href={item.href}
             className={cn(
-              "flex items-center gap-4 rounded-xl px-4 py-3 text-[15px] font-bold transition-all flex-row-reverse group",
+              "flex items-center gap-4 rounded-xl px-4 py-3 text-[15px] font-bold transition-all flex-row group",
               location === item.href 
                 ? "bg-primary/10 text-primary shadow-sm" 
                 : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
             )}
           >
             <item.icon className={cn(
-              "h-5 w-5",
+              "h-5 w-5 ml-4",
               location === item.href ? "text-primary" : "text-slate-300 group-hover:text-slate-400"
             )} />
-            <span className="flex-1">{item.label}</span>
+            <span className="flex-1 text-right">{item.label}</span>
           </Link>
         ))}
       </div>
