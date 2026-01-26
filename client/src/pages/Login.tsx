@@ -17,8 +17,8 @@ export default function LoginPage() {
     e.preventDefault();
     // Simple mock logic
     let role: Role = 'ADMIN';
-    if (username.includes('driver')) role = 'DRIVER';
-    if (username.includes('sales')) role = 'SALES';
+    if (username.toLowerCase().includes('driver')) role = 'DRIVER';
+    if (username.toLowerCase().includes('sales')) role = 'SALES';
     
     login(username, role);
     setLocation("/");
