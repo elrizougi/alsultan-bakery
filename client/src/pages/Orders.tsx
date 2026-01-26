@@ -301,7 +301,7 @@ function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: 
             </div>
           </form>
         </div>
-      </div>
-    </DialogContent>
+      </DialogContent>
+    </Dialog>
   );
 }
