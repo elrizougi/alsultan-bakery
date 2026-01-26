@@ -23,6 +23,7 @@ export interface Product {
   sku: string;
   price: number;
   category: string;
+  stock: number;
 }
 
 export interface Customer {
@@ -78,13 +79,13 @@ export interface ReturnRecord {
 // --- Initial Data ---
 
 const PRODUCTS: Product[] = [
-  { id: 'p1', name: 'خبز صامولي', sku: 'SD-001', price: 6.50, category: 'Bread' },
-  { id: 'p2', name: 'باجيت فرنسي', sku: 'BG-002', price: 4.00, category: 'Bread' },
-  { id: 'p3', name: 'كرواسون زبدة', sku: 'CR-001', price: 3.50, category: 'Pastry' },
-  { id: 'p4', name: 'بان أو شوكولا', sku: 'PC-002', price: 3.75, category: 'Pastry' },
-  { id: 'p5', name: 'خبز ريف', sku: 'RB-001', price: 7.00, category: 'Bread' },
-  { id: 'p6', name: 'فوكاشيا', sku: 'FC-001', price: 18.00, category: 'Bread' },
-  { id: 'p7', name: 'مافن بلوبري', sku: 'MF-001', price: 3.25, category: 'Pastry' },
+  { id: 'p1', name: 'خبز صامولي', sku: 'SD-001', price: 6.50, category: 'Bread', stock: 150 },
+  { id: 'p2', name: 'باجيت فرنسي', sku: 'BG-002', price: 4.00, category: 'Bread', stock: 85 },
+  { id: 'p3', name: 'كرواسون زبدة', sku: 'CR-001', price: 3.50, category: 'Pastry', stock: 45 },
+  { id: 'p4', name: 'بان أو شوكولا', sku: 'PC-002', price: 3.75, category: 'Pastry', stock: 120 },
+  { id: 'p5', name: 'خبز ريف', sku: 'RB-001', price: 7.00, category: 'Bread', stock: 60 },
+  { id: 'p6', name: 'فوكاشيا', sku: 'FC-001', price: 18.00, category: 'Bread', stock: 30 },
+  { id: 'p7', name: 'مافن بلوبري', sku: 'MF-001', price: 3.25, category: 'Pastry', stock: 55 },
 ];
 
 const ROUTES: Route[] = [
@@ -102,7 +103,6 @@ const CUSTOMERS: Customer[] = [
 ];
 
 const TODAY = format(new Date(), 'yyyy-MM-dd');
-const YESTERDAY = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
 const ORDERS: Order[] = [
   {
@@ -145,6 +145,7 @@ interface AppState {
   updateRunStatus: (id: string, status: RunStatus) => void;
   addReturn: (ret: ReturnRecord) => void;
   assignOrderToRun: (runId: string, orderId: string) => void;
+  updateProductStock: (productId: string, newStock: number) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -175,7 +176,7 @@ export const useStore = create<AppState>()(
         dispatchRuns: state.dispatchRuns.map(r => r.id === id ? { ...r, status } : r)
       })),
 
-      addReturn: (ret) => set((state) => ({ returns: [...state.returns, ret] })),
+      addReturn: (ret) => set((state) => ({ returns: [ret, ...state.returns] })),
 
       assignOrderToRun: (runId, orderId) => set((state) => {
         const updatedOrders = state.orders.map(o => o.id === orderId ? { ...o, status: 'ASSIGNED' as Status } : o);
@@ -186,6 +187,10 @@ export const useStore = create<AppState>()(
         );
         return { orders: updatedOrders, dispatchRuns: updatedRuns };
       }),
+
+      updateProductStock: (productId, newStock) => set((state) => ({
+        products: state.products.map(p => p.id === productId ? { ...p, stock: newStock } : p)
+      })),
     }),
     {
       name: 'bakery-storage',
