@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useStore, DispatchRun } from "@/lib/store";
+import { useDispatchRuns, useRoutes, useOrders, useCustomers, useCreateDispatchRun, useDeleteDispatchRun, useUpdateDispatchRun } from "@/hooks/useData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Truck, Calendar, MapPin, ChevronLeft, Plus, MoreVertical, Trash2, Edit, Phone, User2, Package, FileText } from "lucide-react";
+import { Truck, Calendar, MapPin, ChevronLeft, Plus, MoreVertical, Trash2, Edit, Phone, User2, Package, FileText, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import {
@@ -30,15 +30,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import type { DispatchRun } from "@/lib/api";
 
 export default function DispatchPage() {
-  const { dispatchRuns, routes, orders, createDispatchRun, deleteDispatchRun, updateDispatchRun } = useStore();
+  const { data: dispatchRuns = [], isLoading } = useDispatchRuns();
+  const { data: routes = [] } = useRoutes();
+  const { data: orders = [] } = useOrders();
+  const { data: customers = [] } = useCustomers();
+  const createRun = useCreateDispatchRun();
+  const deleteRun = useDeleteDispatchRun();
+  const updateRun = useUpdateDispatchRun();
+  const { toast } = useToast();
+
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingRun, setEditingRun] = useState<DispatchRun | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState("");
 
-  const handleCreateRun = (e: React.FormEvent) => {
+  const handleCreateRun = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRouteId) return;
 
@@ -47,47 +57,74 @@ export default function DispatchPage() {
 
     // Get orders for this route that are confirmed but not assigned
     const routeOrders = orders.filter(o => {
-      const customer = useStore.getState().customers.find(c => c.id === o.customerId);
+      const customer = customers.find(c => c.id === o.customerId);
       return customer?.routeId === selectedRouteId && o.status === 'CONFIRMED';
     });
 
-    const newRun: DispatchRun = {
-      id: `run-${Math.random().toString(36).substr(2, 5)}`,
-      routeId: selectedRouteId,
-      date: format(new Date(), 'yyyy-MM-dd'),
-      status: 'DRAFT',
-      driverName: route.driverName,
-      orderIds: routeOrders.map(o => o.id),
-    };
-
-    createDispatchRun(newRun);
-    setOpen(false);
-    setSelectedRouteId("");
+    try {
+      await createRun.mutateAsync({
+        routeId: selectedRouteId,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        status: 'DRAFT',
+        driverName: route.driverName,
+        orderIds: routeOrders.map(o => o.id),
+      });
+      toast({ title: "تم إنشاء الرحلة بنجاح" });
+      setOpen(false);
+      setSelectedRouteId("");
+    } catch (error) {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    }
   };
 
-  const handleEditRun = (e: React.FormEvent) => {
+  const handleDeleteRun = async (id: string) => {
+    try {
+      await deleteRun.mutateAsync(id);
+      toast({ title: "تم حذف الرحلة" });
+    } catch (error) {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    }
+  };
+
+  const handleEditRun = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRun || !selectedRouteId) return;
 
     const route = routes.find(r => r.id === selectedRouteId);
     if (!route) return;
 
-    updateDispatchRun(editingRun.id, {
-      routeId: selectedRouteId,
-      driverName: route.driverName,
-    });
-    setEditOpen(false);
-    setEditingRun(null);
-    setSelectedRouteId("");
+    try {
+      await updateRun.mutateAsync({
+        id: editingRun.id,
+        routeId: selectedRouteId,
+        driverName: route.driverName,
+      });
+      toast({ title: "تم تحديث الرحلة" });
+      setEditOpen(false);
+      setEditingRun(null);
+      setSelectedRouteId("");
+    } catch (error) {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
       <div className="flex flex-col gap-10" dir="rtl">
         <div className="flex items-center justify-between flex-row-reverse">
           <div className="text-right">
-            <h1 className="text-4xl font-black text-slate-800">الموردين</h1>
-            <p className="text-slate-400 font-medium mt-1 text-lg">إدارة بيانات الموردين وسجل الطلبات.</p>
+            <h1 className="text-4xl font-black text-slate-800">رحلات التوزيع</h1>
+            <p className="text-slate-400 font-medium mt-1 text-lg">إدارة رحلات التوصيل اليومية.</p>
           </div>
           
           <div className="flex gap-2">
@@ -95,29 +132,34 @@ export default function DispatchPage() {
               <DialogTrigger asChild>
                 <Button className="gap-2 h-12 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
                   <Plus className="h-5 w-5" />
-                  إضافة مورد جديد
+                  إنشاء رحلة جديدة
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]" dir="rtl">
+              <DialogContent dir="rtl" className="sm:max-w-[450px] rounded-3xl">
                 <DialogHeader>
-                  <DialogTitle className="text-right">بدء رحلة توزيع جديدة</DialogTitle>
+                  <DialogTitle className="text-right text-2xl font-black">إنشاء رحلة توزيع</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleCreateRun} className="space-y-4 py-4">
-                  <div className="space-y-2 text-right">
-                    <Label>اختر خط التوزيع</Label>
+                <form onSubmit={handleCreateRun} className="space-y-6 py-4 text-right">
+                  <div className="space-y-3">
+                    <Label className="font-bold">خط التوزيع</Label>
                     <Select onValueChange={setSelectedRouteId} value={selectedRouteId}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="اختر الخط" />
+                      <SelectTrigger className="h-12 rounded-xl">
+                        <SelectValue placeholder="اختر خط التوزيع" />
                       </SelectTrigger>
                       <SelectContent>
-                        {routes.map(r => (
-                          <SelectItem key={r.id} value={r.id}>{r.name} ({r.driverName})</SelectItem>
+                        {routes.map(route => (
+                          <SelectItem key={route.id} value={route.id}>
+                            {route.name} - {route.driverName}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <DialogFooter>
-                    <Button type="submit" className="w-full">تأكيد وإنشاء الرحلة</Button>
+                  <DialogFooter className="flex flex-row-reverse gap-3 pt-4">
+                    <Button type="submit" className="h-12 rounded-xl font-bold" disabled={createRun.isPending}>
+                      {createRun.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إنشاء الرحلة"}
+                    </Button>
+                    <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => setOpen(false)}>إلغاء</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -125,19 +167,28 @@ export default function DispatchPage() {
           </div>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {dispatchRuns.map((run) => {
             const route = routes.find(r => r.id === run.routeId);
             return (
-              <Card key={run.id} className="rounded-2xl border-0 shadow-sm hover:shadow-xl transition-all relative group overflow-hidden bg-white">
-                <div className="absolute top-4 left-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Card key={run.id} className="rounded-3xl border-0 shadow-lg hover:shadow-xl transition-all overflow-hidden group">
+                <CardHeader className="p-6 pb-4 flex flex-row-reverse items-start justify-between">
+                  <div className="flex items-center gap-3 flex-row-reverse">
+                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <Truck className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="text-right">
+                      <CardTitle className="text-lg font-black text-slate-800">{route?.name || run.routeId}</CardTitle>
+                      <p className="text-sm text-slate-400 font-medium">{run.driverName}</p>
+                    </div>
+                  </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 bg-slate-100 hover:bg-slate-200">
-                        <MoreVertical className="h-4 w-4 text-slate-600" />
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical className="h-5 w-5 text-slate-400" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="rounded-xl">
                       <DropdownMenuItem 
                         className="flex items-center gap-2 justify-end font-bold"
                         onClick={() => {
@@ -150,111 +201,78 @@ export default function DispatchPage() {
                         <Edit className="h-4 w-4" />
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        className="flex items-center gap-2 justify-end text-destructive font-bold"
-                        onClick={() => deleteDispatchRun(run.id)}
+                        className="flex items-center gap-2 justify-end font-bold text-red-500"
+                        onClick={() => handleDeleteRun(run.id)}
                       >
                         حذف
                         <Trash2 className="h-4 w-4" />
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </div>
-                
-                <Link href={`/dispatch/${run.id}`} className="block h-full">
-                  <div className="p-8 space-y-6">
-                    <div className="flex justify-between items-start flex-row-reverse">
-                      <h3 className="text-2xl font-black text-slate-800">{route?.name}</h3>
-                      <div className={cn(
-                        "px-3 py-1 rounded-lg text-[10px] font-bold",
-                        run.status === 'CLOSED' ? "bg-status-closed" : "bg-emerald-50 text-emerald-600"
-                      )}>
-                        {run.status === 'CLOSED' ? 'غير نشط' : 'نشط'}
-                      </div>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-4">
+                  <div className="flex items-center justify-between flex-row-reverse">
+                    <div className="flex items-center gap-2 text-slate-500 text-sm flex-row-reverse">
+                      <Calendar className="h-4 w-4" />
+                      {run.date}
                     </div>
-
-                    <div className="space-y-4 pt-2">
-                       <div className="flex items-center gap-3 text-slate-400 justify-end flex-row-reverse text-sm font-medium">
-                         <User2 className="h-4 w-4" />
-                         <span>{run.driverName}</span>
-                       </div>
-                       <div className="flex items-center gap-3 text-slate-400 justify-end flex-row-reverse text-sm font-medium">
-                         <Phone className="h-4 w-4" />
-                         <span>0559876543</span>
-                       </div>
-                       <div className="flex items-center gap-3 text-slate-400 justify-end flex-row-reverse text-sm font-medium border-b pb-4">
-                         <MapPin className="h-4 w-4" />
-                         <span>contact@bakery.sa</span>
-                       </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-slate-300 text-right">أهم المنتجات:</p>
-                      <div className="flex gap-2 justify-end flex-wrap">
-                        <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-[10px] font-bold border border-slate-200/50">صامولي</span>
-                        <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-[10px] font-bold border border-slate-200/50">كرواسون</span>
-                        <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-[10px] font-bold border border-slate-200/50">باجيت</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 flex items-center justify-between flex-row-reverse border-t border-slate-50">
-                       <div className="text-[10px] font-bold text-slate-300">أخر رحلة: {run.date}</div>
-                       <div className="flex items-center gap-2 text-primary font-bold text-xs">
-                          <span className="border-b-2 border-primary/20 group-hover:border-primary transition-all">السجل</span>
-                          <FileText className="h-3 w-3" />
-                       </div>
-                    </div>
+                    <StatusBadge status={run.status} />
                   </div>
-                </Link>
+                  <div className="flex items-center justify-between flex-row-reverse pt-2">
+                    <div className="flex items-center gap-2 text-slate-600 flex-row-reverse">
+                      <Package className="h-4 w-4" />
+                      <span className="font-bold">{run.orderIds?.length || 0} طلبات</span>
+                    </div>
+                    <Link href={`/dispatch/${run.id}`}>
+                      <Button variant="ghost" size="sm" className="gap-1 text-primary font-bold rounded-xl hover:bg-primary/5">
+                        عرض التفاصيل
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
               </Card>
             );
           })}
+          {dispatchRuns.length === 0 && (
+            <div className="col-span-full text-center py-16 text-slate-400">
+              <Truck className="h-16 w-16 mx-auto mb-4 opacity-20" />
+              <p className="text-lg font-medium">لا توجد رحلات توزيع حتى الآن</p>
+              <p className="text-sm">أنشئ رحلة جديدة لبدء التوزيع</p>
+            </div>
+          )}
         </div>
 
-        {/* Recent Orders matching the table style in the image */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-black text-slate-800 text-right pr-2">سجل الطلبات الحديثة</h2>
-          <Card className="rounded-2xl border-0 shadow-sm overflow-hidden bg-white">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-right">
-                  <thead>
-                    <tr className="bg-slate-50/50 border-b">
-                      <th className="px-8 py-4 text-[13px] font-bold text-slate-400">الحالة</th>
-                      <th className="px-8 py-4 text-[13px] font-bold text-slate-400">القيمة</th>
-                      <th className="px-8 py-4 text-[13px] font-bold text-slate-400">التاريخ</th>
-                      <th className="px-8 py-4 text-[13px] font-bold text-slate-400">المورد</th>
-                      <th className="px-8 py-4 text-[13px] font-bold text-slate-400">رقم الطلب</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {orders.slice(0, 4).map((order) => {
-                      const customer = useStore.getState().customers.find(c => c.id === order.customerId);
-                      return (
-                        <tr key={order.id} className="hover:bg-slate-50 transition-colors group">
-                          <td className="px-8 py-5">
-                            <StatusBadge status={order.status} className="rounded-lg shadow-sm" />
-                          </td>
-                          <td className="px-8 py-5 font-bold text-slate-700">
-                            {order.totalAmount.toLocaleString()} ر.س
-                          </td>
-                          <td className="px-8 py-5 text-slate-500 font-medium">
-                            {order.date}
-                          </td>
-                          <td className="px-8 py-5 font-bold text-slate-800">
-                            {customer?.name}
-                          </td>
-                          <td className="px-8 py-5 text-slate-400 font-mono text-sm">
-                            PO-{order.id.toUpperCase()}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent dir="rtl" className="sm:max-w-[450px] rounded-3xl">
+            <DialogHeader>
+              <DialogTitle className="text-right text-2xl font-black">تعديل الرحلة</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditRun} className="space-y-6 py-4 text-right">
+              <div className="space-y-3">
+                <Label className="font-bold">خط التوزيع</Label>
+                <Select onValueChange={setSelectedRouteId} value={selectedRouteId}>
+                  <SelectTrigger className="h-12 rounded-xl">
+                    <SelectValue placeholder="اختر خط التوزيع" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {routes.map(route => (
+                      <SelectItem key={route.id} value={route.id}>
+                        {route.name} - {route.driverName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <DialogFooter className="flex flex-row-reverse gap-3 pt-4">
+                <Button type="submit" className="h-12 rounded-xl font-bold" disabled={updateRun.isPending}>
+                  {updateRun.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ التعديلات"}
+                </Button>
+                <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => setEditOpen(false)}>إلغاء</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

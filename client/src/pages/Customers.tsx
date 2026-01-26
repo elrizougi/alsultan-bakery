@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useStore, Customer } from "@/lib/store";
+import { useCustomers, useRoutes, useCreateCustomer } from "@/hooks/useData";
 import {
   Table,
   TableBody,
@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, Phone, MapPin, ExternalLink, Plus } from "lucide-react";
+import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import {
@@ -29,9 +29,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CustomersPage() {
-  const { customers, routes, addCustomer } = useStore();
+  const { data: customers = [], isLoading } = useCustomers();
+  const { data: routes = [] } = useRoutes();
+  const createCustomer = useCreateCustomer();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
   // Form State
@@ -41,28 +45,43 @@ export default function CustomersPage() {
   const [phone, setPhone] = useState("");
   const [routeId, setRouteId] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !address || !routeId) return;
+    if (!name || !address || !phone) {
+      toast({ title: "يرجى ملء جميع الحقول المطلوبة", variant: "destructive" });
+      return;
+    }
 
-    const newCustomer: Customer = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      address,
-      locationUrl,
-      phone,
-      routeId,
-    };
-
-    addCustomer(newCustomer);
-    setOpen(false);
-    // Reset form
-    setName("");
-    setAddress("");
-    setLocationUrl("");
-    setPhone("");
-    setRouteId("");
+    try {
+      await createCustomer.mutateAsync({
+        name,
+        address,
+        locationUrl: locationUrl || undefined,
+        phone,
+        routeId: routeId || undefined,
+      });
+      toast({ title: "تم إضافة العميل بنجاح" });
+      setOpen(false);
+      // Reset form
+      setName("");
+      setAddress("");
+      setLocationUrl("");
+      setPhone("");
+      setRouteId("");
+    } catch (error) {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -100,30 +119,33 @@ export default function CustomersPage() {
                         <SelectValue placeholder="اختر الخط" />
                       </SelectTrigger>
                       <SelectContent>
-                        {routes.map(r => (
-                          <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                        {routes.map(route => (
+                          <SelectItem key={route.id} value={route.id}>{route.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address">العنوان الوصفي</Label>
-                  <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="مثال: شارع الملك خالد، بجوار البنك" required />
+                  <Label htmlFor="address">العنوان</Label>
+                  <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="location">رابط الموقع (Google Maps)</Label>
+                  <Label htmlFor="location">رابط موقع Google Maps (اختياري)</Label>
                   <Input id="location" value={locationUrl} onChange={(e) => setLocationUrl(e.target.value)} placeholder="https://maps.google.com/..." />
                 </div>
-                <DialogFooter className="mt-6">
-                  <Button type="submit" className="w-full">حفظ العميل</Button>
+                <DialogFooter className="flex flex-row-reverse gap-2 pt-4">
+                  <Button type="submit" disabled={createCustomer.isPending}>
+                    {createCustomer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ العميل"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
         </div>
 
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <Card>
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">إجمالي العملاء</CardTitle>
@@ -133,6 +155,15 @@ export default function CustomersPage() {
               <div className="text-2xl font-bold">{customers.length}</div>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">خطوط التوزيع النشطة</CardTitle>
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="text-right">
+              <div className="text-2xl font-bold">{routes.length}</div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="rounded-md border bg-card overflow-hidden">
@@ -140,10 +171,10 @@ export default function CustomersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="text-right">اسم العميل</TableHead>
-                <TableHead className="text-right">العنوان والموقع</TableHead>
                 <TableHead className="text-right">رقم الهاتف</TableHead>
+                <TableHead className="text-right">العنوان</TableHead>
                 <TableHead className="text-right">خط التوزيع</TableHead>
-                <TableHead className="text-left">إجراءات</TableHead>
+                <TableHead className="text-right">الموقع</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -153,41 +184,42 @@ export default function CustomersPage() {
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1 items-end">
-                        <div className="flex items-center gap-1 flex-row-reverse">
-                          <MapPin className="h-3 w-3 text-muted-foreground" />
-                          <span>{customer.address}</span>
-                        </div>
-                        {customer.locationUrl && (
-                          <a 
-                            href={customer.locationUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-primary flex items-center gap-1 hover:underline flex-row-reverse"
-                          >
-                            <ExternalLink className="h-2 w-2" />
-                            رابط الخريطة
-                          </a>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 flex-row-reverse font-mono text-xs">
+                      <div className="flex items-center gap-2 flex-row-reverse">
                         <Phone className="h-3 w-3 text-muted-foreground" />
-                        <span>{customer.phone}</span>
+                        {customer.phone}
                       </div>
                     </TableCell>
+                    <TableCell>{customer.address}</TableCell>
                     <TableCell>
-                      <span className="text-xs bg-muted px-2 py-1 rounded-full">
-                        {route?.name || customer.routeId}
+                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                        {route?.name || '-'}
                       </span>
                     </TableCell>
-                    <TableCell className="text-left">
-                      <Button variant="ghost" size="sm">تعديل</Button>
+                    <TableCell>
+                      {customer.locationUrl ? (
+                        <a
+                          href={customer.locationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline text-sm"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          خريطة
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
               })}
+              {customers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-slate-400">
+                    لا يوجد عملاء مسجلين
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>

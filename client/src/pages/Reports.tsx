@@ -1,6 +1,7 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useStore } from "@/lib/store";
+import { useOrders, useCustomers, useProducts } from "@/hooks/useData";
+import { Button } from "@/components/ui/button";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -8,7 +9,8 @@ import {
   ShoppingCart, 
   ArrowUpRight, 
   ArrowDownRight,
-  Calendar
+  Calendar,
+  Loader2
 } from "lucide-react";
 import { 
   Table, 
@@ -18,12 +20,26 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function ReportsPage() {
-  const { orders, customers, products } = useStore();
+  const { data: orders = [], isLoading: ordersLoading } = useOrders();
+  const { data: customers = [] } = useCustomers();
+  const { data: products = [] } = useProducts();
 
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.totalAmount), 0);
   const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
+
+  if (ordersLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -80,22 +96,28 @@ export default function ReportsPage() {
               <CardTitle className="text-xl font-bold text-slate-800 text-right">أفضل المنتجات مبيعاً</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Table className="text-right">
+              <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right px-8">المنتج</TableHead>
-                    <TableHead className="text-right px-8">الكمية</TableHead>
-                    <TableHead className="text-right px-8">الإيراد</TableHead>
+                    <TableHead className="text-right font-bold px-8">المنتج</TableHead>
+                    <TableHead className="text-right font-bold">الكمية المباعة</TableHead>
+                    <TableHead className="text-right font-bold px-8">الإيرادات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.slice(0, 5).map(p => (
-                    <TableRow key={p.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-8 py-4 font-bold text-slate-700">{p.name}</td>
-                      <td className="px-8 py-4 text-slate-500 font-medium">120</td>
-                      <td className="px-8 py-4 font-bold text-primary">{(120 * p.price).toLocaleString()} ر.س</td>
-                    </TableRow>
-                  ))}
+                  {products.slice(0, 5).map((product, idx) => {
+                    const soldQty = orders.reduce((acc, order) => {
+                      const item = order.items?.find(i => i.productId === product.id);
+                      return acc + (item?.quantity || 0);
+                    }, 0);
+                    return (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-bold text-slate-700 px-8">{product.name}</TableCell>
+                        <TableCell className="font-bold">{soldQty}</TableCell>
+                        <TableCell className="font-black text-primary px-8">{(soldQty * parseFloat(product.price)).toFixed(0)} ر.س</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -103,13 +125,30 @@ export default function ReportsPage() {
 
           <Card className="rounded-3xl border-0 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50/50 border-b px-8 py-6">
-              <CardTitle className="text-xl font-bold text-slate-800 text-right">تحليل المبيعات الأسبوعي</CardTitle>
+              <CardTitle className="text-xl font-bold text-slate-800 text-right">أحدث الطلبات</CardTitle>
             </CardHeader>
-            <CardContent className="p-8 h-[300px] flex items-center justify-center border-dashed border-2 border-slate-100 m-8 rounded-2xl">
-              <div className="text-center">
-                <BarChart3 className="h-12 w-12 text-slate-200 mx-auto mb-4" />
-                <p className="text-slate-400 font-medium font-cairo">سيتم عرض الرسم البياني هنا</p>
-              </div>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right font-bold px-8">العميل</TableHead>
+                    <TableHead className="text-right font-bold">التاريخ</TableHead>
+                    <TableHead className="text-right font-bold px-8">المبلغ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders.slice(0, 5).map(order => {
+                    const customer = customers.find(c => c.id === order.customerId);
+                    return (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-bold text-slate-700 px-8">{customer?.name || 'غير معروف'}</TableCell>
+                        <TableCell className="text-slate-500">{order.date}</TableCell>
+                        <TableCell className="font-black text-primary px-8">{parseFloat(order.totalAmount).toFixed(0)} ر.س</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </div>
@@ -118,35 +157,48 @@ export default function ReportsPage() {
   );
 }
 
-function ReportCard({ title, value, change, isPositive, icon: Icon, color }: any) {
-  const colors: any = {
-    emerald: "bg-emerald-50 text-emerald-600",
-    blue: "bg-blue-50 text-blue-600",
-    indigo: "bg-indigo-50 text-indigo-600",
-    amber: "bg-amber-50 text-amber-600",
+function ReportCard({ 
+  title, 
+  value, 
+  change, 
+  isPositive, 
+  icon: Icon, 
+  color 
+}: { 
+  title: string; 
+  value: string; 
+  change: string; 
+  isPositive: boolean;
+  icon: LucideIcon;
+  color: 'emerald' | 'blue' | 'indigo' | 'amber';
+}) {
+  const colorClasses = {
+    emerald: 'bg-emerald-50 text-emerald-600',
+    blue: 'bg-blue-50 text-blue-600',
+    indigo: 'bg-indigo-50 text-indigo-600',
+    amber: 'bg-amber-50 text-amber-600',
   };
 
   return (
-    <Card className="rounded-3xl border-0 shadow-sm p-6 hover:shadow-md transition-all">
-      <div className="flex items-start justify-between flex-row-reverse mb-4">
-        <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center shadow-inner", colors[color])}>
-          <Icon className="h-6 w-6" />
+    <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between flex-row-reverse mb-4">
+          <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center", colorClasses[color])}>
+            <Icon className="h-6 w-6" />
+          </div>
+          <div className={cn(
+            "flex items-center gap-1 text-sm font-bold px-2 py-1 rounded-lg",
+            isPositive ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+          )}>
+            {isPositive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+            {change}
+          </div>
         </div>
-        <div className={cn(
-          "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold",
-          isPositive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
-        )}>
-          {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-          {change}
+        <div className="text-right">
+          <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
+          <p className="text-3xl font-black text-slate-800">{value}</p>
         </div>
-      </div>
-      <div className="text-right">
-        <p className="text-sm font-bold text-slate-400 mb-1">{title}</p>
-        <h3 className="text-2xl font-black text-slate-800">{value}</h3>
-      </div>
+      </CardContent>
     </Card>
   );
 }
-
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";

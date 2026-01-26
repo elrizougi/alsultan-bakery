@@ -1,69 +1,89 @@
 import { useState } from "react";
-import { useStore, Role } from "@/lib/store";
+import { useStore } from "@/lib/store";
+import { api } from "@/lib/api";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Package } from "lucide-react";
+import { Package, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const login = useStore((state) => state.login);
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple mock logic
-    let role: Role = 'ADMIN';
-    if (username.toLowerCase().includes('driver')) role = 'DRIVER';
-    if (username.toLowerCase().includes('sales')) role = 'SALES';
+    setIsLoading(true);
     
-    login(username, role);
-    setLocation("/");
+    try {
+      const user = await api.login(username, password);
+      login(user);
+      setLocation("/");
+    } catch (error) {
+      toast({
+        title: "خطأ في تسجيل الدخول",
+        description: "اسم المستخدم أو كلمة المرور غير صحيحة",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-muted/30 p-4" dir="rtl">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto h-12 w-12 rounded-xl bg-primary flex items-center justify-center mb-2">
-            <Package className="h-7 w-7 text-primary-foreground" />
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4" dir="rtl">
+      <Card className="w-full max-w-md shadow-2xl border-0 rounded-3xl overflow-hidden">
+        <CardHeader className="text-center space-y-4 pb-2 pt-10">
+          <div className="mx-auto h-16 w-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+            <Package className="h-9 w-9 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">تسجيل الدخول</CardTitle>
-          <CardDescription>نظام إدارة المخبوزات المتكامل</CardDescription>
+          <div>
+            <CardTitle className="text-3xl font-black text-slate-800">تسجيل الدخول</CardTitle>
+            <CardDescription className="text-slate-500 font-medium mt-2">نظام إدارة المخبوزات المتكامل</CardDescription>
+          </div>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2 text-right">
-              <Label htmlFor="username">اسم المستخدم</Label>
+        <CardContent className="p-8 pt-6">
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-3 text-right">
+              <Label htmlFor="username" className="font-bold text-slate-600">اسم المستخدم</Label>
               <Input 
                 id="username" 
                 placeholder="أدخل اسم المستخدم" 
-                className="text-right"
+                className="text-right h-12 rounded-xl border-slate-200 font-bold"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
               />
-              <p className="text-[10px] text-muted-foreground">استخدم 'admin' للمدير، 'driver' للسائق</p>
             </div>
-            <div className="space-y-2 text-right">
-              <Label htmlFor="password">كلمة المرور</Label>
+            <div className="space-y-3 text-right">
+              <Label htmlFor="password" className="font-bold text-slate-600">كلمة المرور</Label>
               <Input 
                 id="password" 
                 type="password" 
                 placeholder="••••••••" 
-                className="text-right"
+                className="text-right h-12 rounded-xl border-slate-200 font-bold"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
-            <Button type="submit" className="w-full h-11 text-lg">
-              دخول
+            <Button type="submit" className="w-full h-14 text-lg rounded-2xl font-black bg-primary shadow-lg shadow-primary/20" disabled={isLoading}>
+              {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "دخول"}
             </Button>
           </form>
+          
+          <div className="mt-8 p-4 bg-slate-50 rounded-2xl text-xs text-slate-500 text-right space-y-1">
+            <p className="font-black text-slate-600 mb-2">حسابات تجريبية:</p>
+            <p><span className="font-bold text-primary">admin</span> / admin123 - مدير النظام</p>
+            <p><span className="font-bold text-blue-500">driver1</span> / driver123 - مندوب توصيل</p>
+            <p><span className="font-bold text-amber-500">sales1</span> / sales123 - مبيعات</p>
+          </div>
         </CardContent>
       </Card>
     </div>

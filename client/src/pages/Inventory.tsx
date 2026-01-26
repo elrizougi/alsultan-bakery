@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useStore, Product } from "@/lib/store";
+import { useProducts, useUpdateProductStock } from "@/hooks/useData";
 import {
   Table,
   TableBody,
@@ -10,34 +10,53 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, AlertTriangle, TrendingUp, Plus, Edit2 } from "lucide-react";
+import { Package, AlertTriangle, TrendingUp, Plus, Edit2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import type { Product } from "@/lib/api";
 
 export default function InventoryPage() {
-  const { products, updateProductStock } = useStore();
+  const { data: products = [], isLoading } = useProducts();
+  const updateStock = useUpdateProductStock();
+  const { toast } = useToast();
+  
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newStock, setNewStock] = useState("");
 
   const lowStockItems = products.filter(item => item.stock < 50);
 
-  const handleUpdateStock = (e: React.FormEvent) => {
+  const handleUpdateStock = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingProduct && newStock !== "") {
-      updateProductStock(editingProduct.id, parseInt(newStock));
-      setEditingProduct(null);
-      setNewStock("");
+      try {
+        await updateStock.mutateAsync({ id: editingProduct.id, stock: parseInt(newStock) });
+        toast({ title: "تم تحديث المخزون" });
+        setEditingProduct(null);
+        setNewStock("");
+      } catch (error) {
+        toast({ title: "حدث خطأ", variant: "destructive" });
+      }
     }
   };
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -81,7 +100,7 @@ export default function InventoryPage() {
             </CardHeader>
             <CardContent className="text-right">
               <div className="text-2xl font-bold">
-                {products.reduce((acc, item) => acc + (item.stock * item.price), 0).toLocaleString()} ر.س
+                {products.reduce((acc, item) => acc + (item.stock * parseFloat(item.price)), 0).toLocaleString()} ر.س
               </div>
             </CardContent>
           </Card>
@@ -101,60 +120,73 @@ export default function InventoryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="font-mono text-xs">{item.sku}</TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell>{item.price.toFixed(2)} ر.س</TableCell>
-                  <TableCell className="font-bold">{item.stock ?? 0}</TableCell>
+              {products.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell className="font-mono text-xs">{product.sku}</TableCell>
+                  <TableCell>{product.category}</TableCell>
+                  <TableCell>{parseFloat(product.price).toFixed(2)} ر.س</TableCell>
+                  <TableCell className="font-bold">{product.stock}</TableCell>
                   <TableCell>
-                    {(item.stock ?? 0) < 50 ? (
-                      <span className="text-xs bg-destructive/10 text-destructive px-2 py-1 rounded-full font-medium">
+                    {product.stock < 50 ? (
+                      <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
                         منخفض
                       </span>
                     ) : (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                        جيد
+                      <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                        متوفر
                       </span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Dialog open={!!editingProduct && editingProduct.id === item.id} onOpenChange={(o) => !o && setEditingProduct(null)}>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => {
-                          setEditingProduct(item);
-                          setNewStock((item.stock ?? 0).toString());
-                        }}>
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px]" dir="rtl">
-                        <DialogHeader>
-                          <DialogTitle className="text-right">تحديث المخزون - {item.name}</DialogTitle>
-                        </DialogHeader>
-                        <form onSubmit={handleUpdateStock} className="space-y-4 py-4">
-                          <div className="space-y-2 text-right">
-                            <Label>الكمية الجديدة في المستودع</Label>
-                            <Input 
-                              type="number" 
-                              value={newStock} 
-                              onChange={(e) => setNewStock(e.target.value)} 
-                              required
-                            />
-                          </div>
-                          <DialogFooter>
-                            <Button type="submit" className="w-full">تحديث الكمية</Button>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingProduct(product);
+                        setNewStock(product.stock.toString());
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
+
+        <Dialog open={!!editingProduct} onOpenChange={(open) => !open && setEditingProduct(null)}>
+          <DialogContent dir="rtl" className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="text-right">تحديث المخزون</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateStock} className="space-y-4 py-4 text-right">
+              <div className="space-y-2">
+                <Label>المنتج</Label>
+                <div className="p-3 bg-muted rounded-md font-bold">{editingProduct?.name}</div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="stock">الكمية الجديدة</Label>
+                <Input
+                  id="stock"
+                  type="number"
+                  value={newStock}
+                  onChange={(e) => setNewStock(e.target.value)}
+                  min="0"
+                />
+              </div>
+              <DialogFooter className="flex flex-row-reverse gap-2 pt-4">
+                <Button type="submit" disabled={updateStock.isPending}>
+                  {updateStock.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setEditingProduct(null)}>
+                  إلغاء
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
