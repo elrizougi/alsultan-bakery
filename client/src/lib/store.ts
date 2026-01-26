@@ -143,6 +143,8 @@ interface AppState {
   addOrder: (order: Order) => void;
   updateOrderStatus: (id: string, status: Status) => void;
   createDispatchRun: (run: DispatchRun) => void;
+  updateDispatchRun: (id: string, updates: Partial<DispatchRun>) => void;
+  deleteDispatchRun: (id: string) => void;
   updateRunStatus: (id: string, status: RunStatus) => void;
   addReturn: (ret: ReturnRecord) => void;
   addCustomer: (customer: Customer) => void;
@@ -172,7 +174,15 @@ export const useStore = create<AppState>()(
         orders: state.orders.map(o => o.id === id ? { ...o, status } : o)
       })),
 
-      createDispatchRun: (run) => set((state) => ({ dispatchRuns: [...state.dispatchRuns, run] })),
+      createDispatchRun: (run) => set((state) => ({ dispatchRuns: [run, ...state.dispatchRuns] })),
+
+      updateDispatchRun: (id, updates) => set((state) => ({
+        dispatchRuns: state.dispatchRuns.map(r => r.id === id ? { ...r, ...updates } : r)
+      })),
+
+      deleteDispatchRun: (id) => set((state) => ({
+        dispatchRuns: state.dispatchRuns.filter(r => r.id !== id)
+      })),
 
       updateRunStatus: (id, status) => set((state) => ({
         dispatchRuns: state.dispatchRuns.map(r => r.id === id ? { ...r, status } : r)

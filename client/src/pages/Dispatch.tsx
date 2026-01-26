@@ -4,8 +4,14 @@ import { useStore, DispatchRun } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Truck, Calendar, MapPin, ChevronLeft, Plus } from "lucide-react";
+import { Truck, Calendar, MapPin, ChevronLeft, Plus, MoreVertical, Trash2, Edit } from "lucide-react";
 import { Link } from "wouter";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -25,8 +31,10 @@ import {
 import { format } from "date-fns";
 
 export default function DispatchPage() {
-  const { dispatchRuns, routes, orders, createDispatchRun } = useStore();
+  const { dispatchRuns, routes, orders, createDispatchRun, deleteDispatchRun, updateDispatchRun } = useStore();
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingRun, setEditingRun] = useState<DispatchRun | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState("");
 
   const handleCreateRun = (e: React.FormEvent) => {
@@ -56,6 +64,22 @@ export default function DispatchPage() {
     setSelectedRouteId("");
   };
 
+  const handleEditRun = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRun || !selectedRouteId) return;
+
+    const route = routes.find(r => r.id === selectedRouteId);
+    if (!route) return;
+
+    updateDispatchRun(editingRun.id, {
+      routeId: selectedRouteId,
+      driverName: route.driverName,
+    });
+    setEditOpen(false);
+    setEditingRun(null);
+    setSelectedRouteId("");
+  };
+
   return (
     <AdminLayout>
       <div className="flex flex-col gap-6" dir="rtl">
@@ -65,50 +89,104 @@ export default function DispatchPage() {
             <p className="text-muted-foreground">إدارة خطوط التوصيل اليومية وكشوف التحميل.</p>
           </div>
           
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                إنشاء رحلة جديدة
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]" dir="rtl">
-              <DialogHeader>
-                <DialogTitle className="text-right">بدء رحلة توزيع جديدة</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreateRun} className="space-y-4 py-4">
-                <div className="space-y-2 text-right">
-                  <Label>اختر خط التوزيع</Label>
-                  <Select onValueChange={setSelectedRouteId} value={selectedRouteId}>
-                    <SelectTrigger className="text-right">
-                      <SelectValue placeholder="اختر الخط" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {routes.map(r => (
-                        <SelectItem key={r.id} value={r.id}>{r.name} ({r.driverName})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[10px] text-muted-foreground">سيتم تلقائياً سحب جميع الطلبات المؤكدة والتابعة لهذا الخط.</p>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" className="w-full">تأكيد وإنشاء الرحلة</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  إنشاء رحلة جديدة
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]" dir="rtl">
+                <DialogHeader>
+                  <DialogTitle className="text-right">بدء رحلة توزيع جديدة</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreateRun} className="space-y-4 py-4">
+                  <div className="space-y-2 text-right">
+                    <Label>اختر خط التوزيع</Label>
+                    <Select onValueChange={setSelectedRouteId} value={selectedRouteId}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="اختر الخط" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {routes.map(r => (
+                          <SelectItem key={r.id} value={r.id}>{r.name} ({r.driverName})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground">سيتم تلقائياً سحب جميع الطلبات المؤكدة والتابعة لهذا الخط.</p>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" className="w-full">تأكيد وإنشاء الرحلة</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <DialogContent className="sm:max-w-[425px]" dir="rtl">
+                <DialogHeader>
+                  <DialogTitle className="text-right">تعديل رحلة التوزيع</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleEditRun} className="space-y-4 py-4">
+                  <div className="space-y-2 text-right">
+                    <Label>تعديل خط التوزيع</Label>
+                    <Select onValueChange={setSelectedRouteId} value={selectedRouteId}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="اختر الخط" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {routes.map(r => (
+                          <SelectItem key={r.id} value={r.id}>{r.name} ({r.driverName})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" className="w-full">حفظ التغييرات</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {dispatchRuns.map((run) => {
             const route = routes.find(r => r.id === run.routeId);
             return (
-              <Link 
-                key={run.id} 
-                href={`/dispatch/${run.id}`}
-                className="block group"
-              >
-                <Card className="transition-all hover:shadow-md border-r-4 border-r-primary/0 hover:border-r-primary">
+              <Card key={run.id} className="transition-all hover:shadow-md border-r-4 border-r-primary/0 hover:border-r-primary relative group">
+                <div className="absolute top-2 left-2 z-10">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem 
+                        className="flex items-center gap-2 justify-end"
+                        onClick={() => {
+                          setEditingRun(run);
+                          setSelectedRouteId(run.routeId);
+                          setEditOpen(true);
+                        }}
+                      >
+                        تعديل
+                        <Edit className="h-4 w-4" />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="flex items-center gap-2 justify-end text-destructive"
+                        onClick={() => deleteDispatchRun(run.id)}
+                      >
+                        حذف
+                        <Trash2 className="h-4 w-4" />
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                
+                <Link href={`/dispatch/${run.id}`} className="block h-full">
                   <CardHeader className="pb-3 text-right">
                     <div className="flex justify-between items-start flex-row-reverse">
                       <CardTitle className="text-lg font-bold flex items-center gap-2 flex-row-reverse">
@@ -136,8 +214,8 @@ export default function DispatchPage() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-              </Link>
+                </Link>
+              </Card>
             );
           })}
           {dispatchRuns.length === 0 && (
