@@ -21,8 +21,8 @@
   --color-popover: hsl(0 0% 100%);
   --color-popover-foreground: hsl(222 47% 11%);
 
-  --color-primary: hsl(221 83% 53%);
-  --color-primary-foreground: hsl(210 40% 98%);
+  --color-primary: hsl(164 100% 33%); /* Matching the green/teal in the image */
+  --color-primary-foreground: hsl(0 0% 100%);
 
   --color-secondary: hsl(210 40% 96.1%);
   --color-secondary-foreground: hsl(222 47% 11.2%);
@@ -30,23 +30,23 @@
   --color-muted: hsl(210 40% 96.1%);
   --color-muted-foreground: hsl(215.4 16.3% 46.9%);
 
-  --color-accent: hsl(210 40% 96.1%);
-  --color-accent-foreground: hsl(222 47% 11.2%);
+  --color-accent: hsl(164 100% 95%);
+  --color-accent-foreground: hsl(164 100% 20%);
 
   --color-destructive: hsl(0 84.2% 60.2%);
   --color-destructive-foreground: hsl(210 40% 98%);
 
   --color-border: hsl(214.3 31.8% 91.4%);
   --color-input: hsl(214.3 31.8% 91.4%);
-  --color-ring: hsl(221 83% 53%);
+  --color-ring: hsl(164 100% 33%);
 
-  --color-sidebar: hsl(222 47% 11%);
-  --color-sidebar-foreground: hsl(210 40% 98%);
-  --color-sidebar-primary: hsl(221 83% 53%);
+  --color-sidebar: hsl(0 0% 100%);
+  --color-sidebar-foreground: hsl(215 16% 47%);
+  --color-sidebar-primary: hsl(164 100% 33%);
   --color-sidebar-primary-foreground: hsl(0 0% 100%);
-  --color-sidebar-accent: hsl(217 33% 17%);
-  --color-sidebar-accent-foreground: hsl(210 40% 98%);
-  --color-sidebar-border: hsl(217 33% 17%);
+  --color-sidebar-accent: hsl(164 100% 95%);
+  --color-sidebar-accent-foreground: hsl(164 100% 25%);
+  --color-sidebar-border: hsl(214 32% 91%);
 }
 
 @layer base {
@@ -54,18 +54,27 @@
     @apply border-border;
   }
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased bg-[#f8fafc] text-foreground;
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
-  }
-  .gradient-primary {
-    @apply bg-gradient-to-br from-primary to-blue-600;
+    @apply bg-white border border-slate-100 shadow-sm rounded-2xl;
   }
   .soft-shadow {
-    @apply shadow-[0_8px_30px_rgb(0,0,0,0.04)];
+    @apply shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)];
   }
+}
+
+/* Custom Status Colors matching the image */
+@layer utilities {
+  .bg-status-draft { @apply bg-slate-100 text-slate-600 border-transparent; }
+  .bg-status-confirmed { @apply bg-blue-50 text-blue-600 border-transparent; }
+  .bg-status-assigned { @apply bg-indigo-50 text-indigo-600 border-transparent; }
+  .bg-status-loaded { @apply bg-amber-50 text-amber-600 border-transparent; }
+  .bg-status-out { @apply bg-primary/10 text-primary border-transparent; }
+  .bg-status-delivered { @apply bg-emerald-50 text-emerald-600 border-transparent; }
+  .bg-status-returned { @apply bg-red-50 text-red-600 border-transparent; }
+  .bg-status-closed { @apply bg-slate-100 text-slate-400 border-slate-200; }
 }

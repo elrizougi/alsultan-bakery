@@ -9,13 +9,25 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const statusLower = status.toLowerCase();
   
+  const labelMap: Record<string, string> = {
+    'draft': 'مسودة',
+    'confirmed': 'مؤكد',
+    'assigned': 'بانتظار التحميل',
+    'loaded': 'تم التحميل',
+    'out': 'جاري التوصيل',
+    'delivered': 'مكتمل',
+    'returned': 'مرتجع الميدان',
+    'closed': 'مغلق',
+    'canceled': 'ملغي'
+  };
+
   return (
     <span className={cn(
-      "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-transparent capitalize",
+      "inline-flex items-center px-4 py-1.5 rounded-lg text-xs font-bold border-0",
       `bg-status-${statusLower}`,
       className
     )}>
-      {statusLower}
+      {labelMap[statusLower] || statusLower}
     </span>
   );
 }
