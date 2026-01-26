@@ -32,21 +32,21 @@ export default function OrdersPage() {
   return (
     <AdminLayout>
       <div className="flex flex-col gap-6" dir="rtl">
-        <div className="flex items-center justify-between flex-row-reverse">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="text-right">
-            <h1 className="text-3xl font-bold tracking-tight">الطلبات</h1>
-            <p className="text-muted-foreground">إدارة طلبات العملاء وحالات التوصيل.</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">الطلبات</h1>
+            <p className="text-sm text-muted-foreground">إدارة طلبات العملاء وحالات التوصيل.</p>
           </div>
-          <Button onClick={() => setIsCreateOpen(true)} className="flex-row-reverse gap-2">
+          <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto flex-row-reverse gap-2">
             <Plus className="h-4 w-4" /> إنشاء طلب جديد
           </Button>
         </div>
 
-        <div className="flex items-center gap-4 flex-row-reverse">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
             <Search className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="ابحث عن الطلبات..."
+              placeholder="ابحث..."
               className="pr-8 text-right"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -57,7 +57,39 @@ export default function OrdersPage() {
           </Button>
         </div>
 
-        <div className="rounded-md border bg-card overflow-hidden">
+        {/* Responsive view: Table on desktop, Cards on mobile */}
+        <div className="md:hidden space-y-3">
+           {filteredOrders.map((order) => {
+              const customer = customers.find(c => c.id === order.customerId);
+              return (
+                <div key={order.id} className="bg-card border rounded-lg p-4 space-y-2">
+                   <div className="flex justify-between items-start flex-row-reverse">
+                      <div className="text-right">
+                         <div className="font-bold">{customer?.name}</div>
+                         <div className="text-xs font-mono text-muted-foreground">#{order.id}</div>
+                      </div>
+                      <StatusBadge status={order.status} className="text-[10px]" />
+                   </div>
+                   <div className="flex justify-between text-sm flex-row-reverse">
+                      <div className="text-muted-foreground">الإجمالي: {order.totalAmount.toFixed(1)} ر.س</div>
+                      <div className="text-muted-foreground">{order.date}</div>
+                   </div>
+                   {order.status === 'DRAFT' && (
+                     <Button 
+                       size="sm" 
+                       variant="outline" 
+                       className="w-full h-9 text-primary border-primary/20"
+                       onClick={() => updateOrderStatus(order.id, 'CONFIRMED')}
+                     >
+                       تأكيد الطلب
+                     </Button>
+                   )}
+                </div>
+              );
+           })}
+        </div>
+
+        <div className="hidden md:block rounded-md border bg-card overflow-hidden">
           <Table className="text-right">
             <TableHeader>
               <TableRow>
@@ -128,11 +160,11 @@ function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="text-right">
+      <DialogContent dir="rtl" className="text-right max-w-[90vw] sm:max-w-md rounded-lg">
         <DialogHeader>
           <DialogTitle className="text-right">إنشاء طلب جديد</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-2">
             <Label className="block text-right">العميل</Label>
             <Select>
@@ -146,12 +178,12 @@ function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpenChange
               </SelectContent>
             </Select>
           </div>
-          <div className="p-4 bg-muted rounded-md text-sm text-muted-foreground text-right">
-            ملاحظة: هذا النموذج لغرض العرض. سيتم إضافة طلب عينة عند الضغط على "إنشاء".
+          <div className="p-3 bg-muted rounded-md text-xs text-muted-foreground text-right">
+            سيتم إضافة طلب عينة تجريبي عند الضغط على "إنشاء".
           </div>
-          <div className="flex justify-start gap-2 flex-row-reverse">
-            <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>إلغاء</Button>
-            <Button type="submit">إنشاء الطلب</Button>
+          <div className="flex flex-col-reverse sm:flex-row justify-start gap-2 pt-2">
+            <Button variant="outline" type="button" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>إلغاء</Button>
+            <Button type="submit" className="w-full sm:w-auto">إنشاء الطلب</Button>
           </div>
         </form>
       </DialogContent>
