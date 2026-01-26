@@ -21,11 +21,11 @@ export function Sidebar({ className }: SidebarProps) {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "الرئيسية", href: "/", roles: ['ADMIN', 'SALES'] },
-    { icon: ShoppingCart, label: "نقطة البيع", href: "/orders", roles: ['ADMIN', 'SALES'] },
-    { icon: Package, label: "المخزون", href: "/inventory", roles: ['ADMIN'] },
-    { icon: PlusSquare, label: "إضافة صنف", href: "/inventory", roles: ['ADMIN'] },
-    { icon: Users, label: "الموردين", href: "/customers", roles: ['ADMIN', 'SALES'] },
-    { icon: FileText, label: "التقارير", href: "/reports", roles: ['ADMIN'] },
+    { icon: ShoppingCart, label: "طلبات الخبز", href: "/orders", roles: ['ADMIN', 'SALES'] },
+    { icon: Truck, label: "رحلات التوزيع", href: "/dispatch", roles: ['ADMIN', 'DRIVER'] },
+    { icon: Package, label: "مستودع الخبز", href: "/inventory", roles: ['ADMIN'] },
+    { icon: Users, label: "قائمة العملاء", href: "/customers", roles: ['ADMIN', 'SALES'] },
+    { icon: FileText, label: "تقارير المبيعات", href: "/reports", roles: ['ADMIN'] },
   ].filter(item => !item.roles || (user && item.roles.includes(user.role)));
 
   return (
