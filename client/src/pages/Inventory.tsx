@@ -107,9 +107,9 @@ export default function InventoryPage() {
                   <TableCell className="font-mono text-xs">{item.sku}</TableCell>
                   <TableCell>{item.category}</TableCell>
                   <TableCell>{item.price.toFixed(2)} ر.س</TableCell>
-                  <TableCell className="font-bold">{item.stock}</TableCell>
+                  <TableCell className="font-bold">{item.stock ?? 0}</TableCell>
                   <TableCell>
-                    {item.stock < 50 ? (
+                    {(item.stock ?? 0) < 50 ? (
                       <span className="text-xs bg-destructive/10 text-destructive px-2 py-1 rounded-full font-medium">
                         منخفض
                       </span>
@@ -124,7 +124,7 @@ export default function InventoryPage() {
                       <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => {
                           setEditingProduct(item);
-                          setNewStock(item.stock.toString());
+                          setNewStock((item.stock ?? 0).toString());
                         }}>
                           <Edit2 className="h-4 w-4" />
                         </Button>
