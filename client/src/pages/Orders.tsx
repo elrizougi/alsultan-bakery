@@ -194,11 +194,27 @@ function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: 
   const [selectedCustomerId, setSelectedCustomerId] = useState(order.customerId);
   const [items, setItems] = useState<OrderItem[]>(order.items);
 
+  const addItem = () => {
+    setItems([...items, { productId: products[0].id, quantity: 1 }]);
+  };
+
+  const removeItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const updateItem = (index: number, updates: Partial<OrderItem>) => {
+    setItems(items.map((item, i) => i === index ? { ...item, ...updates } : item));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app we would call an updateOrder action here
     onOpenChange(false);
   };
+
+  const totalAmount = items.reduce((sum, item) => {
+    const product = products.find(p => p.id === item.productId);
+    return sum + (product?.price || 0) * item.quantity;
+  }, 0);
 
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
@@ -235,7 +251,7 @@ function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: 
             <div className="space-y-4">
               <div className="flex items-center justify-between flex-row-reverse">
                 <Label className="block text-right font-black text-slate-800 text-lg">أصناف الطلب</Label>
-                <Button type="button" variant="outline" size="sm" className="rounded-xl font-bold border-primary/20 text-primary hover:bg-primary/5 gap-2">
+                <Button type="button" onClick={addItem} variant="outline" size="sm" className="rounded-xl font-bold border-primary/20 text-primary hover:bg-primary/5 gap-2">
                   <Plus className="h-4 w-4" /> إضافة صنف
                 </Button>
               </div>
@@ -251,11 +267,13 @@ function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: 
                   </TableHeader>
                   <TableBody>
                     {items.map((item, idx) => {
-                      const product = products.find(p => p.id === item.productId);
                       return (
                         <TableRow key={idx} className="border-slate-50">
                           <TableCell>
-                            <Select value={item.productId}>
+                            <Select 
+                              value={item.productId} 
+                              onValueChange={(val) => updateItem(idx, { productId: val })}
+                            >
                               <SelectTrigger className="border-0 bg-transparent font-bold h-10 px-0 shadow-none focus:ring-0">
                                 <SelectValue />
                               </SelectTrigger>
@@ -270,11 +288,18 @@ function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: 
                             <Input 
                               type="number" 
                               value={item.quantity} 
+                              onChange={(e) => updateItem(idx, { quantity: parseInt(e.target.value) || 0 })}
                               className="w-20 border-slate-200 rounded-xl h-9 text-center font-black" 
                             />
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                            <Button 
+                              type="button"
+                              onClick={() => removeItem(idx)}
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -289,7 +314,7 @@ function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: 
             <div className="flex items-center justify-between bg-primary/5 p-6 rounded-[2rem] border border-primary/10 flex-row-reverse">
                <div className="text-right">
                   <p className="text-xs font-black text-primary/60 mb-1">إجمالي الفاتورة</p>
-                  <h4 className="text-3xl font-black text-primary">{order.totalAmount.toFixed(2)} ر.س</h4>
+                  <h4 className="text-3xl font-black text-primary">{totalAmount.toFixed(2)} ر.س</h4>
                </div>
                <div className="flex gap-3">
                   <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="h-14 px-8 rounded-2xl font-black text-slate-400 hover:bg-slate-100">إلغاء</Button>
