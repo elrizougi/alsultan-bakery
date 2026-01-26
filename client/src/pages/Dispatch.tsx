@@ -4,8 +4,9 @@ import { useStore, DispatchRun } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Truck, Calendar, MapPin, ChevronLeft, Plus, MoreVertical, Trash2, Edit, Phone, User2 } from "lucide-react";
+import { Truck, Calendar, MapPin, ChevronLeft, Plus, MoreVertical, Trash2, Edit, Phone, User2, Package, FileText } from "lucide-react";
 import { Link } from "wouter";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +45,7 @@ export default function DispatchPage() {
     const route = routes.find(r => r.id === selectedRouteId);
     if (!route) return;
 
+    // Get orders for this route that are confirmed but not assigned
     const routeOrders = orders.filter(o => {
       const customer = useStore.getState().customers.find(c => c.id === o.customerId);
       return customer?.routeId === selectedRouteId && o.status === 'CONFIRMED';
@@ -164,7 +166,7 @@ export default function DispatchPage() {
                       <h3 className="text-2xl font-black text-slate-800">{route?.name}</h3>
                       <div className={cn(
                         "px-3 py-1 rounded-lg text-[10px] font-bold",
-                        run.status === 'CLOSED' ? "bg-slate-100 text-slate-400" : "bg-emerald-50 text-emerald-600"
+                        run.status === 'CLOSED' ? "bg-status-closed" : "bg-emerald-50 text-emerald-600"
                       )}>
                         {run.status === 'CLOSED' ? 'غير نشط' : 'نشط'}
                       </div>
@@ -257,5 +259,3 @@ export default function DispatchPage() {
     </AdminLayout>
   );
 }
-
-import { FileText } from "lucide-react";

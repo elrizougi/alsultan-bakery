@@ -12,6 +12,7 @@ import ReturnsPage from "@/pages/Returns";
 import CustomersPage from "@/pages/Customers";
 import SettingsPage from "@/pages/Settings";
 import LoginPage from "@/pages/Login";
+import ReportsPage from "@/pages/Reports";
 
 function Router() {
   return (
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/returns" component={ReturnsPage} />
       <Route path="/customers" component={CustomersPage} />
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/reports" component={ReportsPage} />
       <Route component={NotFound} />
     </Switch>
   );
