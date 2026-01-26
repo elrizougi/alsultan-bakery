@@ -9,20 +9,26 @@ import {
   Settings 
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useStore } from "@/lib/store";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 export function Sidebar({ className }: SidebarProps) {
   const [location] = useLocation();
+  const user = useStore((state) => state.user);
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: "لوحة التحكم", href: "/" },
-    { icon: ShoppingCart, label: "الطلبات", href: "/orders" },
-    { icon: Truck, label: "التوزيع", href: "/dispatch" },
-    { icon: Package, label: "المخزون", href: "/inventory" },
-    { icon: RotateCcw, label: "المرتجعات", href: "/returns" },
-    { icon: Users, label: "العملاء", href: "/customers" },
+  const allItems = [
+    { icon: LayoutDashboard, label: "لوحة التحكم", href: "/", roles: ['ADMIN', 'SALES'] },
+    { icon: ShoppingCart, label: "الطلبات", href: "/orders", roles: ['ADMIN', 'SALES'] },
+    { icon: Truck, label: "التوزيع", href: "/dispatch", roles: ['ADMIN', 'DRIVER'] },
+    { icon: Package, label: "المخزون", href: "/inventory", roles: ['ADMIN'] },
+    { icon: RotateCcw, label: "المرتجعات", href: "/returns", roles: ['ADMIN', 'DRIVER'] },
+    { icon: Users, label: "العملاء", href: "/customers", roles: ['ADMIN', 'SALES'] },
   ];
+
+  const menuItems = allItems.filter(item => 
+    !item.roles || (user && item.roles.includes(user.role))
+  );
 
   return (
     <div className={cn("pb-12 min-h-screen bg-sidebar text-sidebar-foreground text-right", className)}>
@@ -50,20 +56,25 @@ export function Sidebar({ className }: SidebarProps) {
             ))}
           </div>
         </div>
-        <div className="px-3 py-2 mt-auto">
-           <h3 className="mb-2 px-4 text-xs font-semibold text-sidebar-foreground/50 tracking-wider uppercase">
-            الإعدادات
-          </h3>
-           <div className="space-y-1">
-            <Link 
-              href="/settings"
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex-row-reverse"
-            >
-              <Settings className="h-4 w-4" />
-              <span>الإعدادات العامة</span>
-            </Link>
-           </div>
-        </div>
+        {user?.role === 'ADMIN' && (
+          <div className="px-3 py-2 mt-auto">
+             <h3 className="mb-2 px-4 text-xs font-semibold text-sidebar-foreground/50 tracking-wider uppercase">
+              الإعدادات
+            </h3>
+             <div className="space-y-1">
+              <Link 
+                href="/settings"
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex-row-reverse",
+                  location === "/settings" ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70"
+                )}
+              >
+                <Settings className="h-4 w-4" />
+                <span>الإعدادات العامة</span>
+              </Link>
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -11,10 +11,12 @@ import InventoryPage from "@/pages/Inventory";
 import ReturnsPage from "@/pages/Returns";
 import CustomersPage from "@/pages/Customers";
 import SettingsPage from "@/pages/Settings";
+import LoginPage from "@/pages/Login";
 
 function Router() {
   return (
     <Switch>
+      <Route path="/login" component={LoginPage} />
       <Route path="/" component={Dashboard} />
       <Route path="/orders" component={OrdersPage} />
       <Route path="/dispatch" component={DispatchPage} />

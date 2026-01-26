@@ -2,7 +2,10 @@ import { Sidebar } from "./Sidebar";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Package } from "lucide-react";
+import { Menu, Package, LogOut } from "lucide-react";
+import { useStore } from "@/lib/store";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -10,6 +13,17 @@ interface AdminLayoutProps {
 }
 
 export function AdminLayout({ children, className }: AdminLayoutProps) {
+  const { user, logout } = useStore();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!user) {
+      setLocation("/login");
+    }
+  }, [user, setLocation]);
+
+  if (!user) return null;
+
   return (
     <div className="flex min-h-screen w-full bg-muted/20 flex-col" dir="rtl">
       {/* Mobile Header */}
@@ -40,10 +54,15 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
         </div>
 
         <div className="flex items-center gap-4 flex-row-reverse">
-          <div className="text-xs text-muted-foreground hidden sm:block">مدير النظام</div>
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-            مد
+          <div className="flex items-center gap-2 flex-row-reverse">
+            <div className="text-xs text-muted-foreground hidden sm:block">{user.name}</div>
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
+              {user.username.substring(0, 2)}
+            </div>
           </div>
+          <Button variant="ghost" size="icon" onClick={() => logout()} title="تسجيل الخروج">
+            <LogOut className="h-4 w-4 text-muted-foreground" />
+          </Button>
         </div>
       </header>
 
