@@ -8,25 +8,25 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, className }: AdminLayoutProps) {
   return (
-    <div className="flex min-h-screen w-full bg-muted/20">
-      <div className="hidden border-r w-64 md:block flex-shrink-0">
+    <div className="flex min-h-screen w-full bg-muted/20" dir="rtl">
+      <div className="hidden border-l w-64 md:block flex-shrink-0">
         <Sidebar className="h-full" />
       </div>
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <header className="flex h-14 items-center gap-4 border-b bg-background px-6 lg:h-[60px]">
-          <div className="flex-1">
+          <div className="flex-1 text-right">
             <h1 className="text-sm font-medium text-muted-foreground">
-              Organization: <span className="text-foreground font-semibold">Morning Star Bakery</span>
+              المؤسسة: <span className="text-foreground font-semibold">مخبز نجمة الصباح</span>
             </h1>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-xs text-muted-foreground">Admin User</div>
+          <div className="flex items-center gap-4 flex-row-reverse">
+            <div className="text-xs text-muted-foreground">مدير النظام</div>
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-              AD
+              مد
             </div>
           </div>
         </header>
-        <main className={cn("flex-1 overflow-auto p-6 md:p-8", className)}>
+        <main className={cn("flex-1 overflow-auto p-6 md:p-8 text-right", className)}>
           {children}
         </main>
       </div>

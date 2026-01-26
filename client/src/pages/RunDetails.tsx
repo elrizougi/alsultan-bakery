@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useRoute, Link } from "wouter";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useStore, DispatchRun, Order, Product, Status } from "@/lib/store";
+import { useStore, Product, Order } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ChevronLeft, Package, Truck, CheckCircle, AlertTriangle, Printer, RotateCcw } from "lucide-react";
+import { ChevronLeft, CheckCircle, AlertTriangle, Printer, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function RunDetailsPage() {
@@ -21,17 +21,15 @@ export default function RunDetailsPage() {
   const { dispatchRuns, orders, products, customers, routes, updateRunStatus, updateOrderStatus, addReturn, returns } = useStore();
   const run = dispatchRuns.find(r => r.id === runId);
   
-  if (!run) return <AdminLayout><div>Run not found</div></AdminLayout>;
+  if (!run) return <AdminLayout><div>لم يتم العثور على الرحلة</div></AdminLayout>;
   
   const route = routes.find(r => r.id === run.routeId);
   const runOrders = orders.filter(o => run.orderIds.includes(o.id));
   const runReturns = returns.filter(r => r.runId === run.id);
 
-  // --- Load Sheet Calculation ---
   const loadSheet = useMemo(() => {
     const totals: Record<string, number> = {};
     runOrders.forEach(order => {
-      // Only include orders that are supposed to be on the truck (e.g., not canceled)
       if (order.status !== 'CANCELED') {
         order.items.forEach(item => {
           totals[item.productId] = (totals[item.productId] || 0) + item.quantity;
@@ -44,12 +42,8 @@ export default function RunDetailsPage() {
     })).filter((item): item is { product: Product; quantity: number } => !!item.product);
   }, [runOrders, products]);
 
-  // --- Variance Calculation ---
   const varianceData = useMemo(() => {
     return loadSheet.map(({ product, quantity: loadedQty }) => {
-      if (!product) return null;
-      
-      // Calculate what was actually delivered (based on Delivered orders)
       const deliveredQty = runOrders
         .filter(o => o.status === 'DELIVERED' || o.status === 'CLOSED')
         .reduce((acc, order) => {
@@ -57,7 +51,6 @@ export default function RunDetailsPage() {
           return acc + (item ? item.quantity : 0);
         }, 0);
 
-      // Calculate returns
       const returnedQty = runReturns.reduce((acc, ret) => {
          const item = ret.items.find(i => i.productId === product.id);
          return acc + (item ? item.quantity : 0);
@@ -65,88 +58,64 @@ export default function RunDetailsPage() {
 
       const variance = loadedQty - deliveredQty - returnedQty;
 
-      return {
-        product,
-        loadedQty,
-        deliveredQty,
-        returnedQty,
-        variance
-      };
-    }).filter((item): item is NonNullable<typeof item> => item !== null);
+      return { product, loadedQty, deliveredQty, returnedQty, variance };
+    });
   }, [loadSheet, runOrders, runReturns]);
 
   return (
     <AdminLayout>
-      <div className="flex flex-col gap-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-6" dir="rtl">
+        <div className="flex items-center justify-between flex-row-reverse">
+          <div className="flex items-center gap-4 flex-row-reverse">
             <Link href="/dispatch">
               <Button variant="outline" size="icon">
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4 transform rotate-180" />
               </Button>
             </Link>
-            <div>
-              <div className="flex items-center gap-3">
-                 <h1 className="text-2xl font-bold tracking-tight">{route?.name} Run</h1>
-                 <StatusBadge status={run.status} />
+            <div className="text-right">
+              <div className="flex items-center gap-3 flex-row-reverse">
+                 <h1 className="text-2xl font-bold tracking-tight">رحلة {route?.name}</h1>
+                 <StatusBadge status={run.status} className="text-[10px]" />
               </div>
-              <p className="text-muted-foreground">{run.date} • Driver: {run.driverName}</p>
+              <p className="text-muted-foreground">{run.date} • السائق: {run.driverName}</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-row-reverse">
             {run.status === 'LOADED' && (
-              <Button onClick={() => updateRunStatus(run.id, 'OUT')}>
-                Mark Out for Delivery
-              </Button>
+              <Button onClick={() => updateRunStatus(run.id, 'OUT')}>تأكيد الخروج للتوصيل</Button>
             )}
             {run.status === 'OUT' && (
-              <Button onClick={() => updateRunStatus(run.id, 'RETURNED')}>
-                Vehicle Returned
-              </Button>
+              <Button onClick={() => updateRunStatus(run.id, 'RETURNED')}>تم عودة المركبة</Button>
             )}
              {run.status === 'RETURNED' && (
               <Button variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => updateRunStatus(run.id, 'CLOSED')}>
-                Finalize & Close Run
+                إغلاق الرحلة نهائياً
               </Button>
             )}
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="load">Load Sheet</TabsTrigger>
-            <TabsTrigger value="deliveries">Deliveries</TabsTrigger>
-            <TabsTrigger value="returns">Returns</TabsTrigger>
-            <TabsTrigger value="close">Reconciliation</TabsTrigger>
+        <Tabs defaultValue="overview" className="space-y-4" dir="rtl">
+          <TabsList className="flex justify-start">
+            <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
+            <TabsTrigger value="load">كشف التحميل</TabsTrigger>
+            <TabsTrigger value="deliveries">عمليات التوصيل</TabsTrigger>
+            <TabsTrigger value="returns">المرتجعات</TabsTrigger>
+            <TabsTrigger value="close">التسوية</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-4">
+          <TabsContent value="overview" className="space-y-4 text-right">
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Stops</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{runOrders.length}</div>
-                </CardContent>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">إجمالي التوقفات</CardTitle></CardHeader>
+                <CardContent><div className="text-2xl font-bold">{runOrders.length}</div></CardContent>
               </Card>
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {loadSheet.reduce((acc, item) => acc + item.quantity, 0)}
-                  </div>
-                </CardContent>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">إجمالي القطع</CardTitle></CardHeader>
+                <CardContent><div className="text-2xl font-bold">{loadSheet.reduce((acc, item) => acc + item.quantity, 0)}</div></CardContent>
               </Card>
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Completion</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">نسبة الإنجاز</CardTitle></CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
                     {Math.round((runOrders.filter(o => o.status === 'DELIVERED' || o.status === 'CLOSED').length / runOrders.length) * 100)}%
@@ -156,17 +125,15 @@ export default function RunDetailsPage() {
             </div>
             
             <Card>
-               <CardHeader>
-                 <CardTitle>Stop List</CardTitle>
-               </CardHeader>
+               <CardHeader><CardTitle>قائمة العملاء</CardTitle></CardHeader>
                <CardContent>
-                 <Table>
+                 <Table className="text-right">
                    <TableHeader>
                      <TableRow>
-                       <TableHead>Seq</TableHead>
-                       <TableHead>Customer</TableHead>
-                       <TableHead>Status</TableHead>
-                       <TableHead>Items</TableHead>
+                       <TableHead className="text-right">التسلسل</TableHead>
+                       <TableHead className="text-right">العميل</TableHead>
+                       <TableHead className="text-right">الحالة</TableHead>
+                       <TableHead className="text-right">الأصناف</TableHead>
                      </TableRow>
                    </TableHeader>
                    <TableBody>
@@ -179,7 +146,7 @@ export default function RunDetailsPage() {
                              <div className="font-medium">{customer?.name}</div>
                              <div className="text-xs text-muted-foreground">{customer?.address}</div>
                            </TableCell>
-                           <TableCell><StatusBadge status={order.status} /></TableCell>
+                           <TableCell><StatusBadge status={order.status} className="text-[10px]" /></TableCell>
                            <TableCell>{order.items.reduce((a, b) => a + b.quantity, 0)}</TableCell>
                          </TableRow>
                        )
@@ -190,25 +157,22 @@ export default function RunDetailsPage() {
             </Card>
           </TabsContent>
 
-          {/* Load Sheet Tab */}
           <TabsContent value="load">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Load Sheet</CardTitle>
-                  <CardDescription>Total inventory required for this run.</CardDescription>
+              <CardHeader className="flex flex-row-reverse items-center justify-between">
+                <div className="text-right">
+                  <CardTitle>كشف التحميل</CardTitle>
+                  <CardDescription>إجمالي البضاعة المطلوبة لهذه الرحلة.</CardDescription>
                 </div>
-                <Button variant="outline" size="sm">
-                  <Printer className="mr-2 h-4 w-4" /> Print Sheet
-                </Button>
+                <Button variant="outline" size="sm" className="gap-2"><Printer className="h-4 w-4" /> طباعة</Button>
               </CardHeader>
               <CardContent>
-                <Table>
+                <Table className="text-right">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Product SKU</TableHead>
-                      <TableHead>Product Name</TableHead>
-                      <TableHead className="text-right">Quantity Required</TableHead>
+                      <TableHead className="text-right">الباركود</TableHead>
+                      <TableHead className="text-right">المنتج</TableHead>
+                      <TableHead className="text-left">الكمية المطلوبة</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -216,7 +180,7 @@ export default function RunDetailsPage() {
                       <TableRow key={item.product.id}>
                         <TableCell className="font-mono">{item.product.sku}</TableCell>
                         <TableCell>{item.product.name}</TableCell>
-                        <TableCell className="text-right font-bold text-lg">{item.quantity}</TableCell>
+                        <TableCell className="text-left font-bold text-lg">{item.quantity}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -225,18 +189,17 @@ export default function RunDetailsPage() {
             </Card>
           </TabsContent>
 
-          {/* Deliveries Tab */}
           <TabsContent value="deliveries">
              <div className="grid gap-4">
                 {runOrders.map(order => {
                   const customer = customers.find(c => c.id === order.customerId);
                   return (
                     <Card key={order.id}>
-                      <CardContent className="p-6 flex items-center justify-between">
-                         <div>
+                      <CardContent className="p-6 flex items-center justify-between flex-row-reverse">
+                         <div className="text-right">
                             <div className="font-bold text-lg">{customer?.name}</div>
-                            <div className="text-sm text-muted-foreground mb-2">Order #{order.id}</div>
-                            <div className="flex gap-2">
+                            <div className="text-sm text-muted-foreground mb-2">طلب رقم {order.id}</div>
+                            <div className="flex gap-2 flex-row-reverse">
                                {order.items.map(item => {
                                  const p = products.find(p => p.id === item.productId);
                                  return (
@@ -247,12 +210,10 @@ export default function RunDetailsPage() {
                                })}
                             </div>
                          </div>
-                         <div className="flex gap-2 items-center">
-                            <StatusBadge status={order.status} />
+                         <div className="flex gap-2 items-center flex-row-reverse">
+                            <StatusBadge status={order.status} className="text-[10px]" />
                             {order.status === 'ASSIGNED' && (
-                              <Button size="sm" onClick={() => updateOrderStatus(order.id, 'DELIVERED')}>
-                                Mark Delivered
-                              </Button>
+                              <Button size="sm" onClick={() => updateOrderStatus(order.id, 'DELIVERED')}>إثبات التوصيل</Button>
                             )}
                          </div>
                       </CardContent>
@@ -262,23 +223,20 @@ export default function RunDetailsPage() {
              </div>
           </TabsContent>
 
-          {/* Returns Tab */}
           <TabsContent value="returns">
-             <div className="flex justify-end mb-4">
+             <div className="flex justify-start mb-4">
                <ReturnDialog runId={run.id} orders={runOrders} />
              </div>
              <Card>
-               <CardHeader>
-                 <CardTitle>Returns Log</CardTitle>
-               </CardHeader>
+               <CardHeader className="text-right"><CardTitle>سجل المرتجعات</CardTitle></CardHeader>
                <CardContent>
-                 <Table>
+                 <Table className="text-right">
                    <TableHeader>
                      <TableRow>
-                       <TableHead>Customer</TableHead>
-                       <TableHead>Product</TableHead>
-                       <TableHead>Qty</TableHead>
-                       <TableHead>Reason</TableHead>
+                       <TableHead className="text-right">العميل</TableHead>
+                       <TableHead className="text-right">المنتج</TableHead>
+                       <TableHead className="text-right">الكمية</TableHead>
+                       <TableHead className="text-right">السبب</TableHead>
                      </TableRow>
                    </TableHeader>
                    <TableBody>
@@ -291,60 +249,52 @@ export default function RunDetailsPage() {
                              <TableCell>{customer?.name}</TableCell>
                              <TableCell>{product?.name}</TableCell>
                              <TableCell>{item.quantity}</TableCell>
-                             <TableCell><span className="text-xs font-mono uppercase bg-muted px-1 rounded">{item.reason}</span></TableCell>
+                             <TableCell><span className="text-xs font-mono uppercase bg-muted px-1 rounded">{item.reason === 'GOOD' ? 'سليم' : item.reason === 'DAMAGED' ? 'تالف' : 'منتهي'}</span></TableCell>
                            </TableRow>
                          );
                        });
                      })}
-                     {runReturns.length === 0 && (
-                       <TableRow>
-                         <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No returns logged yet.</TableCell>
-                       </TableRow>
-                     )}
                    </TableBody>
                  </Table>
                </CardContent>
              </Card>
           </TabsContent>
 
-          {/* Close/Reconciliation Tab */}
           <TabsContent value="close">
             <Card>
-              <CardHeader>
-                <CardTitle>Run Reconciliation</CardTitle>
-                <CardDescription>
-                   Verify inventory. Variance = Loaded - Delivered - Returned.
-                </CardDescription>
+              <CardHeader className="text-right">
+                <CardTitle>تسوية الرحلة</CardTitle>
+                <CardDescription>الفرق = المحمل - الموصل - المرتجع.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
+                <Table className="text-right">
                    <TableHeader>
                      <TableRow>
-                       <TableHead>Product</TableHead>
-                       <TableHead className="text-right">Loaded</TableHead>
-                       <TableHead className="text-right">Delivered</TableHead>
-                       <TableHead className="text-right">Returned</TableHead>
-                       <TableHead className="text-right">Variance</TableHead>
-                       <TableHead className="text-right">Status</TableHead>
+                       <TableHead className="text-right">المنتج</TableHead>
+                       <TableHead className="text-left">المحمل</TableHead>
+                       <TableHead className="text-left">الموصل</TableHead>
+                       <TableHead className="text-left">المرتجع</TableHead>
+                       <TableHead className="text-left">الفرق</TableHead>
+                       <TableHead className="text-left">الحالة</TableHead>
                      </TableRow>
                    </TableHeader>
                    <TableBody>
                      {varianceData.map((row) => (
                        <TableRow key={row.product.id}>
                          <TableCell className="font-medium">{row.product.name}</TableCell>
-                         <TableCell className="text-right">{row.loadedQty}</TableCell>
-                         <TableCell className="text-right text-muted-foreground">{row.deliveredQty}</TableCell>
-                         <TableCell className="text-right text-muted-foreground">{row.returnedQty}</TableCell>
+                         <TableCell className="text-left">{row.loadedQty}</TableCell>
+                         <TableCell className="text-left text-muted-foreground">{row.deliveredQty}</TableCell>
+                         <TableCell className="text-left text-muted-foreground">{row.returnedQty}</TableCell>
                          <TableCell className={cn(
-                           "text-right font-bold",
+                           "text-left font-bold",
                            row.variance === 0 ? "text-green-600" : "text-red-600"
                          )}>
                            {row.variance > 0 ? `+${row.variance}` : row.variance}
                          </TableCell>
-                         <TableCell className="text-right">
+                         <TableCell className="text-left">
                            {row.variance === 0 
-                             ? <CheckCircle className="h-4 w-4 text-green-500 ml-auto" /> 
-                             : <AlertTriangle className="h-4 w-4 text-red-500 ml-auto" />
+                             ? <CheckCircle className="h-4 w-4 text-green-500 mr-auto" /> 
+                             : <AlertTriangle className="h-4 w-4 text-red-500 mr-auto" />
                            }
                          </TableCell>
                        </TableRow>
@@ -354,7 +304,6 @@ export default function RunDetailsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-
         </Tabs>
       </div>
     </AdminLayout>
@@ -380,62 +329,53 @@ function ReturnDialog({ runId, orders }: { runId: string, orders: Order[] }) {
     setOpen(false);
   };
 
-  // Unique customers in this run
   const uniqueCustomerIds = Array.from(new Set(orders.map(o => o.customerId)));
   const relevantCustomers = customers.filter(c => uniqueCustomerIds.includes(c.id));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline"><RotateCcw className="mr-2 h-4 w-4" /> Log Return</Button>
+        <Button variant="outline" className="gap-2"><RotateCcw className="h-4 w-4" /> تسجيل مرتجع</Button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Log Return Item</DialogTitle>
-        </DialogHeader>
+      <DialogContent dir="rtl" className="text-right">
+        <DialogHeader><DialogTitle className="text-right">تسجيل صنف مرتجع</DialogTitle></DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label>Customer</Label>
+            <Label className="block text-right">العميل</Label>
             <Select onValueChange={setCustomerId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select Customer" />
-              </SelectTrigger>
-              <SelectContent>
+              <SelectTrigger dir="rtl"><SelectValue placeholder="اختر العميل" /></SelectTrigger>
+              <SelectContent dir="rtl">
                 {relevantCustomers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Product</Label>
+            <Label className="block text-right">المنتج</Label>
             <Select onValueChange={setProductId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select Product" />
-              </SelectTrigger>
-              <SelectContent>
+              <SelectTrigger dir="rtl"><SelectValue placeholder="اختر المنتج" /></SelectTrigger>
+              <SelectContent dir="rtl">
                 {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-               <Label>Quantity</Label>
-               <Input type="number" value={qty} onChange={e => setQty(Number(e.target.value))} />
+               <Label className="block text-right">الكمية</Label>
+               <Input type="number" value={qty} onChange={e => setQty(Number(e.target.value))} className="text-right" />
             </div>
             <div className="grid gap-2">
-               <Label>Reason</Label>
+               <Label className="block text-right">السبب</Label>
                <Select onValueChange={setReason} defaultValue="GOOD">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="GOOD">Good (Unsold)</SelectItem>
-                  <SelectItem value="DAMAGED">Damaged</SelectItem>
-                  <SelectItem value="EXPIRED">Expired</SelectItem>
+                <SelectTrigger dir="rtl"><SelectValue /></SelectTrigger>
+                <SelectContent dir="rtl">
+                  <SelectItem value="GOOD">سليم (غير مباع)</SelectItem>
+                  <SelectItem value="DAMAGED">تالف</SelectItem>
+                  <SelectItem value="EXPIRED">منتهي الصلاحية</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <Button onClick={handleSubmit}>Save Return</Button>
+          <Button onClick={handleSubmit}>حفظ المرتجع</Button>
         </div>
       </DialogContent>
     </Dialog>
