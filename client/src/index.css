@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: 'Inter', 'Amiri', sans-serif;
+  --font-sans: 'Cairo', 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   --radius-sm: 0.25rem;
