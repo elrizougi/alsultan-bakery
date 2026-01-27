@@ -432,14 +432,31 @@ export async function registerRoutes(
   app.patch("/api/dispatch-runs/:id", async (req, res) => {
     try {
       const { orderIds, ...runData } = req.body;
-      const run = await storage.updateDispatchRun(req.params.id, runData);
+      
+      // Update run data if provided
+      let run = await storage.getDispatchRun(req.params.id);
       if (!run) {
         return res.status(404).json({ message: "الرحلة غير موجودة" });
+      }
+      
+      if (Object.keys(runData).length > 0) {
+        run = await storage.updateDispatchRun(req.params.id, runData) || run;
+      }
+      
+      // Update orderIds if provided
+      if (orderIds !== undefined && Array.isArray(orderIds)) {
+        // Delete existing run orders
+        await storage.deleteRunOrders(run.id);
+        // Create new run orders
+        for (const orderId of orderIds) {
+          await storage.createRunOrder({ runId: run.id, orderId });
+        }
       }
       
       const runOrders = await storage.getRunOrders(run.id);
       res.json({ ...run, orderIds: runOrders.map(ro => ro.orderId) });
     } catch (error) {
+      console.error("Error updating dispatch run:", error);
       res.status(500).json({ message: "خطأ في الخادم" });
     }
   });
