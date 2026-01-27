@@ -47,29 +47,19 @@ export default function RunDetailsPage() {
   const [selectedOrderId, setSelectedOrderId] = useState("");
 
   const run = dispatchRuns.find(r => r.id === runId);
-  
-  if (runsLoading) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-96">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AdminLayout>
-    );
-  }
-  
-  if (!run) return <AdminLayout><div className="text-center py-16">لم يتم العثور على الرحلة</div></AdminLayout>;
-  
-  const route = routes.find(r => r.id === run.routeId);
-  const runOrders = orders.filter(o => run.orderIds?.includes(o.id));
-  const runReturns = returns.filter(r => r.runId === run.id);
+  const route = run ? routes.find(r => r.id === run.routeId) : undefined;
+  const runOrders = run ? orders.filter(o => run.orderIds?.includes(o.id)) : [];
+  const runReturns = run ? returns.filter(r => r.runId === run.id) : [];
 
-  const availableOrders = orders.filter(o => {
-    const customer = customers.find(c => c.id === o.customerId);
-    return customer?.routeId === run.routeId && 
-           (o.status === 'CONFIRMED' || o.status === 'DRAFT') && 
-           !run.orderIds?.includes(o.id);
-  });
+  const availableOrders = useMemo(() => {
+    if (!run) return [];
+    return orders.filter(o => {
+      const customer = customers.find(c => c.id === o.customerId);
+      return customer?.routeId === run.routeId && 
+             (o.status === 'CONFIRMED' || o.status === 'DRAFT') && 
+             !run.orderIds?.includes(o.id);
+    });
+  }, [run, orders, customers]);
 
   const loadSheet = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -105,6 +95,24 @@ export default function RunDetailsPage() {
       return { product, loadedQty, deliveredQty, returnedQty, variance };
     });
   }, [loadSheet, runOrders, runReturns]);
+
+  if (runsLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
+  
+  if (!run) {
+    return (
+      <AdminLayout>
+        <div className="text-center py-16">لم يتم العثور على الرحلة</div>
+      </AdminLayout>
+    );
+  }
 
   const handleUpdateRunStatus = async (status: RunStatus) => {
     try {
