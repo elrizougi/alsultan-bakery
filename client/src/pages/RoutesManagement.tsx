@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useRoutes, useCreateRoute, useUpdateRoute, useDeleteRoute } from "@/hooks/useData";
+import { useRoutes, useCreateRoute, useUpdateRoute, useDeleteRoute, useUsers } from "@/hooks/useData";
 import {
   Table,
   TableBody,
@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Plus, Edit2, Trash2, Loader2, User2 } from "lucide-react";
+import { MapPin, Plus, Edit2, Trash2, Loader2, User2, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,11 +21,26 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import type { Route } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export default function RoutesManagementPage() {
   const { data: routes = [], isLoading } = useRoutes();
+  const { data: users = [] } = useUsers();
   const createRoute = useCreateRoute();
   const updateRoute = useUpdateRoute();
   const deleteRoute = useDeleteRoute();
@@ -34,13 +49,15 @@ export default function RoutesManagementPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   
-  // Create form
   const [newName, setNewName] = useState("");
   const [newDriverName, setNewDriverName] = useState("");
+  const [newDriverOpen, setNewDriverOpen] = useState(false);
   
-  // Edit form
   const [editName, setEditName] = useState("");
   const [editDriverName, setEditDriverName] = useState("");
+  const [editDriverOpen, setEditDriverOpen] = useState(false);
+
+  const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,7 +122,7 @@ export default function RoutesManagementPage() {
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-800">إدارة خطوط التوزيع</h1>
             <p className="text-sm text-muted-foreground">إضافة وتعديل وحذف خطوط التوزيع والسائقين.</p>
           </div>
-          <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto gap-2 bg-primary rounded-xl h-11 px-6 font-bold shadow-lg shadow-primary/20">
+          <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto gap-2 bg-primary rounded-xl h-11 px-6 font-bold shadow-lg shadow-primary/20" data-testid="button-add-route">
             <Plus className="h-4 w-4" /> إضافة خط جديد
           </Button>
         </div>
@@ -142,7 +159,7 @@ export default function RoutesManagementPage() {
             </TableHeader>
             <TableBody>
               {routes.map((route) => (
-                <TableRow key={route.id} className="hover:bg-slate-50/50">
+                <TableRow key={route.id} className="hover:bg-slate-50/50" data-testid={`row-route-${route.id}`}>
                   <TableCell className="font-bold text-slate-700">{route.name}</TableCell>
                   <TableCell className="text-slate-600">{route.driverName}</TableCell>
                   <TableCell className="text-left">
@@ -152,6 +169,7 @@ export default function RoutesManagementPage() {
                         size="icon"
                         className="h-8 w-8 text-blue-600 hover:bg-blue-50"
                         onClick={() => openEdit(route)}
+                        data-testid={`button-edit-route-${route.id}`}
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -160,6 +178,7 @@ export default function RoutesManagementPage() {
                         size="icon"
                         className="h-8 w-8 text-red-500 hover:bg-red-50"
                         onClick={() => handleDelete(route.id)}
+                        data-testid={`button-delete-route-${route.id}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -193,20 +212,79 @@ export default function RoutesManagementPage() {
                   placeholder="مثال: المنطقة الشرقية"
                   className="h-11 rounded-xl"
                   required
+                  data-testid="input-route-name"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="font-bold">اسم السائق المسؤول</Label>
-                <Input
-                  value={newDriverName}
-                  onChange={(e) => setNewDriverName(e.target.value)}
-                  placeholder="مثال: أحمد محمد"
-                  className="h-11 rounded-xl"
-                  required
-                />
+                <Label className="font-bold">السائق المسؤول</Label>
+                <Popover open={newDriverOpen} onOpenChange={setNewDriverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={newDriverOpen}
+                      className="w-full h-11 rounded-xl justify-between text-right"
+                      data-testid="select-route-driver"
+                    >
+                      {newDriverName || "اختر سائق أو اكتب اسم جديد..."}
+                      <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command dir="rtl">
+                      <CommandInput 
+                        placeholder="ابحث أو اكتب اسم جديد..." 
+                        value={newDriverName}
+                        onValueChange={setNewDriverName}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          <div className="p-2 text-sm text-muted-foreground">
+                            {newDriverName ? (
+                              <Button 
+                                type="button"
+                                variant="ghost" 
+                                className="w-full justify-start"
+                                onClick={() => {
+                                  setNewDriverOpen(false);
+                                }}
+                              >
+                                <Check className="ml-2 h-4 w-4" />
+                                استخدام "{newDriverName}"
+                              </Button>
+                            ) : (
+                              "لا يوجد سائقين. اكتب اسم جديد..."
+                            )}
+                          </div>
+                        </CommandEmpty>
+                        <CommandGroup heading="الموظفين (السائقين)">
+                          {drivers.map((driver) => (
+                            <CommandItem
+                              key={driver.id}
+                              value={driver.name}
+                              onSelect={(currentValue) => {
+                                setNewDriverName(currentValue);
+                                setNewDriverOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "ml-2 h-4 w-4",
+                                  newDriverName === driver.name ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {driver.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground">يمكنك اختيار سائق من القائمة أو كتابة اسم شخص غير موظف</p>
               </div>
               <DialogFooter className="flex flex-row-reverse gap-3 pt-4">
-                <Button type="submit" className="h-11 rounded-xl font-bold" disabled={createRoute.isPending}>
+                <Button type="submit" className="h-11 rounded-xl font-bold" disabled={createRoute.isPending} data-testid="button-save-route">
                   {createRoute.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة"}
                 </Button>
                 <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={() => setIsCreateOpen(false)}>إلغاء</Button>
@@ -229,19 +307,79 @@ export default function RoutesManagementPage() {
                   onChange={(e) => setEditName(e.target.value)}
                   className="h-11 rounded-xl"
                   required
+                  data-testid="input-edit-route-name"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="font-bold">اسم السائق المسؤول</Label>
-                <Input
-                  value={editDriverName}
-                  onChange={(e) => setEditDriverName(e.target.value)}
-                  className="h-11 rounded-xl"
-                  required
-                />
+                <Label className="font-bold">السائق المسؤول</Label>
+                <Popover open={editDriverOpen} onOpenChange={setEditDriverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={editDriverOpen}
+                      className="w-full h-11 rounded-xl justify-between text-right"
+                      data-testid="select-edit-route-driver"
+                    >
+                      {editDriverName || "اختر سائق أو اكتب اسم جديد..."}
+                      <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command dir="rtl">
+                      <CommandInput 
+                        placeholder="ابحث أو اكتب اسم جديد..." 
+                        value={editDriverName}
+                        onValueChange={setEditDriverName}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          <div className="p-2 text-sm text-muted-foreground">
+                            {editDriverName ? (
+                              <Button 
+                                type="button"
+                                variant="ghost" 
+                                className="w-full justify-start"
+                                onClick={() => {
+                                  setEditDriverOpen(false);
+                                }}
+                              >
+                                <Check className="ml-2 h-4 w-4" />
+                                استخدام "{editDriverName}"
+                              </Button>
+                            ) : (
+                              "لا يوجد سائقين. اكتب اسم جديد..."
+                            )}
+                          </div>
+                        </CommandEmpty>
+                        <CommandGroup heading="الموظفين (السائقين)">
+                          {drivers.map((driver) => (
+                            <CommandItem
+                              key={driver.id}
+                              value={driver.name}
+                              onSelect={(currentValue) => {
+                                setEditDriverName(currentValue);
+                                setEditDriverOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "ml-2 h-4 w-4",
+                                  editDriverName === driver.name ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {driver.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground">يمكنك اختيار سائق من القائمة أو كتابة اسم شخص غير موظف</p>
               </div>
               <DialogFooter className="flex flex-row-reverse gap-3 pt-4">
-                <Button type="submit" className="h-11 rounded-xl font-bold" disabled={updateRoute.isPending}>
+                <Button type="submit" className="h-11 rounded-xl font-bold" disabled={updateRoute.isPending} data-testid="button-update-route">
                   {updateRoute.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ التعديلات"}
                 </Button>
                 <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={() => setEditingRoute(null)}>إلغاء</Button>
