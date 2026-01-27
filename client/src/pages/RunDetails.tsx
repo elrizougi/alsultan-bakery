@@ -45,6 +45,9 @@ export default function RunDetailsPage() {
   const [returnToDelete, setReturnToDelete] = useState<ReturnRecord | null>(null);
   const [addOrderOpen, setAddOrderOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState("");
+  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
+  const [orderToDeliver, setOrderToDeliver] = useState<Order | null>(null);
+  const [deliveredQuantities, setDeliveredQuantities] = useState<Record<string, number>>({});
 
   const run = dispatchRuns.find(r => r.id === runId);
   const route = run ? routes.find(r => r.id === run.routeId) : undefined;
@@ -125,6 +128,50 @@ export default function RunDetailsPage() {
     try {
       await updateOrder.mutateAsync({ id: orderId, status });
       toast({ title: "تم تحديث حالة الطلب" });
+    } catch (error) {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    }
+  };
+
+  const openDeliveryDialog = (order: Order) => {
+    setOrderToDeliver(order);
+    const quantities: Record<string, number> = {};
+    order.items?.forEach(item => {
+      quantities[item.productId] = item.quantity;
+    });
+    setDeliveredQuantities(quantities);
+    setDeliveryDialogOpen(true);
+  };
+
+  const handleDeliverySubmit = async () => {
+    if (!orderToDeliver || !run) return;
+    try {
+      const returnItems: { productId: string; quantity: number; reason: ReturnReason }[] = [];
+      
+      orderToDeliver.items?.forEach(item => {
+        const delivered = deliveredQuantities[item.productId] || 0;
+        const returned = item.quantity - delivered;
+        if (returned > 0) {
+          returnItems.push({
+            productId: item.productId,
+            quantity: returned,
+            reason: 'GOOD' as ReturnReason
+          });
+        }
+      });
+
+      if (returnItems.length > 0) {
+        await createReturn.mutateAsync({
+          runId: run.id,
+          customerId: orderToDeliver.customerId,
+          items: returnItems
+        });
+      }
+
+      await updateOrder.mutateAsync({ id: orderToDeliver.id, status: 'DELIVERED' });
+      toast({ title: "تم تسجيل التسليم" });
+      setDeliveryDialogOpen(false);
+      setOrderToDeliver(null);
     } catch (error) {
       toast({ title: "حدث خطأ", variant: "destructive" });
     }
@@ -309,8 +356,8 @@ export default function RunDetailsPage() {
                           <TableCell className="px-6">
                             <div className="flex gap-2 flex-row-reverse">
                               {order.status === 'ASSIGNED' && (
-                                <Button size="sm" onClick={() => handleUpdateOrderStatus(order.id, 'DELIVERED')} disabled={updateOrder.isPending}>
-                                  <CheckCircle className="h-4 w-4 ml-1" /> تم التسليم
+                                <Button size="sm" onClick={() => openDeliveryDialog(order)} disabled={updateOrder.isPending}>
+                                  <CheckCircle className="h-4 w-4 ml-1" /> تسليم
                                 </Button>
                               )}
                               {order.status === 'DELIVERED' && (
@@ -520,6 +567,69 @@ export default function RunDetailsPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <Dialog open={deliveryDialogOpen} onOpenChange={setDeliveryDialogOpen}>
+          <DialogContent dir="rtl" className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="text-right">تسجيل التسليم</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4 text-right">
+              {orderToDeliver && (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    العميل: {customers.find(c => c.id === orderToDeliver.customerId)?.name}
+                  </p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">المنتج</TableHead>
+                        <TableHead className="text-right">الكمية المطلوبة</TableHead>
+                        <TableHead className="text-right">الكمية المسلمة</TableHead>
+                        <TableHead className="text-right">المرتجع</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orderToDeliver.items?.map(item => {
+                        const product = products.find(p => p.id === item.productId);
+                        const delivered = deliveredQuantities[item.productId] || 0;
+                        const returned = item.quantity - delivered;
+                        return (
+                          <TableRow key={item.productId}>
+                            <TableCell className="font-bold">{product?.name}</TableCell>
+                            <TableCell className="font-bold">{item.quantity}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min="0"
+                                max={item.quantity}
+                                value={delivered}
+                                onChange={(e) => setDeliveredQuantities(prev => ({
+                                  ...prev,
+                                  [item.productId]: Math.min(parseInt(e.target.value) || 0, item.quantity)
+                                }))}
+                                className="w-20 text-center"
+                                data-testid={`delivery-qty-${item.productId}`}
+                              />
+                            </TableCell>
+                            <TableCell className={cn("font-bold", returned > 0 ? "text-amber-600" : "text-green-600")}>
+                              {returned}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
+              <DialogFooter className="flex flex-row-reverse gap-2 pt-4">
+                <Button onClick={handleDeliverySubmit} disabled={updateOrder.isPending || createReturn.isPending} data-testid="button-confirm-delivery">
+                  {(updateOrder.isPending || createReturn.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد التسليم"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setDeliveryDialogOpen(false)}>إلغاء</Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <AlertDialog open={!!returnToDelete} onOpenChange={(open) => !open && setReturnToDelete(null)}>
           <AlertDialogContent dir="rtl">
