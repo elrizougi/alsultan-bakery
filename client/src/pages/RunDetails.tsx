@@ -54,12 +54,10 @@ export default function RunDetailsPage() {
   const availableOrders = useMemo(() => {
     if (!run) return [];
     return orders.filter(o => {
-      const customer = customers.find(c => c.id === o.customerId);
-      return customer?.routeId === run.routeId && 
-             (o.status === 'CONFIRMED' || o.status === 'DRAFT') && 
+      return (o.status === 'CONFIRMED' || o.status === 'DRAFT') && 
              !run.orderIds?.includes(o.id);
     });
-  }, [run, orders, customers]);
+  }, [run, orders]);
 
   const loadSheet = useMemo(() => {
     const totals: Record<string, number> = {};
