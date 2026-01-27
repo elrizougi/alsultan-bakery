@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useCustomers, useRoutes, useCreateCustomer } from "@/hooks/useData";
+import { useCustomers, useRoutes, useCreateCustomer, useUpdateCustomer, useDeleteCustomer } from "@/hooks/useData";
 import {
   Table,
   TableBody,
@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2 } from "lucide-react";
+import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import {
@@ -17,9 +17,18 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,46 +39,97 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import type { Customer } from "@/lib/api";
+
+interface CustomerFormData {
+  name: string;
+  address: string;
+  locationUrl: string;
+  phone: string;
+  routeId: string;
+}
 
 export default function CustomersPage() {
   const { data: customers = [], isLoading } = useCustomers();
   const { data: routes = [] } = useRoutes();
   const createCustomer = useCreateCustomer();
+  const updateCustomer = useUpdateCustomer();
+  const deleteCustomer = useDeleteCustomer();
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  
+  const [showForm, setShowForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [formData, setFormData] = useState<CustomerFormData>({
+    name: "",
+    address: "",
+    locationUrl: "",
+    phone: "",
+    routeId: "",
+  });
 
-  // Form State
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [locationUrl, setLocationUrl] = useState("");
-  const [phone, setPhone] = useState("");
-  const [routeId, setRouteId] = useState("");
+  const openAddForm = () => {
+    setEditingCustomer(null);
+    setFormData({
+      name: "",
+      address: "",
+      locationUrl: "",
+      phone: "",
+      routeId: "",
+    });
+    setShowForm(true);
+  };
+
+  const openEditForm = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setFormData({
+      name: customer.name,
+      address: customer.address,
+      locationUrl: customer.locationUrl || "",
+      phone: customer.phone,
+      routeId: customer.routeId || "",
+    });
+    setShowForm(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !address || !phone) {
+    if (!formData.name || !formData.address || !formData.phone) {
       toast({ title: "يرجى ملء جميع الحقول المطلوبة", variant: "destructive" });
       return;
     }
 
     try {
-      await createCustomer.mutateAsync({
-        name,
-        address,
-        locationUrl: locationUrl || undefined,
-        phone,
-        routeId: routeId || undefined,
-      });
-      toast({ title: "تم إضافة العميل بنجاح" });
-      setOpen(false);
-      // Reset form
-      setName("");
-      setAddress("");
-      setLocationUrl("");
-      setPhone("");
-      setRouteId("");
+      const customerData = {
+        name: formData.name,
+        address: formData.address,
+        locationUrl: formData.locationUrl || undefined,
+        phone: formData.phone,
+        routeId: formData.routeId || undefined,
+      };
+
+      if (editingCustomer) {
+        await updateCustomer.mutateAsync({ id: editingCustomer.id, ...customerData });
+        toast({ title: "تم تحديث العميل بنجاح" });
+      } else {
+        await createCustomer.mutateAsync(customerData);
+        toast({ title: "تم إضافة العميل بنجاح" });
+      }
+      setShowForm(false);
     } catch (error) {
       toast({ title: "حدث خطأ", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (customerToDelete) {
+      try {
+        await deleteCustomer.mutateAsync(customerToDelete.id);
+        toast({ title: "تم حذف العميل" });
+        setCustomerToDelete(null);
+      } catch (error) {
+        toast({ title: "حدث خطأ في حذف العميل", variant: "destructive" });
+      }
     }
   };
 
@@ -92,57 +152,9 @@ export default function CustomersPage() {
             <p className="text-sm text-muted-foreground">عرض وإدارة قاعدة بيانات العملاء ومواقعهم.</p>
           </div>
           
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto flex flex-row-reverse gap-2">
-                <UserPlus className="h-4 w-4" /> إضافة عميل جديد
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]" dir="rtl">
-              <DialogHeader>
-                <DialogTitle className="text-right">إضافة عميل جديد</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4 py-4 text-right">
-                <div className="space-y-2">
-                  <Label htmlFor="name">اسم العميل / المحل</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">رقم الهاتف</Label>
-                    <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="route">خط التوزيع</Label>
-                    <Select onValueChange={setRouteId} value={routeId}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="اختر الخط" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {routes.map(route => (
-                          <SelectItem key={route.id} value={route.id}>{route.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">العنوان</Label>
-                  <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="location">رابط موقع Google Maps (اختياري)</Label>
-                  <Input id="location" value={locationUrl} onChange={(e) => setLocationUrl(e.target.value)} placeholder="https://maps.google.com/..." />
-                </div>
-                <DialogFooter className="flex flex-row-reverse gap-2 pt-4">
-                  <Button type="submit" disabled={createCustomer.isPending}>
-                    {createCustomer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ العميل"}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button className="w-full sm:w-auto flex flex-row-reverse gap-2" onClick={openAddForm} data-testid="button-add-customer">
+            <UserPlus className="h-4 w-4" /> إضافة عميل جديد
+          </Button>
         </div>
 
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
@@ -175,13 +187,14 @@ export default function CustomersPage() {
                 <TableHead className="text-right">العنوان</TableHead>
                 <TableHead className="text-right">خط التوزيع</TableHead>
                 <TableHead className="text-right">الموقع</TableHead>
+                <TableHead className="text-right">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {customers.map((customer) => {
                 const route = routes.find(r => r.id === customer.routeId);
                 return (
-                  <TableRow key={customer.id}>
+                  <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 flex-row-reverse">
@@ -210,12 +223,33 @@ export default function CustomersPage() {
                         <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditForm(customer)}
+                          data-testid={`button-edit-customer-${customer.id}`}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setCustomerToDelete(customer)}
+                          data-testid={`button-delete-customer-${customer.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {customers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-slate-400">
+                  <TableCell colSpan={6} className="text-center py-8 text-slate-400">
                     لا يوجد عملاء مسجلين
                   </TableCell>
                 </TableRow>
@@ -223,6 +257,109 @@ export default function CustomersPage() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Add/Edit Customer Dialog */}
+        <Dialog open={showForm} onOpenChange={setShowForm}>
+          <DialogContent className="sm:max-w-[500px]" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="text-right">
+                {editingCustomer ? "تعديل بيانات العميل" : "إضافة عميل جديد"}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4 py-4 text-right">
+              <div className="space-y-2">
+                <Label htmlFor="name">اسم العميل / المحل</Label>
+                <Input 
+                  id="name" 
+                  value={formData.name} 
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+                  required 
+                  data-testid="input-customer-name"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">رقم الهاتف</Label>
+                  <Input 
+                    id="phone" 
+                    value={formData.phone} 
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })} 
+                    data-testid="input-customer-phone"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="route">خط التوزيع</Label>
+                  <Select onValueChange={(value) => setFormData({ ...formData, routeId: value })} value={formData.routeId}>
+                    <SelectTrigger className="text-right" data-testid="select-customer-route">
+                      <SelectValue placeholder="اختر الخط" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {routes.map(route => (
+                        <SelectItem key={route.id} value={route.id}>{route.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">العنوان</Label>
+                <Input 
+                  id="address" 
+                  value={formData.address} 
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
+                  required 
+                  data-testid="input-customer-address"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="location">رابط موقع Google Maps (اختياري)</Label>
+                <Input 
+                  id="location" 
+                  value={formData.locationUrl} 
+                  onChange={(e) => setFormData({ ...formData, locationUrl: e.target.value })} 
+                  placeholder="https://maps.google.com/..." 
+                  data-testid="input-customer-location"
+                />
+              </div>
+              <DialogFooter className="flex flex-row-reverse gap-2 pt-4">
+                <Button 
+                  type="submit" 
+                  disabled={createCustomer.isPending || updateCustomer.isPending}
+                  data-testid="button-save-customer"
+                >
+                  {(createCustomer.isPending || updateCustomer.isPending) ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    editingCustomer ? "حفظ التغييرات" : "حفظ العميل"
+                  )}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>إلغاء</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!customerToDelete} onOpenChange={(open) => !open && setCustomerToDelete(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-right">حذف العميل</AlertDialogTitle>
+              <AlertDialogDescription className="text-right">
+                هل أنت متأكد من حذف العميل "{customerToDelete?.name}"؟ هذا الإجراء لا يمكن التراجع عنه.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-row-reverse gap-2">
+              <AlertDialogAction 
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-delete-customer"
+              >
+                حذف
+              </AlertDialogAction>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );

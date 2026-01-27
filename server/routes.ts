@@ -269,6 +269,18 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/customers/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteCustomer(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "العميل غير موجود" });
+      }
+      res.json({ message: "تم حذف العميل" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // ============ ORDERS ============
   app.get("/api/orders", async (req, res) => {
     try {

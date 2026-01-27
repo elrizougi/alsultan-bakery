@@ -125,6 +125,10 @@ export const api = {
     return res.json();
   },
 
+  deleteCustomer: async (id: string): Promise<void> => {
+    await apiRequest("DELETE", `/api/customers/${id}`);
+  },
+
   // Routes
   getRoutes: async (): Promise<Route[]> => {
     const res = await fetch("/api/routes");
