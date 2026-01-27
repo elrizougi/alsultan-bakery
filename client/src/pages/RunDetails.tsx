@@ -79,18 +79,19 @@ export default function RunDetailsPage() {
 
   const varianceData = useMemo(() => {
     return loadSheet.map(({ product, quantity: loadedQty }) => {
-      const deliveredQty = runOrders
+      const returnedQty = runReturns.reduce((acc, ret) => {
+         const item = ret.items?.find(i => i.productId === product.id);
+         return acc + (item ? item.quantity : 0);
+      }, 0);
+
+      const orderedQtyFromDelivered = runOrders
         .filter(o => o.status === 'DELIVERED' || o.status === 'CLOSED')
         .reduce((acc, order) => {
           const item = order.items?.find(i => i.productId === product.id);
           return acc + (item ? item.quantity : 0);
         }, 0);
 
-      const returnedQty = runReturns.reduce((acc, ret) => {
-         const item = ret.items?.find(i => i.productId === product.id);
-         return acc + (item ? item.quantity : 0);
-      }, 0);
-
+      const deliveredQty = orderedQtyFromDelivered - returnedQty;
       const variance = loadedQty - deliveredQty - returnedQty;
 
       return { product, loadedQty, deliveredQty, returnedQty, variance };
@@ -444,19 +445,9 @@ export default function RunDetailsPage() {
 
           <TabsContent value="returns" className="mt-6">
             <Card className="rounded-2xl border-0 shadow-sm">
-              <CardHeader className="px-6 flex flex-row-reverse items-center justify-between">
-                <div className="text-right">
-                  <CardTitle>المرتجعات</CardTitle>
-                  <CardDescription>المنتجات المرتجعة من هذه الرحلة</CardDescription>
-                </div>
-                <ReturnDialog runId={run.id} customers={customers} products={products} onSubmit={async (data) => {
-                  try {
-                    await createReturn.mutateAsync(data);
-                    toast({ title: "تم تسجيل المرتجع" });
-                  } catch (error) {
-                    toast({ title: "حدث خطأ", variant: "destructive" });
-                  }
-                }} isPending={createReturn.isPending} />
+              <CardHeader className="px-6">
+                <CardTitle className="text-right">المرتجعات</CardTitle>
+                <CardDescription className="text-right">المنتجات المرتجعة من هذه الرحلة (يتم إنشاؤها تلقائياً عند التسليم)</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -655,95 +646,3 @@ export default function RunDetailsPage() {
   );
 }
 
-function ReturnDialog({ 
-  runId, 
-  customers, 
-  products, 
-  onSubmit, 
-  isPending 
-}: { 
-  runId: string; 
-  customers: Customer[]; 
-  products: Product[]; 
-  onSubmit: (data: { runId: string; customerId: string; items: { productId: string; quantity: number; reason: ReturnReason }[] }) => void;
-  isPending: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [customerId, setCustomerId] = useState("");
-  const [productId, setProductId] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [reason, setReason] = useState<ReturnReason>("GOOD");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customerId || !productId) return;
-    onSubmit({
-      runId,
-      customerId,
-      items: [{ productId, quantity: parseInt(quantity), reason }]
-    });
-    setOpen(false);
-    setCustomerId("");
-    setProductId("");
-    setQuantity("1");
-    setReason("GOOD");
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2" data-testid="button-add-return">
-          <RotateCcw className="h-4 w-4" /> تسجيل مرتجع
-        </Button>
-      </DialogTrigger>
-      <DialogContent dir="rtl" className="sm:max-w-[450px]">
-        <DialogHeader>
-          <DialogTitle className="text-right">تسجيل مرتجع</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4 text-right">
-          <div className="space-y-2">
-            <Label>العميل</Label>
-            <Select onValueChange={setCustomerId} value={customerId}>
-              <SelectTrigger><SelectValue placeholder="اختر العميل" /></SelectTrigger>
-              <SelectContent>
-                {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>المنتج</Label>
-              <Select onValueChange={setProductId} value={productId}>
-                <SelectTrigger><SelectValue placeholder="اختر المنتج" /></SelectTrigger>
-                <SelectContent>
-                  {products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>الكمية</Label>
-              <Input type="number" min="1" step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} data-testid="input-return-quantity" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>السبب</Label>
-            <Select onValueChange={(val) => setReason(val as ReturnReason)} value={reason}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="GOOD">سليم</SelectItem>
-                <SelectItem value="DAMAGED">تالف</SelectItem>
-                <SelectItem value="EXPIRED">منتهي الصلاحية</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter className="flex flex-row-reverse gap-2 pt-4">
-            <Button type="submit" disabled={isPending} data-testid="button-save-return">
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "تسجيل"}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
