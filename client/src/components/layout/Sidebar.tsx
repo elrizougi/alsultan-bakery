@@ -35,24 +35,36 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <div className={cn("py-6 text-right", className)}>
       <div className="space-y-1 px-4">
-        {menuItems.map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={cn(
-              "flex items-center gap-4 rounded-xl px-4 py-3 text-[15px] font-bold transition-all flex-row group",
-              location === item.href 
-                ? "bg-primary/10 text-primary shadow-sm" 
-                : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-            )}
-          >
-            <item.icon className={cn(
-              "h-5 w-5 ml-4",
-              location === item.href ? "text-primary" : "text-slate-300 group-hover:text-slate-400"
-            )} />
-            <span className="flex-1 text-right">{item.label}</span>
-          </Link>
-        ))}
+        {menuItems.map((item) => {
+          const isActive = location === item.href;
+          return (
+            <Link 
+              key={item.href} 
+              href={item.href}
+              className={cn(
+                "relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-[15px] font-bold transition-all duration-200 flex-row group",
+                isActive 
+                  ? "bg-primary text-white shadow-lg shadow-primary/30" 
+                  : "text-slate-500 hover:text-primary hover:bg-primary/5 hover:pr-6"
+              )}
+              data-testid={`menu-item-${item.href.replace('/', '') || 'home'}`}
+            >
+              {isActive && (
+                <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-l-full" />
+              )}
+              <item.icon className={cn(
+                "h-5 w-5 ml-4 transition-all duration-200",
+                isActive ? "text-white" : "text-slate-400 group-hover:text-primary group-hover:scale-110"
+              )} />
+              <span className="flex-1 text-right">{item.label}</span>
+              {!isActive && (
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-primary">
+                  ←
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
