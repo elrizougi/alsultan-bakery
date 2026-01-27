@@ -76,10 +76,12 @@ export interface IStorage {
   getAllReturns(): Promise<Return[]>;
   getReturn(id: string): Promise<Return | undefined>;
   createReturn(ret: InsertReturn): Promise<Return>;
+  deleteReturn(id: string): Promise<boolean>;
 
   // Return Items
   getReturnItems(returnId: string): Promise<ReturnItem[]>;
   createReturnItem(item: InsertReturnItem): Promise<ReturnItem>;
+  deleteReturnItems(returnId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -299,6 +301,12 @@ export class DatabaseStorage implements IStorage {
     return newReturn;
   }
 
+  async deleteReturn(id: string): Promise<boolean> {
+    await this.deleteReturnItems(id);
+    const result = await db.delete(returns).where(eq(returns.id, id)).returning();
+    return result.length > 0;
+  }
+
   // Return Items
   async getReturnItems(returnId: string): Promise<ReturnItem[]> {
     return db.select().from(returnItems).where(eq(returnItems.returnId, returnId));
@@ -307,6 +315,10 @@ export class DatabaseStorage implements IStorage {
   async createReturnItem(item: InsertReturnItem): Promise<ReturnItem> {
     const [newItem] = await db.insert(returnItems).values(item).returning();
     return newItem;
+  }
+
+  async deleteReturnItems(returnId: string): Promise<void> {
+    await db.delete(returnItems).where(eq(returnItems.returnId, returnId));
   }
 }
 

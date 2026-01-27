@@ -201,6 +201,16 @@ export function useCreateReturn() {
   });
 }
 
+export function useDeleteReturn() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteReturn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["returns"] });
+    },
+  });
+}
+
 // Users
 export function useUsers() {
   return useQuery({

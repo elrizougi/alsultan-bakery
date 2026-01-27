@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useRoute, Link } from "wouter";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useDispatchRuns, useOrders, useProducts, useCustomers, useRoutes, useReturns, useUpdateDispatchRun, useUpdateOrder, useCreateReturn } from "@/hooks/useData";
+import { useDispatchRuns, useOrders, useProducts, useCustomers, useRoutes, useReturns, useUpdateDispatchRun, useUpdateOrder, useCreateReturn, useDeleteReturn } from "@/hooks/useData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,10 +11,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { ChevronLeft, CheckCircle, AlertTriangle, Printer, RotateCcw, MapPin, Phone, ExternalLink, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ChevronLeft, CheckCircle, AlertTriangle, Printer, RotateCcw, MapPin, Phone, Loader2, Trash2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import type { Product, Order, ReturnReason, RunStatus, Status } from "@/lib/api";
+import type { Product, Order, ReturnReason, RunStatus, Status, Customer, ReturnRecord } from "@/lib/api";
 
 export default function RunDetailsPage() {
   const [, params] = useRoute("/dispatch/:id");
@@ -29,7 +39,12 @@ export default function RunDetailsPage() {
   const updateRun = useUpdateDispatchRun();
   const updateOrder = useUpdateOrder();
   const createReturn = useCreateReturn();
+  const deleteReturn = useDeleteReturn();
   const { toast } = useToast();
+
+  const [returnToDelete, setReturnToDelete] = useState<ReturnRecord | null>(null);
+  const [addOrderOpen, setAddOrderOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState("");
 
   const run = dispatchRuns.find(r => r.id === runId);
   
@@ -48,6 +63,13 @@ export default function RunDetailsPage() {
   const route = routes.find(r => r.id === run.routeId);
   const runOrders = orders.filter(o => run.orderIds?.includes(o.id));
   const runReturns = returns.filter(r => r.runId === run.id);
+
+  const availableOrders = orders.filter(o => {
+    const customer = customers.find(c => c.id === o.customerId);
+    return customer?.routeId === run.routeId && 
+           (o.status === 'CONFIRMED' || o.status === 'DRAFT') && 
+           !run.orderIds?.includes(o.id);
+  });
 
   const loadSheet = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -99,6 +121,43 @@ export default function RunDetailsPage() {
       toast({ title: "تم تحديث حالة الطلب" });
     } catch (error) {
       toast({ title: "حدث خطأ", variant: "destructive" });
+    }
+  };
+
+  const handleAddOrderToRun = async () => {
+    if (!selectedOrderId) return;
+    try {
+      const newOrderIds = [...(run.orderIds || []), selectedOrderId];
+      await updateRun.mutateAsync({ id: run.id, orderIds: newOrderIds });
+      await updateOrder.mutateAsync({ id: selectedOrderId, status: 'ASSIGNED' });
+      toast({ title: "تم إضافة الطلب للرحلة" });
+      setAddOrderOpen(false);
+      setSelectedOrderId("");
+    } catch (error) {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveOrderFromRun = async (orderId: string) => {
+    try {
+      const newOrderIds = (run.orderIds || []).filter(id => id !== orderId);
+      await updateRun.mutateAsync({ id: run.id, orderIds: newOrderIds });
+      await updateOrder.mutateAsync({ id: orderId, status: 'CONFIRMED' });
+      toast({ title: "تم إزالة الطلب من الرحلة" });
+    } catch (error) {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteReturn = async () => {
+    if (returnToDelete) {
+      try {
+        await deleteReturn.mutateAsync(returnToDelete.id);
+        toast({ title: "تم حذف المرتجع" });
+        setReturnToDelete(null);
+      } catch (error) {
+        toast({ title: "حدث خطأ", variant: "destructive" });
+      }
     }
   };
 
@@ -154,9 +213,52 @@ export default function RunDetailsPage() {
 
           <TabsContent value="orders" className="mt-6">
             <Card className="rounded-2xl border-0 shadow-sm">
-              <CardHeader className="px-6">
-                <CardTitle className="text-right">طلبات الرحلة</CardTitle>
-                <CardDescription className="text-right">قائمة الطلبات المخصصة لهذه الرحلة</CardDescription>
+              <CardHeader className="px-6 flex flex-row-reverse items-center justify-between">
+                <div className="text-right">
+                  <CardTitle>طلبات الرحلة</CardTitle>
+                  <CardDescription>قائمة الطلبات المخصصة لهذه الرحلة</CardDescription>
+                </div>
+                {run.status === 'DRAFT' && (
+                  <Dialog open={addOrderOpen} onOpenChange={setAddOrderOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="gap-2" data-testid="button-add-order-to-run">
+                        <Plus className="h-4 w-4" /> إضافة طلب
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent dir="rtl" className="sm:max-w-[450px]">
+                      <DialogHeader>
+                        <DialogTitle className="text-right">إضافة طلب للرحلة</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4 text-right">
+                        <div className="space-y-2">
+                          <Label>اختر الطلب</Label>
+                          <Select onValueChange={setSelectedOrderId} value={selectedOrderId}>
+                            <SelectTrigger><SelectValue placeholder="اختر طلب..." /></SelectTrigger>
+                            <SelectContent>
+                              {availableOrders.map(o => {
+                                const customer = customers.find(c => c.id === o.customerId);
+                                return (
+                                  <SelectItem key={o.id} value={o.id}>
+                                    {customer?.name} - {parseFloat(o.totalAmount).toFixed(2)} ر.س
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          {availableOrders.length === 0 && (
+                            <p className="text-sm text-muted-foreground">لا توجد طلبات متاحة لهذا الخط</p>
+                          )}
+                        </div>
+                        <DialogFooter className="flex flex-row-reverse gap-2 pt-4">
+                          <Button onClick={handleAddOrderToRun} disabled={!selectedOrderId || updateRun.isPending}>
+                            {updateRun.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة"}
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => setAddOrderOpen(false)}>إلغاء</Button>
+                        </DialogFooter>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -174,7 +276,7 @@ export default function RunDetailsPage() {
                     {runOrders.map(order => {
                       const customer = customers.find(c => c.id === order.customerId);
                       return (
-                        <TableRow key={order.id}>
+                        <TableRow key={order.id} data-testid={`order-row-${order.id}`}>
                           <TableCell className="font-bold px-6">{customer?.name}</TableCell>
                           <TableCell className="text-slate-500">{customer?.address}</TableCell>
                           <TableCell>
@@ -200,6 +302,17 @@ export default function RunDetailsPage() {
                                     <MapPin className="h-4 w-4 ml-1" /> الموقع
                                   </Button>
                                 </a>
+                              )}
+                              {run.status === 'DRAFT' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="text-red-500 hover:text-red-600"
+                                  onClick={() => handleRemoveOrderFromRun(order.id)}
+                                  data-testid={`remove-order-${order.id}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
                               )}
                             </div>
                           </TableCell>
@@ -283,20 +396,21 @@ export default function RunDetailsPage() {
                       <TableHead className="text-right px-6">العميل</TableHead>
                       <TableHead className="text-right">المنتج</TableHead>
                       <TableHead className="text-right">الكمية</TableHead>
-                      <TableHead className="text-right px-6">السبب</TableHead>
+                      <TableHead className="text-right">السبب</TableHead>
+                      <TableHead className="text-right px-6">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {runReturns.flatMap(ret => 
-                      (ret.items || []).map((item, idx) => {
-                        const customer = customers.find(c => c.id === ret.customerId);
+                    {runReturns.map(ret => {
+                      const customer = customers.find(c => c.id === ret.customerId);
+                      return (ret.items || []).map((item, idx) => {
                         const product = products.find(p => p.id === item.productId);
                         return (
-                          <TableRow key={`${ret.id}-${idx}`}>
+                          <TableRow key={`${ret.id}-${idx}`} data-testid={`return-row-${ret.id}`}>
                             <TableCell className="font-bold px-6">{customer?.name}</TableCell>
                             <TableCell>{product?.name}</TableCell>
                             <TableCell className="font-bold">{item.quantity}</TableCell>
-                            <TableCell className="px-6">
+                            <TableCell>
                               <span className={cn(
                                 "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
                                 item.reason === 'GOOD' ? 'bg-green-50 text-green-700' :
@@ -306,13 +420,26 @@ export default function RunDetailsPage() {
                                 {item.reason === 'GOOD' ? 'سليم' : item.reason === 'DAMAGED' ? 'تالف' : 'منتهي'}
                               </span>
                             </TableCell>
+                            <TableCell className="px-6">
+                              {idx === 0 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-600"
+                                  onClick={() => setReturnToDelete(ret)}
+                                  data-testid={`delete-return-${ret.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </TableCell>
                           </TableRow>
                         );
-                      })
-                    )}
+                      });
+                    })}
                     {runReturns.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-slate-400">
+                        <TableCell colSpan={5} className="text-center py-8 text-slate-400">
                           لا توجد مرتجعات مسجلة
                         </TableCell>
                       </TableRow>
@@ -371,6 +498,26 @@ export default function RunDetailsPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <AlertDialog open={!!returnToDelete} onOpenChange={(open) => !open && setReturnToDelete(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-right">حذف المرتجع</AlertDialogTitle>
+              <AlertDialogDescription className="text-right">
+                هل أنت متأكد من حذف هذا المرتجع؟ هذا الإجراء لا يمكن التراجع عنه.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-row-reverse gap-2">
+              <AlertDialogAction 
+                onClick={handleDeleteReturn}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                حذف
+              </AlertDialogAction>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
@@ -384,8 +531,8 @@ function ReturnDialog({
   isPending 
 }: { 
   runId: string; 
-  customers: any[]; 
-  products: any[]; 
+  customers: Customer[]; 
+  products: Product[]; 
   onSubmit: (data: { runId: string; customerId: string; items: { productId: string; quantity: number; reason: ReturnReason }[] }) => void;
   isPending: boolean;
 }) {
@@ -413,7 +560,7 @@ function ReturnDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button className="gap-2" data-testid="button-add-return">
           <RotateCcw className="h-4 w-4" /> تسجيل مرتجع
         </Button>
       </DialogTrigger>
@@ -443,7 +590,7 @@ function ReturnDialog({
             </div>
             <div className="space-y-2">
               <Label>الكمية</Label>
-              <Input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+              <Input type="number" min="1" step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} data-testid="input-return-quantity" />
             </div>
           </div>
           <div className="space-y-2">
@@ -458,7 +605,7 @@ function ReturnDialog({
             </Select>
           </div>
           <DialogFooter className="flex flex-row-reverse gap-2 pt-4">
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending} data-testid="button-save-return">
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "تسجيل"}
             </Button>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>

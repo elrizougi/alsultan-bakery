@@ -191,6 +191,10 @@ export const api = {
     return res.json();
   },
 
+  deleteReturn: async (id: string): Promise<void> => {
+    await apiRequest("DELETE", `/api/returns/${id}`);
+  },
+
   // Users
   getUsers: async (): Promise<User[]> => {
     const res = await fetch("/api/users");

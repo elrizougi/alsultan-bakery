@@ -516,6 +516,18 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/returns/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteReturn(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "المرتجع غير موجود" });
+      }
+      res.json({ message: "تم حذف المرتجع" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // ============ SEED DATA ============
   app.post("/api/seed", async (req, res) => {
     try {
