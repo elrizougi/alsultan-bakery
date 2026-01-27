@@ -281,6 +281,8 @@ export default function RunDetailsPage() {
                   <TableBody>
                     {runOrders.map(order => {
                       const customer = customers.find(c => c.id === order.customerId);
+                      const orderReturns = runReturns.filter(r => r.customerId === order.customerId);
+                      const hasReturns = orderReturns.length > 0;
                       return (
                         <TableRow key={order.id} data-testid={`order-row-${order.id}`}>
                           <TableCell className="font-bold px-6">{customer?.name}</TableCell>
@@ -294,12 +296,26 @@ export default function RunDetailsPage() {
                             )}
                           </TableCell>
                           <TableCell className="font-black">{parseFloat(order.totalAmount).toFixed(2)} ر.س</TableCell>
-                          <TableCell><StatusBadge status={order.status} /></TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <StatusBadge status={order.status} />
+                              {hasReturns && (
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700">
+                                  <RotateCcw className="h-3 w-3 ml-1" /> تسليم جزئي
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="px-6">
                             <div className="flex gap-2 flex-row-reverse">
                               {order.status === 'ASSIGNED' && (
                                 <Button size="sm" onClick={() => handleUpdateOrderStatus(order.id, 'DELIVERED')} disabled={updateOrder.isPending}>
                                   <CheckCircle className="h-4 w-4 ml-1" /> تم التسليم
+                                </Button>
+                              )}
+                              {order.status === 'DELIVERED' && (
+                                <Button size="sm" variant="outline" onClick={() => handleUpdateOrderStatus(order.id, 'ASSIGNED')} disabled={updateOrder.isPending}>
+                                  <RotateCcw className="h-4 w-4 ml-1" /> تراجع
                                 </Button>
                               )}
                               {customer?.locationUrl && (
