@@ -5,8 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import OrdersPage from "@/pages/Orders";
-import DispatchPage from "@/pages/Dispatch";
-import RunDetailsPage from "@/pages/RunDetails";
 import InventoryPage from "@/pages/Inventory";
 import ReturnsPage from "@/pages/Returns";
 import CustomersPage from "@/pages/Customers";
@@ -23,8 +21,6 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/" component={Dashboard} />
       <Route path="/orders" component={OrdersPage} />
-      <Route path="/dispatch" component={DispatchPage} />
-      <Route path="/dispatch/:id" component={RunDetailsPage} />
       <Route path="/inventory" component={InventoryPage} />
       <Route path="/returns" component={ReturnsPage} />
       <Route path="/customers" component={CustomersPage} />

@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useOrders, useUsers, useProducts, useCreateOrder, useUpdateOrder, useDeleteOrder, useDispatchRuns } from "@/hooks/useData";
+import { useOrders, useUsers, useProducts, useCreateOrder, useUpdateOrder, useDeleteOrder } from "@/hooks/useData";
 import { api } from "@/lib/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/lib/store";
@@ -33,7 +33,6 @@ export default function OrdersPage() {
   const { data: orders = [], isLoading } = useOrders();
   const { data: users = [] } = useUsers();
   const { data: products = [] } = useProducts();
-  const { data: dispatchRuns = [] } = useDispatchRuns();
   const updateOrder = useUpdateOrder();
   const deleteOrder = useDeleteOrder();
   const { toast } = useToast();
@@ -44,25 +43,10 @@ export default function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [confirmingOrder, setConfirmingOrder] = useState<Order | null>(null);
 
-  // الحصول على معرفات الطلبات المسندة للسائق الحالي من رحلات التوزيع
-  const driverOrderIds = useMemo(() => {
-    if (currentUser?.role !== 'DRIVER') return null;
-    const driverRuns = dispatchRuns.filter(run => run.driverName === currentUser.name);
-    const orderIds = new Set<string>();
-    driverRuns.forEach(run => {
-      run.orderIds?.forEach(id => orderIds.add(id));
-    });
-    return orderIds;
-  }, [dispatchRuns, currentUser]);
-
   const filteredOrders = orders.filter(order => {
-    // إذا كان المستخدم سائق، يظهر له الطلبات المسندة إليه بطريقتين:
-    // 1. من خلال رحلات التوزيع (orderIds)
-    // 2. أو إذا كان الطلب مرتبط مباشرة بالسائق (customerId = driverId)
+    // السائقون يرون الطلبات المرتبطة بهم مباشرة
     if (currentUser?.role === 'DRIVER') {
-      const isAssignedViaDispatch = driverOrderIds && driverOrderIds.has(order.id);
-      const isDirectlyAssigned = order.customerId === currentUser.id;
-      if (!isAssignedViaDispatch && !isDirectlyAssigned) {
+      if (order.customerId !== currentUser.id) {
         return false;
       }
     }
