@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrderSchema, insertOrderItemSchema, insertDispatchRunSchema, insertReturnSchema, insertReturnItemSchema, insertRouteSchema, insertRunOrderSchema } from "@shared/schema";
+import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrderSchema, insertOrderItemSchema, insertDispatchRunSchema, insertReturnSchema, insertReturnItemSchema, insertRouteSchema, insertRunOrderSchema, insertTransactionSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -654,6 +654,101 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Seed error:", error);
       res.status(500).json({ message: "خطأ أثناء إضافة البيانات الأولية" });
+    }
+  });
+
+  // ============ DRIVER INVENTORY ============
+  app.get("/api/driver-inventory/:driverId", async (req, res) => {
+    try {
+      const inventory = await storage.getDriverInventory(req.params.driverId);
+      res.json(inventory);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  // ============ DRIVER BALANCE ============
+  app.get("/api/driver-balance/:driverId", async (req, res) => {
+    try {
+      const balance = await storage.getDriverBalance(req.params.driverId);
+      res.json(balance || { driverId: req.params.driverId, cashBalance: "0" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  // ============ CUSTOMER DEBTS ============
+  app.get("/api/customer-debts/:customerId", async (req, res) => {
+    try {
+      const debts = await storage.getCustomerDebts(req.params.customerId);
+      res.json(debts);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.get("/api/driver-customer-debts/:driverId", async (req, res) => {
+    try {
+      const debts = await storage.getDriverCustomerDebts(req.params.driverId);
+      res.json(debts);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.patch("/api/customer-debts/:id", async (req, res) => {
+    try {
+      const { isPaid } = req.body;
+      const debt = await storage.updateCustomerDebtWithBalance(req.params.id, isPaid);
+      if (!debt) {
+        return res.status(404).json({ message: "الدين غير موجود" });
+      }
+      res.json(debt);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  // ============ TRANSACTIONS ============
+  app.get("/api/transactions", async (req, res) => {
+    try {
+      const allTransactions = await storage.getAllTransactions();
+      res.json(allTransactions);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.get("/api/driver-transactions/:driverId", async (req, res) => {
+    try {
+      const driverTransactions = await storage.getDriverTransactions(req.params.driverId);
+      res.json(driverTransactions);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/transactions", async (req, res) => {
+    try {
+      const parsed = insertTransactionSchema.parse(req.body);
+      
+      const { type, customerId } = parsed;
+      
+      // التحقق من أن البيع الآجل يتطلب عميل
+      if (type === 'CREDIT_SALE' && !customerId) {
+        return res.status(400).json({ message: "البيع الآجل يتطلب تحديد العميل" });
+      }
+      
+      // استخدام الدالة الذرية لإنشاء العملية مع جميع التحديثات
+      const transaction = await storage.createTransactionWithUpdates(parsed);
+      
+      res.status(201).json(transaction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "بيانات غير صالحة", errors: error.errors });
+      }
+      console.error("Transaction error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
     }
   });
 

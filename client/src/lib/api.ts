@@ -238,4 +238,84 @@ export const api = {
   deleteRoute: async (id: string): Promise<void> => {
     await apiRequest("DELETE", `/api/routes/${id}`);
   },
+
+  // Driver Transactions
+  getDriverInventory: async (driverId: string): Promise<DriverInventory[]> => {
+    const res = await fetch(`/api/driver-inventory/${driverId}`);
+    return res.json();
+  },
+
+  getDriverBalance: async (driverId: string): Promise<DriverBalance> => {
+    const res = await fetch(`/api/driver-balance/${driverId}`);
+    return res.json();
+  },
+
+  getDriverTransactions: async (driverId: string): Promise<Transaction[]> => {
+    const res = await fetch(`/api/driver-transactions/${driverId}`);
+    return res.json();
+  },
+
+  getDriverCustomerDebts: async (driverId: string): Promise<CustomerDebt[]> => {
+    const res = await fetch(`/api/driver-customer-debts/${driverId}`);
+    return res.json();
+  },
+
+  createTransaction: async (transaction: InsertTransaction): Promise<Transaction> => {
+    const res = await apiRequest("POST", "/api/transactions", transaction);
+    return res.json();
+  },
+
+  updateCustomerDebt: async (id: string, isPaid: boolean): Promise<CustomerDebt> => {
+    const res = await apiRequest("PATCH", `/api/customer-debts/${id}`, { isPaid });
+    return res.json();
+  },
 };
+
+// Types for transactions
+export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE';
+
+export interface Transaction {
+  id: string;
+  type: TransactionType;
+  driverId: string;
+  customerId?: string;
+  productId: string;
+  quantity: number;
+  unitPrice?: string;
+  totalAmount?: string;
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface InsertTransaction {
+  type: TransactionType;
+  driverId: string;
+  customerId?: string;
+  productId: string;
+  quantity: number;
+  unitPrice?: string;
+  totalAmount?: string;
+  notes?: string;
+}
+
+export interface DriverInventory {
+  id: string;
+  driverId: string;
+  productId: string;
+  quantity: number;
+}
+
+export interface DriverBalance {
+  id: string;
+  driverId: string;
+  cashBalance: string;
+}
+
+export interface CustomerDebt {
+  id: string;
+  customerId?: string;
+  driverId: string;
+  amount: string;
+  isPaid: boolean;
+  createdAt?: string;
+}

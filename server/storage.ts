@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   users, type User, type InsertUser,
   products, type Product, type InsertProduct,
@@ -11,6 +11,10 @@ import {
   runOrders, type RunOrder, type InsertRunOrder,
   returns, type Return, type InsertReturn,
   returnItems, type ReturnItem, type InsertReturnItem,
+  driverInventory, type DriverInventory, type InsertDriverInventory,
+  driverBalance, type DriverBalance, type InsertDriverBalance,
+  customerDebts, type CustomerDebt, type InsertCustomerDebt,
+  transactions, type Transaction, type InsertTransaction,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -84,6 +88,28 @@ export interface IStorage {
   getReturnItems(returnId: string): Promise<ReturnItem[]>;
   createReturnItem(item: InsertReturnItem): Promise<ReturnItem>;
   deleteReturnItems(returnId: string): Promise<void>;
+
+  // Driver Inventory
+  getDriverInventory(driverId: string): Promise<DriverInventory[]>;
+  getDriverInventoryItem(driverId: string, productId: string): Promise<DriverInventory | undefined>;
+  upsertDriverInventory(driverId: string, productId: string, quantity: number): Promise<DriverInventory>;
+  updateDriverInventory(driverId: string, productId: string, quantityChange: number): Promise<DriverInventory | undefined>;
+
+  // Driver Balance
+  getDriverBalance(driverId: string): Promise<DriverBalance | undefined>;
+  upsertDriverBalance(driverId: string, cashBalance: string): Promise<DriverBalance>;
+  updateDriverCashBalance(driverId: string, amountChange: string): Promise<DriverBalance | undefined>;
+
+  // Customer Debts
+  getCustomerDebts(customerId: string): Promise<CustomerDebt[]>;
+  getDriverCustomerDebts(driverId: string): Promise<CustomerDebt[]>;
+  createCustomerDebt(debt: InsertCustomerDebt): Promise<CustomerDebt>;
+  updateCustomerDebt(id: string, isPaid: boolean): Promise<CustomerDebt | undefined>;
+
+  // Transactions
+  getAllTransactions(): Promise<Transaction[]>;
+  getDriverTransactions(driverId: string): Promise<Transaction[]>;
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -334,6 +360,210 @@ export class DatabaseStorage implements IStorage {
 
   async deleteReturnItems(returnId: string): Promise<void> {
     await db.delete(returnItems).where(eq(returnItems.returnId, returnId));
+  }
+
+  // Driver Inventory
+  async getDriverInventory(driverId: string): Promise<DriverInventory[]> {
+    return db.select().from(driverInventory).where(eq(driverInventory.driverId, driverId));
+  }
+
+  async getDriverInventoryItem(driverId: string, productId: string): Promise<DriverInventory | undefined> {
+    const [item] = await db.select().from(driverInventory)
+      .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)));
+    return item;
+  }
+
+  async upsertDriverInventory(driverId: string, productId: string, quantity: number): Promise<DriverInventory> {
+    const existing = await this.getDriverInventoryItem(driverId, productId);
+    if (existing) {
+      const [updated] = await db.update(driverInventory)
+        .set({ quantity })
+        .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)))
+        .returning();
+      return updated;
+    } else {
+      const [newItem] = await db.insert(driverInventory).values({ driverId, productId, quantity }).returning();
+      return newItem;
+    }
+  }
+
+  async updateDriverInventory(driverId: string, productId: string, quantityChange: number): Promise<DriverInventory | undefined> {
+    const existing = await this.getDriverInventoryItem(driverId, productId);
+    if (existing) {
+      const newQuantity = Math.max(0, existing.quantity + quantityChange);
+      const [updated] = await db.update(driverInventory)
+        .set({ quantity: newQuantity })
+        .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)))
+        .returning();
+      return updated;
+    } else if (quantityChange > 0) {
+      const [newItem] = await db.insert(driverInventory).values({ driverId, productId, quantity: quantityChange }).returning();
+      return newItem;
+    }
+    return undefined;
+  }
+
+  // Driver Balance
+  async getDriverBalance(driverId: string): Promise<DriverBalance | undefined> {
+    const [balance] = await db.select().from(driverBalance).where(eq(driverBalance.driverId, driverId));
+    return balance;
+  }
+
+  async upsertDriverBalance(driverId: string, cashBalance: string): Promise<DriverBalance> {
+    const existing = await this.getDriverBalance(driverId);
+    if (existing) {
+      const [updated] = await db.update(driverBalance)
+        .set({ cashBalance })
+        .where(eq(driverBalance.driverId, driverId))
+        .returning();
+      return updated;
+    } else {
+      const [newBalance] = await db.insert(driverBalance).values({ driverId, cashBalance }).returning();
+      return newBalance;
+    }
+  }
+
+  async updateDriverCashBalance(driverId: string, amountChange: string): Promise<DriverBalance | undefined> {
+    const existing = await this.getDriverBalance(driverId);
+    const currentBalance = existing ? parseFloat(existing.cashBalance) : 0;
+    const newBalance = (currentBalance + parseFloat(amountChange)).toFixed(2);
+    return this.upsertDriverBalance(driverId, newBalance);
+  }
+
+  // Customer Debts
+  async getCustomerDebts(customerId: string): Promise<CustomerDebt[]> {
+    return db.select().from(customerDebts).where(eq(customerDebts.customerId, customerId));
+  }
+
+  async getDriverCustomerDebts(driverId: string): Promise<CustomerDebt[]> {
+    return db.select().from(customerDebts).where(eq(customerDebts.driverId, driverId));
+  }
+
+  async createCustomerDebt(debt: InsertCustomerDebt): Promise<CustomerDebt> {
+    const [newDebt] = await db.insert(customerDebts).values(debt).returning();
+    return newDebt;
+  }
+
+  async updateCustomerDebt(id: string, isPaid: boolean): Promise<CustomerDebt | undefined> {
+    const [updated] = await db.update(customerDebts).set({ isPaid }).where(eq(customerDebts.id, id)).returning();
+    return updated;
+  }
+
+  // Transactions
+  async getAllTransactions(): Promise<Transaction[]> {
+    return db.select().from(transactions);
+  }
+
+  async getDriverTransactions(driverId: string): Promise<Transaction[]> {
+    return db.select().from(transactions).where(eq(transactions.driverId, driverId));
+  }
+
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const [newTransaction] = await db.insert(transactions).values(transaction).returning();
+    return newTransaction;
+  }
+
+  // Atomic transaction creation with all related updates using DB transaction
+  async createTransactionWithUpdates(transaction: InsertTransaction): Promise<Transaction> {
+    const { type, driverId, customerId, productId, quantity } = transaction;
+    const totalAmount = transaction.totalAmount || "0";
+    
+    return await db.transaction(async (tx) => {
+      // إنشاء العملية
+      const [newTransaction] = await tx.insert(transactions).values(transaction).returning();
+      
+      // Helper function for inventory update within transaction
+      const updateInventoryInTx = async (qtyChange: number) => {
+        const [existing] = await tx.select().from(driverInventory)
+          .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)));
+        
+        if (existing) {
+          await tx.update(driverInventory)
+            .set({ quantity: existing.quantity + qtyChange })
+            .where(eq(driverInventory.id, existing.id));
+        } else if (qtyChange > 0) {
+          await tx.insert(driverInventory).values({ driverId, productId, quantity: qtyChange });
+        }
+      };
+      
+      // Helper function for balance update within transaction
+      const updateBalanceInTx = async (amount: string) => {
+        const [existing] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, driverId));
+        const currentBalance = existing ? parseFloat(existing.cashBalance) : 0;
+        const newBalance = (currentBalance + parseFloat(amount)).toFixed(2);
+        
+        if (existing) {
+          await tx.update(driverBalance).set({ cashBalance: newBalance }).where(eq(driverBalance.driverId, driverId));
+        } else {
+          await tx.insert(driverBalance).values({ driverId, cashBalance: newBalance });
+        }
+      };
+      
+      // معالجة أنواع العمليات المختلفة
+      switch (type) {
+        case 'CASH_SALE':
+          await updateInventoryInTx(-quantity);
+          await updateBalanceInTx(totalAmount);
+          break;
+          
+        case 'CREDIT_SALE':
+          await updateInventoryInTx(-quantity);
+          await tx.insert(customerDebts).values({
+            customerId,
+            driverId,
+            amount: totalAmount,
+            isPaid: false,
+          });
+          break;
+          
+        case 'RETURN':
+          await updateInventoryInTx(quantity);
+          break;
+          
+        case 'FREE_DISTRIBUTION':
+        case 'FREE_SAMPLE':
+          await updateInventoryInTx(-quantity);
+          break;
+      }
+      
+      return newTransaction;
+    });
+  }
+
+  // Update debt payment with driver balance adjustment using DB transaction
+  async updateCustomerDebtWithBalance(id: string, isPaid: boolean): Promise<CustomerDebt | undefined> {
+    return await db.transaction(async (tx) => {
+      // First get the debt to know the amount and driver
+      const [debt] = await tx.select().from(customerDebts).where(eq(customerDebts.id, id));
+      if (!debt) return undefined;
+      
+      // Update the debt status
+      const [updated] = await tx.update(customerDebts).set({ isPaid }).where(eq(customerDebts.id, id)).returning();
+      
+      // Helper function for balance update within transaction
+      const updateBalanceInTx = async (driverId: string, amount: string) => {
+        const [existing] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, driverId));
+        const currentBalance = existing ? parseFloat(existing.cashBalance) : 0;
+        const newBalance = (currentBalance + parseFloat(amount)).toFixed(2);
+        
+        if (existing) {
+          await tx.update(driverBalance).set({ cashBalance: newBalance }).where(eq(driverBalance.driverId, driverId));
+        } else {
+          await tx.insert(driverBalance).values({ driverId, cashBalance: newBalance });
+        }
+      };
+      
+      // If marking as paid, add the amount to driver's cash balance
+      if (isPaid && !debt.isPaid) {
+        await updateBalanceInTx(debt.driverId, debt.amount);
+      }
+      // If marking as unpaid (reversing), subtract from driver's cash balance
+      else if (!isPaid && debt.isPaid) {
+        await updateBalanceInTx(debt.driverId, (-parseFloat(debt.amount)).toFixed(2));
+      }
+      
+      return updated;
+    });
   }
 }
 

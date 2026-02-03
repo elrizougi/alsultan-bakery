@@ -15,6 +15,7 @@ import LoginPage from "@/pages/Login";
 import ReportsPage from "@/pages/Reports";
 import UsersManagementPage from "@/pages/UsersManagement";
 import RoutesManagementPage from "@/pages/RoutesManagement";
+import DriverTransactionsPage from "@/pages/DriverTransactions";
 
 function Router() {
   return (
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/reports" component={ReportsPage} />
       <Route path="/users" component={UsersManagementPage} />
       <Route path="/routes" component={RoutesManagementPage} />
+      <Route path="/driver-transactions" component={DriverTransactionsPage} />
       <Route component={NotFound} />
     </Switch>
   );

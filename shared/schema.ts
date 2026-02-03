@@ -8,6 +8,7 @@ export const roleEnum = pgEnum('role', ['ADMIN', 'DRIVER', 'SALES']);
 export const orderStatusEnum = pgEnum('order_status', ['DRAFT', 'CONFIRMED', 'ASSIGNED', 'DELIVERED', 'CLOSED', 'CANCELED']);
 export const runStatusEnum = pgEnum('run_status', ['DRAFT', 'LOADED', 'OUT', 'RETURNED', 'CLOSED']);
 export const returnReasonEnum = pgEnum('return_reason', ['GOOD', 'DAMAGED', 'EXPIRED']);
+export const transactionTypeEnum = pgEnum('transaction_type', ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE']);
 
 // Users table
 export const users = pgTable("users", {
@@ -137,3 +138,59 @@ export const returnItems = pgTable("return_items", {
 export const insertReturnItemSchema = createInsertSchema(returnItems).omit({ id: true });
 export type InsertReturnItem = z.infer<typeof insertReturnItemSchema>;
 export type ReturnItem = typeof returnItems.$inferSelect;
+
+// Driver Inventory table - مخزون المندوب
+export const driverInventory = pgTable("driver_inventory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").references(() => users.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  quantity: integer("quantity").notNull().default(0),
+});
+
+export const insertDriverInventorySchema = createInsertSchema(driverInventory).omit({ id: true });
+export type InsertDriverInventory = z.infer<typeof insertDriverInventorySchema>;
+export type DriverInventory = typeof driverInventory.$inferSelect;
+
+// Driver Balance table - رصيد المندوب النقدي
+export const driverBalance = pgTable("driver_balance", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").references(() => users.id).notNull().unique(),
+  cashBalance: decimal("cash_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+});
+
+export const insertDriverBalanceSchema = createInsertSchema(driverBalance).omit({ id: true });
+export type InsertDriverBalance = z.infer<typeof insertDriverBalanceSchema>;
+export type DriverBalance = typeof driverBalance.$inferSelect;
+
+// Customer Debts table - ديون العملاء
+export const customerDebts = pgTable("customer_debts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  driverId: varchar("driver_id").references(() => users.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  isPaid: boolean("is_paid").notNull().default(false),
+});
+
+export const insertCustomerDebtSchema = createInsertSchema(customerDebts).omit({ id: true, createdAt: true });
+export type InsertCustomerDebt = z.infer<typeof insertCustomerDebtSchema>;
+export type CustomerDebt = typeof customerDebts.$inferSelect;
+
+// Transactions table - سجل العمليات
+export const transactions = pgTable("transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").references(() => users.id).notNull(),
+  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  type: transactionTypeEnum("type").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull().default("0"),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+  notes: text("notes"),
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type Transaction = typeof transactions.$inferSelect;
+export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE';
