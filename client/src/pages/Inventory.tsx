@@ -40,6 +40,7 @@ interface ProductFormData {
   price: string;
   category: string;
   stock: number;
+  batchCount: number;
 }
 
 export default function InventoryPage() {
@@ -88,6 +89,7 @@ export default function InventoryPage() {
       price: "",
       category: "",
       stock: 0,
+      batchCount: 0,
     });
     setShowProductForm(true);
   };
@@ -100,6 +102,7 @@ export default function InventoryPage() {
       price: product.price,
       category: product.category,
       stock: product.stock,
+      batchCount: product.batchCount || 0,
     });
     setShowProductForm(true);
   };
@@ -202,6 +205,7 @@ export default function InventoryPage() {
                 <TableHead className="text-right">الفئة</TableHead>
                 <TableHead className="text-right">السعر</TableHead>
                 <TableHead className="text-right">المخزون الحالي</TableHead>
+                <TableHead className="text-right">عدد العجنات</TableHead>
                 <TableHead className="text-right">الحالة</TableHead>
                 <TableHead className="text-right">إجراءات</TableHead>
               </TableRow>
@@ -214,6 +218,7 @@ export default function InventoryPage() {
                   <TableCell>{product.category}</TableCell>
                   <TableCell>{parseFloat(product.price).toFixed(2)} ر.س</TableCell>
                   <TableCell className="font-bold">{product.stock}</TableCell>
+                  <TableCell className="font-bold text-primary">{product.batchCount || 0}</TableCell>
                   <TableCell>
                     {product.stock < 50 ? (
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
@@ -355,17 +360,31 @@ export default function InventoryPage() {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="productStock">الكمية المتوفرة</Label>
-                <Input
-                  id="productStock"
-                  type="number"
-                  min="0"
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
-                  required
-                  data-testid="input-product-stock"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="productStock">الكمية المتوفرة</Label>
+                  <Input
+                    id="productStock"
+                    type="number"
+                    min="0"
+                    value={formData.stock}
+                    onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
+                    required
+                    data-testid="input-product-stock"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="productBatchCount">عدد العجنات</Label>
+                  <Input
+                    id="productBatchCount"
+                    type="number"
+                    min="0"
+                    value={formData.batchCount}
+                    onChange={(e) => setFormData({ ...formData, batchCount: parseInt(e.target.value) || 0 })}
+                    required
+                    data-testid="input-product-batch-count"
+                  />
+                </div>
               </div>
               <DialogFooter className="flex flex-row-reverse gap-2 pt-4">
                 <Button 

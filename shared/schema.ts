@@ -32,6 +32,7 @@ export const products = pgTable("products", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   category: text("category").notNull(),
   stock: integer("stock").notNull().default(0),
+  batchCount: integer("batch_count").notNull().default(0),
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
