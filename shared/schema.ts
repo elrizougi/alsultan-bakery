@@ -195,3 +195,32 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({ i
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE';
+
+// Order Modification Requests - طلبات تعديل الطلبات
+export const modificationStatusEnum = pgEnum("modification_status", ["PENDING", "APPROVED", "REJECTED"]);
+
+export const orderModifications = pgTable("order_modifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").references(() => orders.id).notNull(),
+  driverId: varchar("driver_id").references(() => users.id).notNull(),
+  status: modificationStatusEnum("status").notNull().default("PENDING"),
+  createdAt: timestamp("created_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+  notes: text("notes"),
+});
+
+export const orderModificationItems = pgTable("order_modification_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  modificationId: varchar("modification_id").references(() => orderModifications.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  originalQuantity: integer("original_quantity").notNull(),
+  requestedQuantity: integer("requested_quantity").notNull(),
+});
+
+export const insertOrderModificationSchema = createInsertSchema(orderModifications).omit({ id: true, createdAt: true, processedAt: true });
+export type InsertOrderModification = z.infer<typeof insertOrderModificationSchema>;
+export type OrderModification = typeof orderModifications.$inferSelect;
+
+export const insertOrderModificationItemSchema = createInsertSchema(orderModificationItems).omit({ id: true });
+export type InsertOrderModificationItem = z.infer<typeof insertOrderModificationItemSchema>;
+export type OrderModificationItem = typeof orderModificationItems.$inferSelect;

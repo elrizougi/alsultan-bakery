@@ -15,6 +15,8 @@ import {
   driverBalance, type DriverBalance, type InsertDriverBalance,
   customerDebts, type CustomerDebt, type InsertCustomerDebt,
   transactions, type Transaction, type InsertTransaction,
+  orderModifications, type OrderModification, type InsertOrderModification,
+  orderModificationItems, type OrderModificationItem, type InsertOrderModificationItem,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -112,6 +114,15 @@ export interface IStorage {
   getAllTransactions(): Promise<Transaction[]>;
   getDriverTransactions(driverId: string): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+
+  // Order Modifications
+  getAllOrderModifications(): Promise<OrderModification[]>;
+  getPendingOrderModifications(): Promise<OrderModification[]>;
+  getOrderModification(id: string): Promise<OrderModification | undefined>;
+  getOrderModificationItems(modificationId: string): Promise<OrderModificationItem[]>;
+  createOrderModification(modification: InsertOrderModification, items: InsertOrderModificationItem[]): Promise<OrderModification>;
+  approveOrderModification(id: string): Promise<OrderModification | undefined>;
+  rejectOrderModification(id: string): Promise<OrderModification | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -633,6 +644,106 @@ export class DatabaseStorage implements IStorage {
       
       return updated;
     });
+  }
+
+  // Order Modifications
+  async getAllOrderModifications(): Promise<OrderModification[]> {
+    return db.select().from(orderModifications);
+  }
+
+  async getPendingOrderModifications(): Promise<OrderModification[]> {
+    return db.select().from(orderModifications).where(eq(orderModifications.status, "PENDING"));
+  }
+
+  async getOrderModification(id: string): Promise<OrderModification | undefined> {
+    const [modification] = await db.select().from(orderModifications).where(eq(orderModifications.id, id));
+    return modification;
+  }
+
+  async getOrderModificationItems(modificationId: string): Promise<OrderModificationItem[]> {
+    return db.select().from(orderModificationItems).where(eq(orderModificationItems.modificationId, modificationId));
+  }
+
+  async createOrderModification(modification: InsertOrderModification, items: InsertOrderModificationItem[]): Promise<OrderModification> {
+    return await db.transaction(async (tx) => {
+      const [newModification] = await tx.insert(orderModifications).values(modification).returning();
+      
+      for (const item of items) {
+        await tx.insert(orderModificationItems).values({
+          ...item,
+          modificationId: newModification.id,
+        });
+      }
+      
+      return newModification;
+    });
+  }
+
+  async approveOrderModification(id: string): Promise<OrderModification | undefined> {
+    return await db.transaction(async (tx) => {
+      const [modification] = await tx.select().from(orderModifications).where(eq(orderModifications.id, id));
+      if (!modification || modification.status !== "PENDING") return undefined;
+
+      const items = await tx.select().from(orderModificationItems).where(eq(orderModificationItems.modificationId, id));
+      const driverId = modification.driverId;
+
+      // تطبيق التعديلات على مخزون السائق
+      for (const item of items) {
+        const diff = item.requestedQuantity - item.originalQuantity;
+        
+        if (diff !== 0) {
+          const [existing] = await tx.select().from(driverInventory)
+            .where(and(
+              eq(driverInventory.driverId, driverId),
+              eq(driverInventory.productId, item.productId)
+            ));
+
+          if (existing) {
+            const newQty = Math.max(0, existing.quantity + diff);
+            await tx.update(driverInventory)
+              .set({ quantity: newQty })
+              .where(eq(driverInventory.id, existing.id));
+          } else if (diff > 0) {
+            await tx.insert(driverInventory).values({
+              driverId,
+              productId: item.productId,
+              quantity: diff,
+            });
+          }
+        }
+      }
+
+      // تحديث كميات الاستلام في عناصر الطلب
+      for (const item of items) {
+        await tx.update(orderItems)
+          .set({ receivedQuantity: item.requestedQuantity })
+          .where(and(
+            eq(orderItems.orderId, modification.orderId),
+            eq(orderItems.productId, item.productId)
+          ));
+      }
+
+      // تحديث حالة التعديل
+      const [updated] = await tx.update(orderModifications)
+        .set({ status: "APPROVED", processedAt: new Date() })
+        .where(eq(orderModifications.id, id))
+        .returning();
+
+      // تحديث حالة الطلب إلى مستلم (ASSIGNED يعني أن السائق استلم الطلب)
+      await tx.update(orders)
+        .set({ status: "ASSIGNED" })
+        .where(eq(orders.id, modification.orderId));
+
+      return updated;
+    });
+  }
+
+  async rejectOrderModification(id: string): Promise<OrderModification | undefined> {
+    const [updated] = await db.update(orderModifications)
+      .set({ status: "REJECTED", processedAt: new Date() })
+      .where(eq(orderModifications.id, id))
+      .returning();
+    return updated;
   }
 }
 

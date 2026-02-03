@@ -784,5 +784,95 @@ export async function registerRoutes(
     }
   });
 
+  // ============ ORDER MODIFICATIONS ============
+  app.get("/api/order-modifications", async (req, res) => {
+    try {
+      const modifications = await storage.getAllOrderModifications();
+      const result = await Promise.all(modifications.map(async (mod) => ({
+        ...mod,
+        items: await storage.getOrderModificationItems(mod.id),
+      })));
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.get("/api/order-modifications/pending", async (req, res) => {
+    try {
+      const modifications = await storage.getPendingOrderModifications();
+      const result = await Promise.all(modifications.map(async (mod) => ({
+        ...mod,
+        items: await storage.getOrderModificationItems(mod.id),
+      })));
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  const modificationSchema = z.object({
+    orderId: z.string().uuid(),
+    driverId: z.string().uuid(),
+    items: z.array(z.object({
+      productId: z.string().uuid(),
+      originalQuantity: z.number().int().min(0),
+      requestedQuantity: z.number().int().min(0),
+    })),
+    notes: z.string().optional(),
+  });
+
+  app.post("/api/order-modifications", async (req, res) => {
+    try {
+      const parseResult = modificationSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "بيانات غير صالحة", errors: parseResult.error.errors });
+      }
+
+      const { orderId, driverId, items, notes } = parseResult.data;
+      
+      const modification = await storage.createOrderModification(
+        { orderId, driverId, status: "PENDING", notes },
+        items.map(item => ({
+          modificationId: "", // سيتم تعيينه داخل الدالة
+          productId: item.productId,
+          originalQuantity: item.originalQuantity,
+          requestedQuantity: item.requestedQuantity,
+        }))
+      );
+
+      res.status(201).json(modification);
+    } catch (error) {
+      console.error("Create modification error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/order-modifications/:id/approve", async (req, res) => {
+    try {
+      const modification = await storage.approveOrderModification(req.params.id);
+      if (!modification) {
+        return res.status(404).json({ message: "طلب التعديل غير موجود أو تمت معالجته مسبقاً" });
+      }
+      res.json(modification);
+    } catch (error) {
+      console.error("Approve modification error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/order-modifications/:id/reject", async (req, res) => {
+    try {
+      const modification = await storage.rejectOrderModification(req.params.id);
+      if (!modification) {
+        return res.status(404).json({ message: "طلب التعديل غير موجود" });
+      }
+      res.json(modification);
+    } catch (error) {
+      console.error("Reject modification error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   return httpServer;
 }

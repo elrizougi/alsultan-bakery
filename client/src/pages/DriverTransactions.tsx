@@ -13,13 +13,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type TransactionType, type InsertTransaction, type Transaction, type DriverInventory, type DriverBalance, type CustomerDebt } from "@/lib/api";
+import { api, type TransactionType, type InsertTransaction, type Transaction, type DriverInventory, type DriverBalance, type CustomerDebt, type Order } from "@/lib/api";
 import { useProducts, useCustomers, useCreateCustomer, useOrders } from "@/hooks/useData";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -109,12 +109,57 @@ export default function DriverTransactionsPage() {
     },
   });
 
-  const handleConfirmReceipt = (order: typeof orders[0]) => {
+  const handleConfirmReceipt = (order: Order) => {
     const receivedItems = order.items?.map(item => ({
       id: item.id!,
       receivedQuantity: item.quantity,
     })) || [];
     confirmReceipt.mutate({ orderId: order.id, receivedItems });
+  };
+
+  // State for modification dialog
+  const [modifyingOrder, setModifyingOrder] = useState<Order | null>(null);
+  const [modifiedQuantities, setModifiedQuantities] = useState<Record<string, number>>({});
+  const [modificationNotes, setModificationNotes] = useState("");
+
+  const createModification = useMutation({
+    mutationFn: api.createOrderModification,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      toast({ title: "تم إرسال طلب التعديل للمسؤول" });
+      setModifyingOrder(null);
+      setModifiedQuantities({});
+      setModificationNotes("");
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ في إرسال طلب التعديل", variant: "destructive" });
+    },
+  });
+
+  const handleOpenModifyDialog = (order: Order) => {
+    setModifyingOrder(order);
+    const quantities: Record<string, number> = {};
+    order.items?.forEach(item => {
+      quantities[item.productId] = item.quantity;
+    });
+    setModifiedQuantities(quantities);
+  };
+
+  const handleSubmitModification = () => {
+    if (!modifyingOrder) return;
+    
+    const items = modifyingOrder.items?.map(item => ({
+      productId: item.productId,
+      originalQuantity: item.quantity,
+      requestedQuantity: modifiedQuantities[item.productId] || 0,
+    })) || [];
+
+    createModification.mutate({
+      orderId: modifyingOrder.id,
+      driverId: driverId,
+      items,
+      notes: modificationNotes || undefined,
+    });
   };
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -319,21 +364,34 @@ export default function DriverTransactionsPage() {
                           </div>
                         ))}
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleConfirmReceipt(order)}
-                        disabled={confirmReceipt.isPending}
-                        className="w-full bg-primary hover:bg-primary/90 gap-2"
-                      >
-                        {confirmReceipt.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <CheckCircle className="h-4 w-4" />
-                            تأكيد الاستلام
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleConfirmReceipt(order)}
+                          disabled={confirmReceipt.isPending}
+                          className="flex-1 bg-primary hover:bg-primary/90 gap-2"
+                          data-testid={`btn-confirm-receipt-${order.id}`}
+                        >
+                          {confirmReceipt.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4" />
+                              تأكيد
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenModifyDialog(order)}
+                          className="flex-1 border-amber-500 text-amber-700 hover:bg-amber-50 gap-2"
+                          data-testid={`btn-modify-order-${order.id}`}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                          تعديل
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -619,6 +677,65 @@ export default function DriverTransactionsPage() {
               data-testid="button-submit-transaction"
             >
               {createTransaction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ العملية"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* نافذة تعديل الطلب */}
+      <Dialog open={!!modifyingOrder} onOpenChange={(open) => !open && setModifyingOrder(null)}>
+        <DialogContent className="sm:max-w-[500px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">تعديل كميات الطلب</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              عدّل الكميات المستلمة فعلياً، سيتم إرسال طلب التعديل للمسؤول للموافقة عليه
+            </p>
+            
+            {modifyingOrder?.items?.map(item => (
+              <div key={item.id} className="flex items-center justify-between gap-4 p-3 bg-slate-50 rounded-lg">
+                <div className="flex-1">
+                  <span className="font-medium">{getProductName(item.productId)}</span>
+                  <span className="text-sm text-muted-foreground mr-2">
+                    (الطلب الأصلي: {item.quantity})
+                  </span>
+                </div>
+                <Input
+                  type="number"
+                  min="0"
+                  value={modifiedQuantities[item.productId] || 0}
+                  onChange={(e) => setModifiedQuantities(prev => ({
+                    ...prev,
+                    [item.productId]: parseInt(e.target.value) || 0
+                  }))}
+                  className="w-24 text-center"
+                  data-testid={`input-modify-qty-${item.productId}`}
+                />
+              </div>
+            ))}
+
+            <div className="space-y-2">
+              <Label>ملاحظات (اختياري)</Label>
+              <Input
+                placeholder="سبب التعديل..."
+                value={modificationNotes}
+                onChange={(e) => setModificationNotes(e.target.value)}
+                data-testid="input-modification-notes"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setModifyingOrder(null)}>
+              إلغاء
+            </Button>
+            <Button 
+              onClick={handleSubmitModification} 
+              disabled={createModification.isPending}
+              className="bg-amber-600 hover:bg-amber-700"
+              data-testid="button-submit-modification"
+            >
+              {createModification.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إرسال طلب التعديل"}
             </Button>
           </DialogFooter>
         </DialogContent>

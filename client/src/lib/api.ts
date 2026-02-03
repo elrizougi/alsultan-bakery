@@ -275,6 +275,37 @@ export const api = {
     const res = await apiRequest("PATCH", `/api/customer-debts/${id}`, { isPaid });
     return res.json();
   },
+
+  // Order Modifications
+  getPendingModifications: async (): Promise<OrderModification[]> => {
+    const res = await fetch("/api/order-modifications/pending");
+    return res.json();
+  },
+
+  getAllModifications: async (): Promise<OrderModification[]> => {
+    const res = await fetch("/api/order-modifications");
+    return res.json();
+  },
+
+  createOrderModification: async (data: {
+    orderId: string;
+    driverId: string;
+    items: { productId: string; originalQuantity: number; requestedQuantity: number }[];
+    notes?: string;
+  }): Promise<OrderModification> => {
+    const res = await apiRequest("POST", "/api/order-modifications", data);
+    return res.json();
+  },
+
+  approveOrderModification: async (id: string): Promise<OrderModification> => {
+    const res = await apiRequest("POST", `/api/order-modifications/${id}/approve`);
+    return res.json();
+  },
+
+  rejectOrderModification: async (id: string): Promise<OrderModification> => {
+    const res = await apiRequest("POST", `/api/order-modifications/${id}/reject`);
+    return res.json();
+  },
 };
 
 // Types for transactions
@@ -324,4 +355,23 @@ export interface CustomerDebt {
   amount: string;
   isPaid: boolean;
   createdAt?: string;
+}
+
+export interface OrderModificationItem {
+  id: string;
+  modificationId: string;
+  productId: string;
+  originalQuantity: number;
+  requestedQuantity: number;
+}
+
+export interface OrderModification {
+  id: string;
+  orderId: string;
+  driverId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+  processedAt?: string;
+  notes?: string;
+  items?: OrderModificationItem[];
 }
