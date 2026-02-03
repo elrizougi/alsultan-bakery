@@ -67,7 +67,7 @@ export type Customer = typeof customers.$inferSelect;
 // Orders table
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  customerId: varchar("customer_id").notNull(),
   date: text("date").notNull(),
   status: orderStatusEnum("status").notNull().default('DRAFT'),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
