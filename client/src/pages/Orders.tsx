@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useOrders, useUsers, useProducts, useCreateOrder, useUpdateOrder, useDeleteOrder } from "@/hooks/useData";
+import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,12 +34,17 @@ export default function OrdersPage() {
   const updateOrder = useUpdateOrder();
   const deleteOrder = useDeleteOrder();
   const { toast } = useToast();
+  const currentUser = useStore(state => state.user);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   const filteredOrders = orders.filter(order => {
+    // إذا كان المستخدم سائق، يظهر له فقط الطلبات المسندة إليه
+    if (currentUser?.role === 'DRIVER' && order.customerId !== currentUser.id) {
+      return false;
+    }
     const employee = users.find(u => u.id === order.customerId);
     const matchesSearch = employee?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           order.id.toLowerCase().includes(searchTerm.toLowerCase());
@@ -81,9 +87,11 @@ export default function OrdersPage() {
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800 font-black">طلبات الخبز</h1>
             <p className="text-sm text-muted-foreground">إدارة طلبات المخابز وحالات التوصيل الميداني.</p>
           </div>
-          <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto flex-row gap-2 bg-primary hover:bg-primary/90 rounded-xl h-11 px-6 shadow-lg shadow-primary/20 font-bold">
-            <Plus className="h-4 w-4" /> إنشاء طلب جديد
-          </Button>
+          {currentUser?.role !== 'DRIVER' && (
+            <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto flex-row gap-2 bg-primary hover:bg-primary/90 rounded-xl h-11 px-6 shadow-lg shadow-primary/20 font-bold">
+              <Plus className="h-4 w-4" /> إنشاء طلب جديد
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
