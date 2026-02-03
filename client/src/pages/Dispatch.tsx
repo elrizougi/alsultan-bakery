@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useDispatchRuns, useRoutes, useOrders, useCustomers, useCreateDispatchRun, useDeleteDispatchRun, useUpdateDispatchRun } from "@/hooks/useData";
+import { useDispatchRuns, useRoutes, useOrders, useCustomers, useUsers, useCreateDispatchRun, useDeleteDispatchRun, useUpdateDispatchRun } from "@/hooks/useData";
+import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -38,22 +39,34 @@ export default function DispatchPage() {
   const { data: routes = [] } = useRoutes();
   const { data: orders = [] } = useOrders();
   const { data: customers = [] } = useCustomers();
+  const { data: users = [] } = useUsers();
   const createRun = useCreateDispatchRun();
   const deleteRun = useDeleteDispatchRun();
   const updateRun = useUpdateDispatchRun();
   const { toast } = useToast();
+  const currentUser = useStore(state => state.user);
 
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingRun, setEditingRun] = useState<DispatchRun | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState("");
+  const [selectedDriverId, setSelectedDriverId] = useState("");
+
+  // الحصول على قائمة السائقين فقط
+  const drivers = users.filter(u => u.role === 'DRIVER');
+
+  // فلترة رحلات التوزيع للسائق - يرى فقط الرحلات المسندة إليه
+  const filteredDispatchRuns = currentUser?.role === 'DRIVER'
+    ? dispatchRuns.filter(run => run.driverName === currentUser.name)
+    : dispatchRuns;
 
   const handleCreateRun = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRouteId) return;
+    if (!selectedRouteId || !selectedDriverId) return;
 
     const route = routes.find(r => r.id === selectedRouteId);
-    if (!route) return;
+    const driver = drivers.find(d => d.id === selectedDriverId);
+    if (!route || !driver) return;
 
     // Get orders for this route that are confirmed but not assigned
     const routeOrders = orders.filter(o => {
@@ -66,12 +79,13 @@ export default function DispatchPage() {
         routeId: selectedRouteId,
         date: format(new Date(), 'yyyy-MM-dd'),
         status: 'DRAFT',
-        driverName: route.driverName,
+        driverName: driver.name,
         orderIds: routeOrders.map(o => o.id),
       });
       toast({ title: "تم إنشاء الرحلة بنجاح" });
       setOpen(false);
       setSelectedRouteId("");
+      setSelectedDriverId("");
     } catch (error) {
       toast({ title: "حدث خطأ", variant: "destructive" });
     }
@@ -127,48 +141,65 @@ export default function DispatchPage() {
             <p className="text-slate-400 font-medium mt-1 text-lg">إدارة رحلات التوصيل اليومية.</p>
           </div>
           
-          <div className="flex gap-2">
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 h-12 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                  <Plus className="h-5 w-5" />
-                  إنشاء رحلة جديدة
-                </Button>
-              </DialogTrigger>
-              <DialogContent dir="rtl" className="sm:max-w-[450px] rounded-3xl">
-                <DialogHeader>
-                  <DialogTitle className="text-right text-2xl font-black">إنشاء رحلة توزيع</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreateRun} className="space-y-6 py-4 text-right">
-                  <div className="space-y-3">
-                    <Label className="font-bold">خط التوزيع</Label>
-                    <Select onValueChange={setSelectedRouteId} value={selectedRouteId}>
-                      <SelectTrigger className="h-12 rounded-xl">
-                        <SelectValue placeholder="اختر خط التوزيع" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {routes.map(route => (
-                          <SelectItem key={route.id} value={route.id}>
-                            {route.name} - {route.driverName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <DialogFooter className="flex flex-row-reverse gap-3 pt-4">
-                    <Button type="submit" className="h-12 rounded-xl font-bold" disabled={createRun.isPending}>
-                      {createRun.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إنشاء الرحلة"}
-                    </Button>
-                    <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => setOpen(false)}>إلغاء</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
+          {currentUser?.role !== 'DRIVER' && (
+            <div className="flex gap-2">
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2 h-12 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                    <Plus className="h-5 w-5" />
+                    إنشاء رحلة جديدة
+                  </Button>
+                </DialogTrigger>
+                <DialogContent dir="rtl" className="sm:max-w-[450px] rounded-3xl">
+                  <DialogHeader>
+                    <DialogTitle className="text-right text-2xl font-black">إنشاء رحلة توزيع</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleCreateRun} className="space-y-6 py-4 text-right">
+                    <div className="space-y-3">
+                      <Label className="font-bold">خط التوزيع</Label>
+                      <Select onValueChange={setSelectedRouteId} value={selectedRouteId}>
+                        <SelectTrigger className="h-12 rounded-xl">
+                          <SelectValue placeholder="اختر خط التوزيع" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {routes.map(route => (
+                            <SelectItem key={route.id} value={route.id}>
+                              {route.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-3">
+                      <Label className="font-bold">السائق</Label>
+                      <Select onValueChange={setSelectedDriverId} value={selectedDriverId}>
+                        <SelectTrigger className="h-12 rounded-xl">
+                          <SelectValue placeholder="اختر السائق" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {drivers.map(driver => (
+                            <SelectItem key={driver.id} value={driver.id}>
+                              {driver.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <DialogFooter className="flex flex-row-reverse gap-3 pt-4">
+                      <Button type="submit" className="h-12 rounded-xl font-bold" disabled={createRun.isPending}>
+                        {createRun.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إنشاء الرحلة"}
+                      </Button>
+                      <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={() => setOpen(false)}>إلغاء</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
         </div>
 
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {dispatchRuns.map((run) => {
+          {filteredDispatchRuns.map((run) => {
             const route = routes.find(r => r.id === run.routeId);
             return (
               <Card key={run.id} className="rounded-3xl border-0 shadow-lg hover:shadow-xl transition-all overflow-hidden group">
@@ -234,11 +265,11 @@ export default function DispatchPage() {
               </Card>
             );
           })}
-          {dispatchRuns.length === 0 && (
+          {filteredDispatchRuns.length === 0 && (
             <div className="col-span-full text-center py-16 text-slate-400">
               <Truck className="h-16 w-16 mx-auto mb-4 opacity-20" />
               <p className="text-lg font-medium">لا توجد رحلات توزيع حتى الآن</p>
-              <p className="text-sm">أنشئ رحلة جديدة لبدء التوزيع</p>
+              {currentUser?.role !== 'DRIVER' && <p className="text-sm">أنشئ رحلة جديدة لبدء التوزيع</p>}
             </div>
           )}
         </div>
