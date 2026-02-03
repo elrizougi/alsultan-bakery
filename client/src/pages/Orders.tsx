@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useOrders, useUsers, useProducts, useCreateOrder, useUpdateOrder, useDeleteOrder } from "@/hooks/useData";
+import { useOrders, useUsers, useProducts, useCreateOrder, useUpdateOrder, useDeleteOrder, useDispatchRuns } from "@/hooks/useData";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ export default function OrdersPage() {
   const { data: orders = [], isLoading } = useOrders();
   const { data: users = [] } = useUsers();
   const { data: products = [] } = useProducts();
+  const { data: dispatchRuns = [] } = useDispatchRuns();
   const updateOrder = useUpdateOrder();
   const deleteOrder = useDeleteOrder();
   const { toast } = useToast();
@@ -40,10 +41,23 @@ export default function OrdersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
+  // الحصول على معرفات الطلبات المسندة للسائق الحالي من رحلات التوزيع
+  const driverOrderIds = useMemo(() => {
+    if (currentUser?.role !== 'DRIVER') return null;
+    const driverRuns = dispatchRuns.filter(run => run.driverName === currentUser.name);
+    const orderIds = new Set<string>();
+    driverRuns.forEach(run => {
+      run.orderIds?.forEach(id => orderIds.add(id));
+    });
+    return orderIds;
+  }, [dispatchRuns, currentUser]);
+
   const filteredOrders = orders.filter(order => {
-    // إذا كان المستخدم سائق، يظهر له فقط الطلبات المسندة إليه
-    if (currentUser?.role === 'DRIVER' && order.customerId !== currentUser.id) {
-      return false;
+    // إذا كان المستخدم سائق، يظهر له فقط الطلبات المسندة إليه من خلال رحلات التوزيع
+    if (currentUser?.role === 'DRIVER' && driverOrderIds) {
+      if (!driverOrderIds.has(order.id)) {
+        return false;
+      }
     }
     const employee = users.find(u => u.id === order.customerId);
     const matchesSearch = employee?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
