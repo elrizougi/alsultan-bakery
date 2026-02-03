@@ -13,7 +13,16 @@ export async function registerRoutes(
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
-      const user = await storage.getUserByUsername(username);
+      
+      // التحقق من وجود البيانات المطلوبة
+      if (!username || !password) {
+        return res.status(400).json({ message: "اسم المستخدم وكلمة المرور مطلوبان" });
+      }
+      
+      // إزالة المسافات الزائدة من اسم المستخدم فقط
+      const trimmedUsername = String(username).trim();
+      
+      const user = await storage.getUserByUsername(trimmedUsername);
       
       if (!user) {
         return res.status(401).json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
