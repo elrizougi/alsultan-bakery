@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useOrders, useUsers, useProducts, useCreateOrder, useUpdateOrder, useDeleteOrder, useDispatchRuns } from "@/hooks/useData";
+import { api } from "@/lib/api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Plus, Search, Filter, MoreVertical, Trash2, Edit, Save, Loader2 } from "lucide-react";
+import { Plus, Search, Filter, MoreVertical, Trash2, Edit, Save, Loader2, CheckCircle } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -40,6 +42,7 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [confirmingOrder, setConfirmingOrder] = useState<Order | null>(null);
 
   // الحصول على معرفات الطلبات المسندة للسائق الحالي من رحلات التوزيع
   const driverOrderIds = useMemo(() => {
@@ -143,19 +146,31 @@ export default function OrdersPage() {
             <TableBody>
               {filteredOrders.map((order) => {
                 const employee = users.find(u => u.id === order.customerId);
+                const orderedTotal = order.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+                const receivedTotal = order.items?.reduce((acc, item) => acc + (item.receivedQuantity ?? item.quantity), 0) || 0;
+                const hasReceivedDiff = order.items?.some(item => item.receivedQuantity !== undefined && item.receivedQuantity !== item.quantity);
                 return (
                   <TableRow key={order.id} className="hover:bg-slate-50/50 border-slate-50">
                     <TableCell className="font-bold text-slate-400 font-mono text-xs">#{order.id.slice(0, 8)}</TableCell>
                     <TableCell className="font-bold text-slate-700">{employee?.name}</TableCell>
                     <TableCell className="text-slate-500">{order.date}</TableCell>
-                    <TableCell className="text-slate-500">{order.items?.reduce((acc, item) => acc + item.quantity, 0) || 0} وحدة</TableCell>
+                    <TableCell className="text-slate-500">
+                      {currentUser?.role !== 'DRIVER' && hasReceivedDiff ? (
+                        <span className="flex flex-col">
+                          <span>{orderedTotal} وحدة</span>
+                          <span className="text-xs text-amber-600">مستلم: {receivedTotal}</span>
+                        </span>
+                      ) : (
+                        <span>{orderedTotal} وحدة</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-black text-slate-800">{parseFloat(order.totalAmount).toFixed(2)} ر.س</TableCell>
                     <TableCell>
                       <StatusBadge status={order.status} className="shadow-sm" />
                     </TableCell>
                     <TableCell className="text-left">
                       <div className="flex items-center gap-2">
-                        {order.status === 'DRAFT' && (
+                        {order.status === 'DRAFT' && currentUser?.role !== 'DRIVER' && (
                           <Button 
                             size="sm" 
                             variant="ghost" 
@@ -163,6 +178,17 @@ export default function OrdersPage() {
                             onClick={() => handleUpdateStatus(order.id, 'CONFIRMED')}
                           >
                             تأكيد
+                          </Button>
+                        )}
+                        {order.status === 'CONFIRMED' && currentUser?.role === 'DRIVER' && (
+                          <Button 
+                            size="sm" 
+                            variant="default" 
+                            className="h-8 font-bold px-4 rounded-lg gap-2 bg-primary hover:bg-primary/90"
+                            onClick={() => setConfirmingOrder(order)}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            تأكيد الاستلام
                           </Button>
                         )}
                         <DropdownMenu>
@@ -206,6 +232,7 @@ export default function OrdersPage() {
 
         <CreateOrderDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
         {editingOrder && <EditOrderDialog order={editingOrder} onOpenChange={(open) => !open && setEditingOrder(null)} />}
+        {confirmingOrder && <ConfirmReceiptDialog order={confirmingOrder} onOpenChange={(open) => !open && setConfirmingOrder(null)} />}
       </div>
     </AdminLayout>
   );
@@ -483,6 +510,153 @@ function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: 
                </div>
             </div>
           </form>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ConfirmReceiptDialog({ order, onOpenChange }: { order: Order; onOpenChange: (open: boolean) => void }) {
+  const { data: products = [] } = useProducts();
+  const { data: users = [] } = useUsers();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [receivedItems, setReceivedItems] = useState<{ id: string; receivedQuantity: number }[]>(
+    order.items?.map(item => ({ id: item.id!, receivedQuantity: item.quantity })) || []
+  );
+
+  const confirmMutation = useMutation({
+    mutationFn: () => api.confirmOrderReceipt(order.id, receivedItems),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      toast({ title: "تم تأكيد استلام الطلب بنجاح" });
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ أثناء تأكيد الاستلام", variant: "destructive" });
+    },
+  });
+
+  const updateReceivedQuantity = (itemId: string, quantity: number) => {
+    setReceivedItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, receivedQuantity: quantity } : item
+    ));
+  };
+
+  const employee = users.find(u => u.id === order.customerId);
+  const totalOriginal = order.items?.reduce((acc, item) => {
+    const product = products.find(p => p.id === item.productId);
+    return acc + (parseFloat(product?.price || '0') * item.quantity);
+  }, 0) || 0;
+
+  const totalReceived = order.items?.reduce((acc, item) => {
+    const product = products.find(p => p.id === item.productId);
+    const received = receivedItems.find(r => r.id === item.id!)?.receivedQuantity || 0;
+    return acc + (parseFloat(product?.price || '0') * received);
+  }, 0) || 0;
+
+  return (
+    <Dialog open={true} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl p-0 overflow-hidden rounded-3xl bg-white" dir="rtl">
+        <div className="flex flex-col">
+          <DialogHeader className="px-6 py-6 bg-gradient-to-l from-primary to-primary/90">
+            <DialogTitle className="text-2xl font-black text-white text-right flex items-center gap-3">
+              <CheckCircle className="h-7 w-7" />
+              تأكيد استلام الطلب
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-bold">رقم الطلب:</span>
+                <span className="font-mono text-sm text-slate-700">#{order.id.slice(0, 8)}</span>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-slate-500 font-bold">الموظف:</span>
+                <span className="font-bold text-slate-700">{employee?.name}</span>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-black text-slate-700 mb-3">الأصناف المستلمة</h4>
+              <Table className="text-right">
+                <TableHeader className="bg-slate-50">
+                  <TableRow>
+                    <TableHead className="text-right font-bold">الصنف</TableHead>
+                    <TableHead className="text-center font-bold">المطلوب</TableHead>
+                    <TableHead className="text-center font-bold">المستلم</TableHead>
+                    <TableHead className="text-center font-bold">الفرق</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {order.items?.map(item => {
+                    const product = products.find(p => p.id === item.productId);
+                    const received = receivedItems.find(r => r.id === item.id!)?.receivedQuantity || 0;
+                    const diff = item.quantity - received;
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-bold text-slate-700">{product?.name}</TableCell>
+                        <TableCell className="text-center text-slate-500">{item.quantity}</TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={item.quantity}
+                            value={received}
+                            onChange={(e) => updateReceivedQuantity(item.id!, parseInt(e.target.value) || 0)}
+                            className="w-20 mx-auto border-slate-200 rounded-xl h-9 text-center font-black"
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {diff > 0 ? (
+                            <span className="text-red-500 font-bold">-{diff}</span>
+                          ) : diff < 0 ? (
+                            <span className="text-green-500 font-bold">+{Math.abs(diff)}</span>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          <div className="p-6 border-t border-slate-100 bg-slate-50">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-right">
+                <p className="text-xs font-bold text-slate-500">المبلغ المطلوب</p>
+                <p className="text-lg font-black text-slate-600">{totalOriginal.toFixed(2)} ر.س</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-primary/60">المبلغ المستلم</p>
+                <p className="text-2xl font-black text-primary">{totalReceived.toFixed(2)} ر.س</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button variant="ghost" onClick={() => onOpenChange(false)} className="h-12 px-6 rounded-xl font-bold text-slate-400">
+                إلغاء
+              </Button>
+              <Button 
+                onClick={() => confirmMutation.mutate()}
+                className="h-12 px-8 rounded-xl font-black bg-primary shadow-lg shadow-primary/20 gap-2"
+                disabled={confirmMutation.isPending}
+              >
+                {confirmMutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <CheckCircle className="h-5 w-5" />
+                    تأكيد الاستلام
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

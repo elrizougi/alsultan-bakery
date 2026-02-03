@@ -43,6 +43,7 @@ export interface OrderItem {
   orderId?: string;
   productId: string;
   quantity: number;
+  receivedQuantity?: number;
 }
 
 export interface Order {
@@ -153,6 +154,11 @@ export const api = {
 
   deleteOrder: async (id: string): Promise<void> => {
     await apiRequest("DELETE", `/api/orders/${id}`);
+  },
+
+  confirmOrderReceipt: async (id: string, receivedItems: { id: string; receivedQuantity: number }[]): Promise<Order> => {
+    const res = await apiRequest("POST", `/api/orders/${id}/confirm-receipt`, { receivedItems });
+    return res.json();
   },
 
   // Dispatch Runs

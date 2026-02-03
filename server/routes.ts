@@ -402,6 +402,38 @@ export async function registerRoutes(
     }
   });
 
+  // تأكيد استلام الطلب من السائق مع الكميات المستلمة
+  const confirmReceiptSchema = z.object({
+    receivedItems: z.array(z.object({
+      id: z.string().uuid(),
+      receivedQuantity: z.number().int().min(0),
+    })),
+  });
+
+  app.post("/api/orders/:id/confirm-receipt", async (req, res) => {
+    try {
+      // التحقق من صحة البيانات
+      const parseResult = confirmReceiptSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "بيانات غير صالحة", errors: parseResult.error.errors });
+      }
+
+      const { receivedItems } = parseResult.data;
+
+      // تنفيذ العملية بشكل ذري
+      const updatedOrder = await storage.confirmOrderReceiptAtomic(req.params.id, receivedItems);
+      
+      const orderItems = await storage.getOrderItems(req.params.id);
+      res.json({ ...updatedOrder, items: orderItems });
+    } catch (error: any) {
+      console.error("Confirm receipt error:", error);
+      if (error.message?.includes('غير موجود') || error.message?.includes('غير صالحة') || error.message?.includes('ليس في حالة')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   app.delete("/api/orders/:id", async (req, res) => {
     try {
       await storage.deleteOrderItems(req.params.id);

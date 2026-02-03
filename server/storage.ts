@@ -63,6 +63,8 @@ export interface IStorage {
   getOrderItems(orderId: string): Promise<OrderItem[]>;
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
   deleteOrderItems(orderId: string): Promise<boolean>;
+  updateOrderItemReceived(id: string, receivedQuantity: number): Promise<OrderItem | undefined>;
+  confirmOrderReceiptAtomic(orderId: string, receivedItems: { id: string; receivedQuantity: number }[]): Promise<Order | undefined>;
 
   // Dispatch Runs
   getAllDispatchRuns(): Promise<DispatchRun[]>;
@@ -272,6 +274,50 @@ export class DatabaseStorage implements IStorage {
   async deleteOrderItems(orderId: string): Promise<boolean> {
     await db.delete(orderItems).where(eq(orderItems.orderId, orderId));
     return true;
+  }
+
+  async updateOrderItemReceived(id: string, receivedQuantity: number): Promise<OrderItem | undefined> {
+    const [updated] = await db.update(orderItems)
+      .set({ receivedQuantity })
+      .where(eq(orderItems.id, id))
+      .returning();
+    return updated;
+  }
+
+  async confirmOrderReceiptAtomic(orderId: string, receivedItems: { id: string; receivedQuantity: number }[]): Promise<Order | undefined> {
+    return await db.transaction(async (tx) => {
+      // التحقق من الطلب
+      const [order] = await tx.select().from(orders).where(eq(orders.id, orderId));
+      if (!order || order.status !== 'CONFIRMED') {
+        throw new Error('الطلب غير موجود أو ليس في حالة مؤكد');
+      }
+
+      // جلب عناصر الطلب للتحقق
+      const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+      const itemMap = new Map(items.map(i => [i.id, i]));
+
+      // تحديث الكميات المستلمة لكل منتج
+      for (const received of receivedItems) {
+        const item = itemMap.get(received.id);
+        if (!item) {
+          throw new Error(`عنصر غير موجود: ${received.id}`);
+        }
+        if (received.receivedQuantity < 0 || received.receivedQuantity > item.quantity) {
+          throw new Error(`كمية غير صالحة للعنصر: ${received.id}`);
+        }
+        await tx.update(orderItems)
+          .set({ receivedQuantity: received.receivedQuantity })
+          .where(eq(orderItems.id, received.id));
+      }
+
+      // تحديث حالة الطلب إلى مستلم
+      const [updated] = await tx.update(orders)
+        .set({ status: 'ASSIGNED' })
+        .where(eq(orders.id, orderId))
+        .returning();
+
+      return updated;
+    });
   }
 
   // Dispatch Runs
