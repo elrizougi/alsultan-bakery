@@ -296,7 +296,9 @@ export class DatabaseStorage implements IStorage {
       const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
       const itemMap = new Map(items.map(i => [i.id, i]));
 
-      // تحديث الكميات المستلمة لكل منتج
+      // تحديث الكميات المستلمة لكل منتج وإضافتها لمخزون السائق
+      const driverId = order.customerId;
+      
       for (const received of receivedItems) {
         const item = itemMap.get(received.id);
         if (!item) {
@@ -308,6 +310,27 @@ export class DatabaseStorage implements IStorage {
         await tx.update(orderItems)
           .set({ receivedQuantity: received.receivedQuantity })
           .where(eq(orderItems.id, received.id));
+
+        // إضافة الكمية المستلمة إلى مخزون السائق
+        if (received.receivedQuantity > 0) {
+          const [existing] = await tx.select().from(driverInventory)
+            .where(and(
+              eq(driverInventory.driverId, driverId),
+              eq(driverInventory.productId, item.productId)
+            ));
+
+          if (existing) {
+            await tx.update(driverInventory)
+              .set({ quantity: existing.quantity + received.receivedQuantity })
+              .where(eq(driverInventory.id, existing.id));
+          } else {
+            await tx.insert(driverInventory).values({
+              driverId,
+              productId: item.productId,
+              quantity: received.receivedQuantity,
+            });
+          }
+        }
       }
 
       // تحديث حالة الطلب إلى مستلم
