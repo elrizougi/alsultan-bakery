@@ -334,6 +334,15 @@ export async function registerRoutes(
             productId: item.productId,
             quantity: item.quantity,
           });
+          
+          // إذا كان الطلب مؤكد، خصم الكمية من المخزون تلقائياً
+          if (parsed.status === 'CONFIRMED') {
+            const product = await storage.getProduct(item.productId);
+            if (product) {
+              const newStock = Math.max(0, product.stock - item.quantity);
+              await storage.updateProductStock(item.productId, newStock);
+            }
+          }
         }
       }
       
@@ -350,9 +359,28 @@ export async function registerRoutes(
   app.patch("/api/orders/:id", async (req, res) => {
     try {
       const { items, ...orderData } = req.body;
+      
+      // الحصول على الطلب الحالي للتحقق من تغير الحالة
+      const existingOrder = await storage.getOrder(req.params.id);
+      if (!existingOrder) {
+        return res.status(404).json({ message: "الطلب غير موجود" });
+      }
+      
       const order = await storage.updateOrder(req.params.id, orderData);
       if (!order) {
         return res.status(404).json({ message: "الطلب غير موجود" });
+      }
+      
+      // إذا تغيرت الحالة إلى مؤكد، خصم الكمية من المخزون
+      if (orderData.status === 'CONFIRMED' && existingOrder.status !== 'CONFIRMED') {
+        const existingItems = await storage.getOrderItems(order.id);
+        for (const item of existingItems) {
+          const product = await storage.getProduct(item.productId);
+          if (product) {
+            const newStock = Math.max(0, product.stock - item.quantity);
+            await storage.updateProductStock(item.productId, newStock);
+          }
+        }
       }
       
       // Update order items if provided
