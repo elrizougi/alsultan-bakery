@@ -169,6 +169,7 @@ export const customerDebts = pgTable("customer_debts", {
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   driverId: varchar("driver_id").references(() => users.id).notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at").defaultNow(),
   isPaid: boolean("is_paid").notNull().default(false),
 });

@@ -741,6 +741,22 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/customer-debts/:id/partial-payment", async (req, res) => {
+    try {
+      const { paymentAmount } = req.body;
+      if (typeof paymentAmount !== 'number' || paymentAmount <= 0) {
+        return res.status(400).json({ message: "المبلغ غير صالح" });
+      }
+      const debt = await storage.makePartialPayment(req.params.id, paymentAmount);
+      if (!debt) {
+        return res.status(404).json({ message: "الدين غير موجود" });
+      }
+      res.json(debt);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // ============ TRANSACTIONS ============
   app.get("/api/transactions", async (req, res) => {
     try {

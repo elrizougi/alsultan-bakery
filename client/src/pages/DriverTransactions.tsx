@@ -94,6 +94,24 @@ export default function DriverTransactionsPage() {
     },
   });
 
+  const partialPayment = useMutation({
+    mutationFn: ({ id, paymentAmount }: { id: string; paymentAmount: number }) => 
+      api.makePartialPayment(id, paymentAmount),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["driver-debts"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
+      toast({ title: "تم تسجيل الدفع الجزئي" });
+      setPaymentDialogDebt(null);
+      setPaymentAmount("");
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ في تسجيل الدفع", variant: "destructive" });
+    },
+  });
+
+  const [paymentDialogDebt, setPaymentDialogDebt] = useState<typeof debts[0] | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+
   const createCustomer = useCreateCustomer();
 
   const confirmReceipt = useMutation({
@@ -436,28 +454,47 @@ export default function DriverTransactionsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-right">العميل</TableHead>
-                      <TableHead className="text-right">المبلغ</TableHead>
+                      <TableHead className="text-right">المبلغ الكلي</TableHead>
+                      <TableHead className="text-right">المدفوع</TableHead>
+                      <TableHead className="text-right">الباقي</TableHead>
                       <TableHead className="text-right">إجراء</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {unpaidDebts.map((debt) => (
-                      <TableRow key={debt.id} data-testid={`row-debt-${debt.id}`}>
-                        <TableCell>{getCustomerName(debt.customerId)}</TableCell>
-                        <TableCell>{parseFloat(debt.amount).toFixed(2)} ر.س</TableCell>
-                        <TableCell>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => updateDebt.mutate({ id: debt.id, isPaid: true })}
-                            data-testid={`button-mark-paid-${debt.id}`}
-                          >
-                            <Check className="h-4 w-4 ml-1" />
-                            تم الدفع
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {unpaidDebts.map((debt) => {
+                      const total = parseFloat(debt.amount);
+                      const paid = parseFloat(debt.paidAmount || "0");
+                      const remaining = total - paid;
+                      return (
+                        <TableRow key={debt.id} data-testid={`row-debt-${debt.id}`}>
+                          <TableCell>{getCustomerName(debt.customerId)}</TableCell>
+                          <TableCell>{total.toFixed(2)} ر.س</TableCell>
+                          <TableCell className="text-green-600">{paid.toFixed(2)} ر.س</TableCell>
+                          <TableCell className="text-red-600 font-bold">{remaining.toFixed(2)} ر.س</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setPaymentDialogDebt(debt)}
+                                data-testid={`button-partial-pay-${debt.id}`}
+                              >
+                                دفع جزئي
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="default"
+                                onClick={() => updateDebt.mutate({ id: debt.id, isPaid: true })}
+                                data-testid={`button-mark-paid-${debt.id}`}
+                              >
+                                <Check className="h-4 w-4 ml-1" />
+                                دفع كامل
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -736,6 +773,72 @@ export default function DriverTransactionsPage() {
               data-testid="button-submit-modification"
             >
               {createModification.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إرسال طلب التعديل"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* نافذة الدفع الجزئي */}
+      <Dialog open={!!paymentDialogDebt} onOpenChange={(open) => !open && setPaymentDialogDebt(null)}>
+        <DialogContent className="sm:max-w-[400px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">دفع جزئي</DialogTitle>
+          </DialogHeader>
+          {paymentDialogDebt && (
+            <div className="space-y-4">
+              <div className="p-3 bg-slate-50 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">العميل:</span>
+                  <span className="font-medium">{getCustomerName(paymentDialogDebt.customerId)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">المبلغ الكلي:</span>
+                  <span>{parseFloat(paymentDialogDebt.amount).toFixed(2)} ر.س</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">المدفوع مسبقاً:</span>
+                  <span className="text-green-600">{parseFloat(paymentDialogDebt.paidAmount || "0").toFixed(2)} ر.س</span>
+                </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="text-muted-foreground">المتبقي:</span>
+                  <span className="text-red-600 font-bold">
+                    {(parseFloat(paymentDialogDebt.amount) - parseFloat(paymentDialogDebt.paidAmount || "0")).toFixed(2)} ر.س
+                  </span>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>المبلغ المدفوع الآن</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={(parseFloat(paymentDialogDebt.amount) - parseFloat(paymentDialogDebt.paidAmount || "0")).toFixed(2)}
+                  placeholder="أدخل المبلغ..."
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  data-testid="input-payment-amount"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPaymentDialogDebt(null)}>
+              إلغاء
+            </Button>
+            <Button 
+              onClick={() => {
+                if (paymentDialogDebt && paymentAmount) {
+                  partialPayment.mutate({ 
+                    id: paymentDialogDebt.id, 
+                    paymentAmount: parseFloat(paymentAmount) 
+                  });
+                }
+              }} 
+              disabled={partialPayment.isPending || !paymentAmount || parseFloat(paymentAmount) <= 0}
+              data-testid="button-confirm-partial-payment"
+            >
+              {partialPayment.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الدفع"}
             </Button>
           </DialogFooter>
         </DialogContent>

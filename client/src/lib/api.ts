@@ -276,6 +276,11 @@ export const api = {
     return res.json();
   },
 
+  makePartialPayment: async (id: string, paymentAmount: number): Promise<CustomerDebt> => {
+    const res = await apiRequest("POST", `/api/customer-debts/${id}/partial-payment`, { paymentAmount });
+    return res.json();
+  },
+
   // Order Modifications
   getPendingModifications: async (): Promise<OrderModification[]> => {
     const res = await fetch("/api/order-modifications/pending");
@@ -353,6 +358,7 @@ export interface CustomerDebt {
   customerId?: string;
   driverId: string;
   amount: string;
+  paidAmount: string;
   isPaid: boolean;
   createdAt?: string;
 }

@@ -109,6 +109,7 @@ export interface IStorage {
   getDriverCustomerDebts(driverId: string): Promise<CustomerDebt[]>;
   createCustomerDebt(debt: InsertCustomerDebt): Promise<CustomerDebt>;
   updateCustomerDebt(id: string, isPaid: boolean): Promise<CustomerDebt | undefined>;
+  makePartialPayment(id: string, paymentAmount: number): Promise<CustomerDebt | undefined>;
 
   // Transactions
   getAllTransactions(): Promise<Transaction[]>;
@@ -613,14 +614,11 @@ export class DatabaseStorage implements IStorage {
   // Update debt payment with driver balance adjustment using DB transaction
   async updateCustomerDebtWithBalance(id: string, isPaid: boolean): Promise<CustomerDebt | undefined> {
     return await db.transaction(async (tx) => {
-      // First get the debt to know the amount and driver
       const [debt] = await tx.select().from(customerDebts).where(eq(customerDebts.id, id));
       if (!debt) return undefined;
       
-      // Update the debt status
       const [updated] = await tx.update(customerDebts).set({ isPaid }).where(eq(customerDebts.id, id)).returning();
       
-      // Helper function for balance update within transaction
       const updateBalanceInTx = async (driverId: string, amount: string) => {
         const [existing] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, driverId));
         const currentBalance = existing ? parseFloat(existing.cashBalance) : 0;
@@ -633,13 +631,52 @@ export class DatabaseStorage implements IStorage {
         }
       };
       
-      // If marking as paid, add the amount to driver's cash balance
       if (isPaid && !debt.isPaid) {
-        await updateBalanceInTx(debt.driverId, debt.amount);
+        const remainingAmount = parseFloat(debt.amount) - parseFloat(debt.paidAmount || "0");
+        await updateBalanceInTx(debt.driverId, remainingAmount.toFixed(2));
+      } else if (!isPaid && debt.isPaid) {
+        const remainingAmount = parseFloat(debt.amount) - parseFloat(debt.paidAmount || "0");
+        await updateBalanceInTx(debt.driverId, (-remainingAmount).toFixed(2));
       }
-      // If marking as unpaid (reversing), subtract from driver's cash balance
-      else if (!isPaid && debt.isPaid) {
-        await updateBalanceInTx(debt.driverId, (-parseFloat(debt.amount)).toFixed(2));
+      
+      return updated;
+    });
+  }
+
+  // Partial payment for debt
+  async makePartialPayment(id: string, paymentAmount: number): Promise<CustomerDebt | undefined> {
+    return await db.transaction(async (tx) => {
+      const [debt] = await tx.select().from(customerDebts).where(eq(customerDebts.id, id));
+      if (!debt) return undefined;
+      
+      const currentPaid = parseFloat(debt.paidAmount || "0");
+      const totalAmount = parseFloat(debt.amount);
+      const remaining = totalAmount - currentPaid;
+      
+      // Only apply up to the remaining amount
+      const appliedAmount = Math.min(paymentAmount, remaining);
+      if (appliedAmount <= 0) return undefined;
+      
+      const newPaidAmount = currentPaid + appliedAmount;
+      const isPaid = newPaidAmount >= totalAmount;
+      
+      const [updated] = await tx.update(customerDebts)
+        .set({ 
+          paidAmount: newPaidAmount.toFixed(2),
+          isPaid 
+        })
+        .where(eq(customerDebts.id, id))
+        .returning();
+      
+      // Add only the applied amount to driver's cash balance
+      const [existing] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, debt.driverId));
+      const currentBalance = existing ? parseFloat(existing.cashBalance) : 0;
+      const newBalance = (currentBalance + appliedAmount).toFixed(2);
+      
+      if (existing) {
+        await tx.update(driverBalance).set({ cashBalance: newBalance }).where(eq(driverBalance.driverId, debt.driverId));
+      } else {
+        await tx.insert(driverBalance).values({ driverId: debt.driverId, cashBalance: newBalance });
       }
       
       return updated;
