@@ -9,9 +9,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2 } from "lucide-react";
+import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +60,8 @@ export default function CustomersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<CustomerFormData>({
     name: "",
     address: "",
@@ -67,6 +69,82 @@ export default function CustomersPage() {
     phone: "",
     routeId: "",
   });
+
+  const downloadTemplate = () => {
+    const csvContent = "name,address,phone,locationUrl\nاسم العميل,العنوان,رقم الجوال,رابط الموقع\nمثال: محمد أحمد,حي الملك فهد - شارع العليا,0501234567,https://maps.google.com/...";
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "customers_template.csv";
+    link.click();
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        toast({ title: "الملف فارغ أو لا يحتوي على بيانات", variant: "destructive" });
+        return;
+      }
+
+      const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+      const nameIdx = headers.findIndex(h => h === "name" || h === "اسم" || h === "الاسم");
+      const addressIdx = headers.findIndex(h => h === "address" || h === "عنوان" || h === "العنوان");
+      const phoneIdx = headers.findIndex(h => h === "phone" || h === "جوال" || h === "هاتف" || h === "رقم");
+      const locationIdx = headers.findIndex(h => h === "locationurl" || h === "location" || h === "رابط" || h === "موقع");
+
+      if (nameIdx === -1 || addressIdx === -1 || phoneIdx === -1) {
+        toast({ title: "يجب أن يحتوي الملف على أعمدة: name, address, phone", variant: "destructive" });
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(",").map(v => v.trim());
+        const name = values[nameIdx];
+        const address = values[addressIdx];
+        const phone = values[phoneIdx];
+        const locationUrl = locationIdx !== -1 ? values[locationIdx] : "";
+
+        if (!name || !address || !phone) {
+          errorCount++;
+          continue;
+        }
+
+        try {
+          await createCustomer.mutateAsync({
+            name,
+            address,
+            phone,
+            locationUrl: locationUrl || "",
+            routeId: null,
+          });
+          successCount++;
+        } catch {
+          errorCount++;
+        }
+      }
+
+      toast({ 
+        title: `تم استيراد ${successCount} عميل بنجاح${errorCount > 0 ? ` (${errorCount} أخطاء)` : ""}` 
+      });
+    } catch (error) {
+      toast({ title: "حدث خطأ في قراءة الملف", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   const openAddForm = () => {
     setEditingCustomer(null);
@@ -152,9 +230,36 @@ export default function CustomersPage() {
             <p className="text-sm text-muted-foreground">عرض وإدارة قاعدة بيانات العملاء ومواقعهم.</p>
           </div>
           
-          <Button className="w-full sm:w-auto flex flex-row-reverse gap-2" onClick={openAddForm} data-testid="button-add-customer">
-            <UserPlus className="h-4 w-4" /> إضافة عميل جديد
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button className="flex flex-row-reverse gap-2" onClick={openAddForm} data-testid="button-add-customer">
+              <UserPlus className="h-4 w-4" /> إضافة عميل
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex flex-row-reverse gap-2" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              data-testid="button-import-customers"
+            >
+              {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              استيراد CSV
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="flex flex-row-reverse gap-2" 
+              onClick={downloadTemplate}
+              data-testid="button-download-template"
+            >
+              <Download className="h-4 w-4" /> تحميل النموذج
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </div>
         </div>
 
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
