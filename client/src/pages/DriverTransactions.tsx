@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type TransactionType, type InsertTransaction, type Transaction, type DriverInventory, type DriverBalance, type CustomerDebt } from "@/lib/api";
-import { useProducts, useCustomers, useCreateCustomer } from "@/hooks/useData";
+import { useProducts, useCustomers, useCreateCustomer, useOrders } from "@/hooks/useData";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -40,6 +40,10 @@ export default function DriverTransactionsPage() {
 
   const { data: products = [] } = useProducts();
   const { data: customers = [] } = useCustomers();
+  const { data: orders = [] } = useOrders();
+  
+  // طلبات السائق التي تحتاج تأكيد استلام
+  const pendingOrders = orders.filter(o => o.customerId === driverId && o.status === 'CONFIRMED');
   
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ["driver-transactions", driverId],
@@ -91,6 +95,27 @@ export default function DriverTransactionsPage() {
   });
 
   const createCustomer = useCreateCustomer();
+
+  const confirmReceipt = useMutation({
+    mutationFn: ({ orderId, receivedItems }: { orderId: string; receivedItems: { id: string; receivedQuantity: number }[] }) => 
+      api.confirmOrderReceipt(orderId, receivedItems),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+      toast({ title: "تم تأكيد استلام الطلب وإضافته للمخزون" });
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ في تأكيد الاستلام", variant: "destructive" });
+    },
+  });
+
+  const handleConfirmReceipt = (order: typeof orders[0]) => {
+    const receivedItems = order.items?.map(item => ({
+      id: item.id!,
+      receivedQuantity: item.quantity,
+    })) || [];
+    confirmReceipt.mutate({ orderId: order.id, receivedItems });
+  };
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -270,10 +295,54 @@ export default function DriverTransactionsPage() {
                 مخزوني الحالي
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {inventory.length === 0 ? (
+            <CardContent className="space-y-4">
+              {/* طلبات تنتظر تأكيد الاستلام */}
+              {pendingOrders.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <h4 className="font-bold text-amber-700 mb-3 flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    طلبات تنتظر التأكيد
+                  </h4>
+                  {pendingOrders.map(order => (
+                    <div key={order.id} className="bg-white rounded-lg p-3 mb-2 border border-amber-100">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-mono text-slate-500">#{order.id.slice(0, 8)}</span>
+                        <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
+                          بانتظار التأكيد
+                        </Badge>
+                      </div>
+                      <div className="space-y-1 mb-3">
+                        {order.items?.map(item => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span>{getProductName(item.productId)}</span>
+                            <span className="font-bold">{item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleConfirmReceipt(order)}
+                        disabled={confirmReceipt.isPending}
+                        className="w-full bg-primary hover:bg-primary/90 gap-2"
+                      >
+                        {confirmReceipt.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4" />
+                            تأكيد الاستلام
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* المخزون المتاح */}
+              {inventory.length === 0 && pendingOrders.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">لا يوجد مخزون حالياً</p>
-              ) : (
+              ) : inventory.length > 0 && (
                 <Table>
                   <TableHeader>
                     <TableRow>
