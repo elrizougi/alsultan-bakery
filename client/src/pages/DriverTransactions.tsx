@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type TransactionType, type InsertTransaction, type Transaction, type DriverInventory, type DriverBalance, type CustomerDebt } from "@/lib/api";
-import { useProducts, useCustomers } from "@/hooks/useData";
+import { useProducts, useCustomers, useCreateCustomer } from "@/hooks/useData";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -90,8 +90,16 @@ export default function DriverTransactionsPage() {
     },
   });
 
+  const createCustomer = useCreateCustomer();
+  
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [formData, setFormData] = useState<Partial<InsertTransaction>>({
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerAddress, setNewCustomerAddress] = useState("");
+  const [customPrice, setCustomPrice] = useState<string>("");
+  
+  const [formData, setFormData] = useState<Partial<InsertTransaction> & { customerId?: string }>({
     type: "CASH_SALE",
     driverId: driverId,
     productId: "",
@@ -109,6 +117,35 @@ export default function DriverTransactionsPage() {
       customerId: undefined,
       notes: "",
     });
+    setCustomPrice("");
+    setShowNewCustomerForm(false);
+    setNewCustomerName("");
+    setNewCustomerPhone("");
+    setNewCustomerAddress("");
+  };
+
+  const handleAddNewCustomer = async () => {
+    if (!newCustomerName.trim()) {
+      toast({ title: "يرجى إدخال اسم العميل", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const newCustomer = await createCustomer.mutateAsync({
+        name: newCustomerName.trim(),
+        phone: newCustomerPhone.trim() || "",
+        address: newCustomerAddress.trim() || "",
+      });
+      
+      setFormData({ ...formData, customerId: newCustomer.id });
+      setShowNewCustomerForm(false);
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+      setNewCustomerAddress("");
+      toast({ title: "تم إضافة العميل بنجاح" });
+    } catch (error) {
+      toast({ title: "حدث خطأ في إضافة العميل", variant: "destructive" });
+    }
   };
 
   const handleSubmit = () => {
@@ -116,11 +153,17 @@ export default function DriverTransactionsPage() {
       toast({ title: "يرجى تعبئة جميع الحقول المطلوبة", variant: "destructive" });
       return;
     }
+    
+    // التحقق من اختيار عميل (إجباري لجميع أنواع العمليات)
+    if (!formData.customerId) {
+      toast({ title: "يرجى اختيار العميل أو إضافة عميل جديد", variant: "destructive" });
+      return;
+    }
 
     const product = products.find(p => p.id === formData.productId);
     if (!product) return;
 
-    const unitPrice = product.price;
+    const unitPrice = customPrice ? customPrice : product.price;
     const totalAmount = (parseFloat(unitPrice) * (formData.quantity || 1)).toFixed(2);
 
     createTransaction.mutate({
@@ -400,14 +443,14 @@ export default function DriverTransactionsPage() {
               />
             </div>
 
-            {(formData.type === "CREDIT_SALE" || formData.type === "FREE_DISTRIBUTION") && (
-              <div className="grid gap-2">
-                <Label>العميل {formData.type === "CREDIT_SALE" ? "*" : ""}</Label>
+            <div className="grid gap-2">
+              <Label>العميل *</Label>
+              <div className="flex gap-2">
                 <Select
                   value={formData.customerId || ""}
                   onValueChange={(value) => setFormData({ ...formData, customerId: value })}
                 >
-                  <SelectTrigger data-testid="select-customer">
+                  <SelectTrigger data-testid="select-customer" className="flex-1">
                     <SelectValue placeholder="اختر العميل" />
                   </SelectTrigger>
                   <SelectContent>
@@ -418,8 +461,63 @@ export default function DriverTransactionsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                  data-testid="button-add-new-customer"
+                >
+                  <UserPlus className="h-4 w-4" />
+                </Button>
               </div>
-            )}
+              
+              {showNewCustomerForm && (
+                <div className="p-3 bg-slate-50 rounded-lg space-y-3 mt-2">
+                  <div className="text-sm font-medium text-slate-700">إضافة عميل جديد</div>
+                  <Input
+                    placeholder="اسم العميل *"
+                    value={newCustomerName}
+                    onChange={(e) => setNewCustomerName(e.target.value)}
+                    data-testid="input-new-customer-name"
+                  />
+                  <Input
+                    placeholder="رقم الهاتف"
+                    value={newCustomerPhone}
+                    onChange={(e) => setNewCustomerPhone(e.target.value)}
+                    data-testid="input-new-customer-phone"
+                  />
+                  <Input
+                    placeholder="العنوان"
+                    value={newCustomerAddress}
+                    onChange={(e) => setNewCustomerAddress(e.target.value)}
+                    data-testid="input-new-customer-address"
+                  />
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    onClick={handleAddNewCustomer}
+                    disabled={createCustomer.isPending}
+                    data-testid="button-save-new-customer"
+                  >
+                    {createCustomer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ العميل"}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>السعر المخصص (اتركه فارغاً لاستخدام سعر المنتج)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min={0}
+                value={customPrice}
+                onChange={(e) => setCustomPrice(e.target.value)}
+                placeholder={formData.productId ? `سعر المنتج: ${products.find(p => p.id === formData.productId)?.price || 0} ر.س` : "اختر المنتج أولاً"}
+                data-testid="input-custom-price"
+              />
+            </div>
 
             <div className="grid gap-2">
               <Label>ملاحظات</Label>
@@ -436,7 +534,7 @@ export default function DriverTransactionsPage() {
                 <p className="text-sm text-muted-foreground">
                   المبلغ الإجمالي:{" "}
                   <span className="font-bold text-primary">
-                    {(parseFloat(products.find(p => p.id === formData.productId)?.price || "0") * (formData.quantity || 1)).toFixed(2)} ر.س
+                    {(parseFloat(customPrice || products.find(p => p.id === formData.productId)?.price || "0") * (formData.quantity || 1)).toFixed(2)} ر.س
                   </span>
                 </p>
               </div>
