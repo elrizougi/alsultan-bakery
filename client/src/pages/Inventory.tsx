@@ -201,11 +201,9 @@ export default function InventoryPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="text-right">المنتج</TableHead>
-                <TableHead className="text-right">SKU</TableHead>
-                <TableHead className="text-right">الفئة</TableHead>
+                <TableHead className="text-right">عدد العجنات</TableHead>
                 <TableHead className="text-right">السعر</TableHead>
                 <TableHead className="text-right">المخزون الحالي</TableHead>
-                <TableHead className="text-right">عدد العجنات</TableHead>
                 <TableHead className="text-right">الحالة</TableHead>
                 <TableHead className="text-right">إجراءات</TableHead>
               </TableRow>
@@ -214,11 +212,9 @@ export default function InventoryPage() {
               {products.map((product) => (
                 <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
                   <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell className="font-mono text-xs">{product.sku}</TableCell>
-                  <TableCell>{product.category}</TableCell>
+                  <TableCell className="font-bold text-primary">{product.batchCount || 0}</TableCell>
                   <TableCell>{parseFloat(product.price).toFixed(2)} ر.س</TableCell>
                   <TableCell className="font-bold">{product.stock}</TableCell>
-                  <TableCell className="font-bold text-primary">{product.batchCount || 0}</TableCell>
                   <TableCell>
                     {product.stock < 50 ? (
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
