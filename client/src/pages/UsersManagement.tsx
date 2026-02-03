@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useUsers, useCreateUser, useUpdateUser, useChangePassword, useToggleUserActive, useDeleteUser } from "@/hooks/useData";
 import {
@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, Shield, Edit2, Trash2, Loader2, Key, Power, PowerOff } from "lucide-react";
+import { Users, UserPlus, Shield, Edit2, Trash2, Loader2, Key, Power, PowerOff, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -75,6 +75,81 @@ export default function UsersManagementPage() {
   
   // Password form
   const [newUserPassword, setNewUserPassword] = useState("");
+  
+  // CSV Import
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const downloadTemplate = () => {
+    const csvContent = "username,password,name,role\nاسم_المستخدم,كلمة_المرور,الاسم_الكامل,الدور\nuser1,pass123,محمد أحمد,SALES\ndriver1,pass456,خالد السائق,DRIVER";
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "employees_template.csv";
+    link.click();
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n").filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        toast({ title: "الملف فارغ أو لا يحتوي على بيانات", variant: "destructive" });
+        return;
+      }
+
+      const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+      const usernameIdx = headers.findIndex(h => h === "username" || h === "مستخدم" || h === "اسم_المستخدم");
+      const passwordIdx = headers.findIndex(h => h === "password" || h === "كلمة_المرور" || h === "باسورد");
+      const nameIdx = headers.findIndex(h => h === "name" || h === "اسم" || h === "الاسم");
+      const roleIdx = headers.findIndex(h => h === "role" || h === "دور" || h === "الدور");
+
+      if (usernameIdx === -1 || passwordIdx === -1 || nameIdx === -1) {
+        toast({ title: "يجب أن يحتوي الملف على أعمدة: username, password, name", variant: "destructive" });
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(",").map(v => v.trim());
+        const username = values[usernameIdx];
+        const password = values[passwordIdx];
+        const name = values[nameIdx];
+        const roleValue = roleIdx !== -1 ? values[roleIdx]?.toUpperCase() : "SALES";
+        const role: Role = (roleValue === "ADMIN" || roleValue === "DRIVER" || roleValue === "SALES") ? roleValue : "SALES";
+
+        if (!username || !password || !name || password.length < 6) {
+          errorCount++;
+          continue;
+        }
+
+        try {
+          await createUser.mutateAsync({ username, password, name, role });
+          successCount++;
+        } catch {
+          errorCount++;
+        }
+      }
+
+      toast({ 
+        title: `تم استيراد ${successCount} موظف بنجاح${errorCount > 0 ? ` (${errorCount} أخطاء)` : ""}` 
+      });
+    } catch (error) {
+      toast({ title: "حدث خطأ في قراءة الملف", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,9 +250,34 @@ export default function UsersManagementPage() {
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-800">إدارة الموظفين والصلاحيات</h1>
             <p className="text-sm text-muted-foreground">إضافة وتعديل الموظفين وإدارة صلاحياتهم.</p>
           </div>
-          <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto gap-2 bg-primary rounded-xl h-11 px-6 font-bold shadow-lg shadow-primary/20">
-            <UserPlus className="h-4 w-4" /> إضافة موظف جديد
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setIsCreateOpen(true)} className="gap-2 bg-primary rounded-xl h-11 px-6 font-bold shadow-lg shadow-primary/20">
+              <UserPlus className="h-4 w-4" /> إضافة موظف
+            </Button>
+            <Button 
+              variant="outline" 
+              className="gap-2 rounded-xl h-11" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+            >
+              {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              استيراد CSV
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="gap-2 rounded-xl h-11" 
+              onClick={downloadTemplate}
+            >
+              <Download className="h-4 w-4" /> تحميل النموذج
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </div>
         </div>
 
         <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
