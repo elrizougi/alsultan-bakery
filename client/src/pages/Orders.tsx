@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useOrders, useCustomers, useProducts, useCreateOrder, useUpdateOrder, useDeleteOrder } from "@/hooks/useData";
+import { useOrders, useUsers, useProducts, useCreateOrder, useUpdateOrder, useDeleteOrder } from "@/hooks/useData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,7 +28,7 @@ import type { Order, OrderItem, Status } from "@/lib/api";
 
 export default function OrdersPage() {
   const { data: orders = [], isLoading } = useOrders();
-  const { data: customers = [] } = useCustomers();
+  const { data: users = [] } = useUsers();
   const { data: products = [] } = useProducts();
   const updateOrder = useUpdateOrder();
   const deleteOrder = useDeleteOrder();
@@ -39,8 +39,8 @@ export default function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   const filteredOrders = orders.filter(order => {
-    const customer = customers.find(c => c.id === order.customerId);
-    const matchesSearch = customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const employee = users.find(u => u.id === order.customerId);
+    const matchesSearch = employee?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           order.id.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
@@ -90,7 +90,7 @@ export default function OrdersPage() {
           <div className="relative flex-1">
             <Search className="absolute right-3 top-3 h-4 w-4 text-slate-400" />
             <Input
-              placeholder="البحث عن طلب أو عميل..."
+              placeholder="البحث عن طلب أو موظف..."
               className="pr-10 text-right h-11 rounded-xl border-slate-200 focus:ring-primary shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -106,7 +106,7 @@ export default function OrdersPage() {
             <TableHeader className="bg-slate-50/50">
               <TableRow>
                 <TableHead className="text-right font-bold text-slate-500">رقم الطلب</TableHead>
-                <TableHead className="text-right font-bold text-slate-500">العميل</TableHead>
+                <TableHead className="text-right font-bold text-slate-500">الموظف</TableHead>
                 <TableHead className="text-right font-bold text-slate-500">التاريخ</TableHead>
                 <TableHead className="text-right font-bold text-slate-500">الأصناف</TableHead>
                 <TableHead className="text-right font-bold text-slate-500">الإجمالي</TableHead>
@@ -116,11 +116,11 @@ export default function OrdersPage() {
             </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => {
-                const customer = customers.find(c => c.id === order.customerId);
+                const employee = users.find(u => u.id === order.customerId);
                 return (
                   <TableRow key={order.id} className="hover:bg-slate-50/50 border-slate-50">
                     <TableCell className="font-bold text-slate-400 font-mono text-xs">#{order.id.slice(0, 8)}</TableCell>
-                    <TableCell className="font-bold text-slate-700">{customer?.name}</TableCell>
+                    <TableCell className="font-bold text-slate-700">{employee?.name}</TableCell>
                     <TableCell className="text-slate-500">{order.date}</TableCell>
                     <TableCell className="text-slate-500">{order.items?.reduce((acc, item) => acc + item.quantity, 0) || 0} وحدة</TableCell>
                     <TableCell className="font-black text-slate-800">{parseFloat(order.totalAmount).toFixed(2)} ر.س</TableCell>
@@ -186,11 +186,11 @@ export default function OrdersPage() {
 }
 
 function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const { data: customers = [] } = useCustomers();
+  const { data: users = [] } = useUsers();
   const { data: products = [] } = useProducts();
   const createOrder = useCreateOrder();
   const { toast } = useToast();
-  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [items, setItems] = useState<{ productId: string; quantity: number }[]>([]);
   
   const addItem = () => {
@@ -214,14 +214,14 @@ function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCustomerId || items.length === 0) {
-      toast({ title: "يرجى اختيار العميل وإضافة أصناف", variant: "destructive" });
+    if (!selectedEmployeeId || items.length === 0) {
+      toast({ title: "يرجى اختيار الموظف وإضافة أصناف", variant: "destructive" });
       return;
     }
     
     try {
       await createOrder.mutateAsync({
-        customerId: selectedCustomerId,
+        customerId: selectedEmployeeId,
         date: format(new Date(), 'yyyy-MM-dd'),
         status: 'DRAFT',
         totalAmount: totalAmount.toFixed(2),
@@ -229,7 +229,7 @@ function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpenChange
       });
       toast({ title: "تم إنشاء الطلب بنجاح" });
       onOpenChange(false);
-      setSelectedCustomerId("");
+      setSelectedEmployeeId("");
       setItems([]);
     } catch (error) {
       toast({ title: "حدث خطأ", variant: "destructive" });
@@ -244,14 +244,14 @@ function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 pt-2">
           <div className="space-y-3">
-            <Label className="block text-right font-bold text-slate-600">اختيار العميل</Label>
-            <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+            <Label className="block text-right font-bold text-slate-600">اختيار الموظف</Label>
+            <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
               <SelectTrigger dir="rtl" className="h-12 rounded-xl border-slate-200">
-                <SelectValue placeholder="اختر العميل" />
+                <SelectValue placeholder="اختر الموظف" />
               </SelectTrigger>
               <SelectContent dir="rtl" className="rounded-xl shadow-xl">
-                {customers.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                {users.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -306,12 +306,12 @@ function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 }
 
 function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: (open: boolean) => void }) {
-  const { data: customers = [] } = useCustomers();
+  const { data: users = [] } = useUsers();
   const { data: products = [] } = useProducts();
   const updateOrder = useUpdateOrder();
   const { toast } = useToast();
   
-  const [selectedCustomerId, setSelectedCustomerId] = useState(order.customerId);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(order.customerId);
   const [items, setItems] = useState<{ productId: string; quantity: number }[]>(
     order.items?.map(i => ({ productId: i.productId, quantity: i.quantity })) || []
   );
@@ -340,7 +340,7 @@ function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: 
     try {
       await updateOrder.mutateAsync({
         id: order.id,
-        customerId: selectedCustomerId,
+        customerId: selectedEmployeeId,
         totalAmount: totalAmount.toFixed(2),
         items,
       });
@@ -365,14 +365,14 @@ function EditOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <Label className="block text-right font-bold text-slate-600">العميل</Label>
-                <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                <Label className="block text-right font-bold text-slate-600">الموظف</Label>
+                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
                   <SelectTrigger dir="rtl" className="h-12 rounded-2xl border-slate-200 shadow-sm font-bold text-slate-700">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent dir="rtl" className="rounded-2xl shadow-2xl border-slate-100">
-                    {customers.map(c => (
-                      <SelectItem key={c.id} value={c.id} className="p-3 font-bold">{c.name}</SelectItem>
+                    {users.map(u => (
+                      <SelectItem key={u.id} value={u.id} className="p-3 font-bold">{u.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
