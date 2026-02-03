@@ -25,7 +25,7 @@ export function Sidebar({ className }: SidebarProps) {
     { icon: LayoutDashboard, label: "الرئيسية", href: "/", roles: ['ADMIN', 'SALES'] },
     { icon: ShoppingCart, label: "طلبات الخبز", href: "/orders", roles: ['ADMIN', 'SALES'] },
     { icon: Truck, label: "رحلات التوزيع", href: "/dispatch", roles: ['ADMIN', 'DRIVER'] },
-    { icon: Package, label: "مستودع الخبز", href: "/inventory", roles: ['ADMIN'] },
+    { icon: Package, label: "خبز في الصالة", href: "/inventory", roles: ['ADMIN'] },
     { icon: Users, label: "قائمة العملاء", href: "/customers", roles: ['ADMIN', 'SALES'] },
     { icon: MapPin, label: "خطوط التوزيع", href: "/routes", roles: ['ADMIN'] },
     { icon: Shield, label: "الموظفين والصلاحيات", href: "/users", roles: ['ADMIN'] },
