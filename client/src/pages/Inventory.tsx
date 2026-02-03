@@ -320,6 +320,18 @@ export default function InventoryPage() {
             </DialogHeader>
             <form onSubmit={handleProductSubmit} className="space-y-4 py-4 text-right">
               <div className="space-y-2">
+                <Label htmlFor="productBatchCount">عدد العجنات</Label>
+                <Input
+                  id="productBatchCount"
+                  type="number"
+                  min="0"
+                  value={formData.batchCount}
+                  onChange={(e) => setFormData({ ...formData, batchCount: parseInt(e.target.value) || 0 })}
+                  required
+                  data-testid="input-product-batch-count"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="name">اسم المنتج</Label>
                 <Input
                   id="name"
@@ -329,21 +341,21 @@ export default function InventoryPage() {
                   data-testid="input-product-name"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">السعر (ر.س)</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  required
-                  placeholder="0.00"
-                  data-testid="input-product-price"
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price">السعر (ر.س)</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    required
+                    placeholder="0.00"
+                    data-testid="input-product-price"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="productStock">الكمية المتوفرة</Label>
                   <Input
@@ -354,18 +366,6 @@ export default function InventoryPage() {
                     onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
                     required
                     data-testid="input-product-stock"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="productBatchCount">عدد العجنات</Label>
-                  <Input
-                    id="productBatchCount"
-                    type="number"
-                    min="0"
-                    value={formData.batchCount}
-                    onChange={(e) => setFormData({ ...formData, batchCount: parseInt(e.target.value) || 0 })}
-                    required
-                    data-testid="input-product-batch-count"
                   />
                 </div>
               </div>
