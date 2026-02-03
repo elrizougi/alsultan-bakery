@@ -481,10 +481,12 @@ export async function registerRoutes(
 
   app.delete("/api/dispatch-runs/:id", async (req, res) => {
     try {
+      await storage.deleteReturnsByRunId(req.params.id);
       await storage.deleteRunOrders(req.params.id);
       await storage.deleteDispatchRun(req.params.id);
       res.status(204).send();
     } catch (error) {
+      console.error("Error deleting dispatch run:", error);
       res.status(500).json({ message: "خطأ في الخادم" });
     }
   });

@@ -75,8 +75,10 @@ export interface IStorage {
   // Returns
   getAllReturns(): Promise<Return[]>;
   getReturn(id: string): Promise<Return | undefined>;
+  getReturnsByRunId(runId: string): Promise<Return[]>;
   createReturn(ret: InsertReturn): Promise<Return>;
   deleteReturn(id: string): Promise<boolean>;
+  deleteReturnsByRunId(runId: string): Promise<boolean>;
 
   // Return Items
   getReturnItems(returnId: string): Promise<ReturnItem[]>;
@@ -294,6 +296,19 @@ export class DatabaseStorage implements IStorage {
   async getReturn(id: string): Promise<Return | undefined> {
     const [ret] = await db.select().from(returns).where(eq(returns.id, id));
     return ret;
+  }
+
+  async getReturnsByRunId(runId: string): Promise<Return[]> {
+    return db.select().from(returns).where(eq(returns.runId, runId));
+  }
+
+  async deleteReturnsByRunId(runId: string): Promise<boolean> {
+    const runReturns = await this.getReturnsByRunId(runId);
+    for (const ret of runReturns) {
+      await this.deleteReturnItems(ret.id);
+    }
+    await db.delete(returns).where(eq(returns.runId, runId));
+    return true;
   }
 
   async createReturn(ret: InsertReturn): Promise<Return> {
