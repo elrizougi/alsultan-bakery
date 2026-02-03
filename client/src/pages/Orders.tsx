@@ -53,9 +53,13 @@ export default function OrdersPage() {
   }, [dispatchRuns, currentUser]);
 
   const filteredOrders = orders.filter(order => {
-    // إذا كان المستخدم سائق، يظهر له فقط الطلبات المسندة إليه من خلال رحلات التوزيع
-    if (currentUser?.role === 'DRIVER' && driverOrderIds) {
-      if (!driverOrderIds.has(order.id)) {
+    // إذا كان المستخدم سائق، يظهر له الطلبات المسندة إليه بطريقتين:
+    // 1. من خلال رحلات التوزيع (orderIds)
+    // 2. أو إذا كان الطلب مرتبط مباشرة بالسائق (customerId = driverId)
+    if (currentUser?.role === 'DRIVER') {
+      const isAssignedViaDispatch = driverOrderIds && driverOrderIds.has(order.id);
+      const isDirectlyAssigned = order.customerId === currentUser.id;
+      if (!isAssignedViaDispatch && !isDirectlyAssigned) {
         return false;
       }
     }
