@@ -36,9 +36,7 @@ import type { Product } from "@/lib/api";
 
 interface ProductFormData {
   name: string;
-  sku: string;
   price: string;
-  category: string;
   stock: number;
   batchCount: number;
 }
@@ -81,13 +79,23 @@ export default function InventoryPage() {
     }
   };
 
+  const generateSku = () => {
+    const maxNum = products.reduce((max, p) => {
+      const match = p.sku.match(/^P(\d+)$/);
+      if (match) {
+        return Math.max(max, parseInt(match[1]));
+      }
+      return max;
+    }, 0);
+    const nextNum = maxNum + 1;
+    return `P${nextNum.toString().padStart(2, '0')}`;
+  };
+
   const openAddProduct = () => {
     setEditingProduct(null);
     setFormData({
       name: "",
-      sku: "",
       price: "",
-      category: "",
       stock: 0,
       batchCount: 0,
     });
@@ -98,9 +106,7 @@ export default function InventoryPage() {
     setEditingProduct(product);
     setFormData({
       name: product.name,
-      sku: product.sku,
       price: product.price,
-      category: product.category,
       stock: product.stock,
       batchCount: product.batchCount || 0,
     });
@@ -114,10 +120,16 @@ export default function InventoryPage() {
         await updateProduct.mutateAsync({
           id: editingProduct.id,
           ...formData,
+          sku: editingProduct.sku,
+          category: editingProduct.category || "خبز",
         });
         toast({ title: "تم تحديث المنتج بنجاح" });
       } else {
-        await createProduct.mutateAsync(formData);
+        await createProduct.mutateAsync({
+          ...formData,
+          sku: generateSku(),
+          category: "خبز",
+        });
         toast({ title: "تم إضافة المنتج بنجاح" });
       }
       setShowProductForm(false);
@@ -307,54 +319,29 @@ export default function InventoryPage() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleProductSubmit} className="space-y-4 py-4 text-right">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">اسم المنتج</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    data-testid="input-product-name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sku">رمز المنتج (SKU)</Label>
-                  <Input
-                    id="sku"
-                    value={formData.sku}
-                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    required
-                    data-testid="input-product-sku"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">اسم المنتج</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  data-testid="input-product-name"
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">السعر (ر.س)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    required
-                    placeholder="0.00"
-                    data-testid="input-product-price"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">الفئة</Label>
-                  <Input
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    required
-                    placeholder="مثال: خبز، معجنات"
-                    data-testid="input-product-category"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="price">السعر (ر.س)</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  required
+                  placeholder="0.00"
+                  data-testid="input-product-price"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
