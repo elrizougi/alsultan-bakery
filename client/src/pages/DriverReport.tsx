@@ -142,9 +142,10 @@ export default function DriverReportPage() {
 
   const cashSales = dailyTransactions.filter(t => t.type === "CASH_SALE");
   const creditSales = dailyTransactions.filter(t => t.type === "CREDIT_SALE");
-  const returns = dailyTransactions.filter(t => (t.type as string) === "RETURN_GOOD" || (t.type as string) === "RETURN_DAMAGED");
+  const returns = dailyTransactions.filter(t => t.type === "RETURN");
+  const damaged = dailyTransactions.filter(t => t.type === "DAMAGED");
   const freeDist = dailyTransactions.filter(t => t.type === "FREE_DISTRIBUTION");
-  const samples = dailyTransactions.filter(t => (t.type as string) === "SAMPLE");
+  const samples = dailyTransactions.filter(t => t.type === "FREE_SAMPLE");
 
   const totalCashSales = cashSales.reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0);
   const totalCreditSales = creditSales.reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0);
@@ -152,9 +153,36 @@ export default function DriverReportPage() {
   const totalFreeDist = freeDist.reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0);
   const totalSamples = samples.reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0);
 
+  const totalReceivedQty = aggregatedReceived.reduce((sum, item) => sum + item.quantity, 0);
+  const returnedQty = returns.reduce((sum, t) => sum + t.quantity, 0);
+  const damagedQty = damaged.reduce((sum, t) => sum + t.quantity, 0);
+  const samplesQty = samples.reduce((sum, t) => sum + t.quantity, 0);
+  const freeDistQty = freeDist.reduce((sum, t) => sum + t.quantity, 0);
+  const soldQty = cashSales.reduce((sum, t) => sum + t.quantity, 0) + creditSales.reduce((sum, t) => sum + t.quantity, 0);
+  const breadDifference = totalReceivedQty - soldQty - returnedQty - damagedQty - samplesQty - freeDistQty;
+
+  const uniqueCustomers = new Set(dailyTransactions
+    .filter(t => t.type === "CASH_SALE" || t.type === "CREDIT_SALE")
+    .map(t => t.customerId)
+    .filter(Boolean)
+  );
+  const customerCount = uniqueCustomers.size;
+
+  const nonPackagedSales = dailyTransactions.filter(t => {
+    if (t.type !== "CASH_SALE" && t.type !== "CREDIT_SALE") return false;
+    const product = products.find(p => p.id === t.productId);
+    return product && !product.name?.includes("مغلف");
+  });
+  const avgSellingPrice = nonPackagedSales.length > 0
+    ? nonPackagedSales.reduce((sum, t) => sum + parseFloat(t.unitPrice || "0"), 0) / nonPackagedSales.length
+    : 0;
+
+  const totalDeposits = cashDeposits
+    .filter((d: any) => d.status === 'CONFIRMED')
+    .reduce((sum: number, d: any) => sum + parseFloat(d.amount), 0);
+
   const totalSales = totalCashSales + totalCreditSales;
   const actualCashBalance = parseFloat(balance?.cashBalance || "0");
-  // Expected cash = cash sales (returns/free dist don't add cash, they reduce inventory only)
   const expectedCash = totalCashSales;
   const cashDifference = actualCashBalance - expectedCash;
   const netSales = totalSales - totalReturns - totalFreeDist - totalSamples;
@@ -377,99 +405,129 @@ export default function DriverReportPage() {
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                      <span className="text-blue-700 font-medium flex items-center gap-2">
-                        <Package className="h-4 w-4" />
-                        العهدة المستلمة (قيمة)
-                      </span>
-                      <span className="font-bold text-blue-800">{totalReceivedValue.toFixed(2)} ر.س</span>
-                    </div>
-
+                    <h4 className="font-bold text-lg mb-2 flex items-center gap-2">
+                      <Package className="h-5 w-5 text-primary" />
+                      تتبع أعداد الخبز
+                    </h4>
+                    
                     <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                       <span className="text-green-700 font-medium flex items-center gap-2">
-                        <Banknote className="h-4 w-4" />
-                        مبيعات نقدية
+                        <Package className="h-4 w-4" />
+                        الكمية المستلمة
                       </span>
-                      <span className="font-bold text-green-800">{totalCashSales.toFixed(2)} ر.س</span>
-                    </div>
-
-                    <div className="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
-                      <span className="text-amber-700 font-medium flex items-center gap-2">
-                        <CreditCard className="h-4 w-4" />
-                        مبيعات آجلة
-                      </span>
-                      <span className="font-bold text-amber-800">{totalCreditSales.toFixed(2)} ر.س</span>
+                      <span className="font-bold text-green-800 text-lg">{totalReceivedQty}</span>
                     </div>
 
                     <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
                       <span className="text-orange-700 font-medium flex items-center gap-2">
                         <RotateCcw className="h-4 w-4" />
-                        مرتجعات
+                        مرتجع
                       </span>
-                      <span className="font-bold text-orange-800">{totalReturns.toFixed(2)} ر.س</span>
+                      <span className="font-bold text-orange-800 text-lg">{returnedQty}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <span className="text-gray-700 font-medium flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        خبز تالف
+                      </span>
+                      <span className="font-bold text-gray-800 text-lg">{damagedQty}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center p-3 bg-pink-50 rounded-lg">
+                      <span className="text-pink-700 font-medium flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        عينات
+                      </span>
+                      <span className="font-bold text-pink-800 text-lg">{samplesQty}</span>
                     </div>
 
                     <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
                       <span className="text-purple-700 font-medium flex items-center gap-2">
                         <Gift className="h-4 w-4" />
-                        عينات مجانية
+                        توزيع مجاني
                       </span>
-                      <span className="font-bold text-purple-800">{(totalFreeDist + totalSamples).toFixed(2)} ر.س</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-slate-100 rounded-lg border-2 border-slate-300">
-                      <span className="text-slate-700 font-bold">المبلغ الواجب تسليمه</span>
-                      <span className="font-bold text-slate-800 text-lg">{expectedCash.toFixed(2)} ر.س</span>
-                    </div>
-
-                    <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg border-2 border-emerald-300">
-                      <span className="text-emerald-700 font-bold">المسلم فعلياً (رصيد المحفظة)</span>
-                      <span className="font-bold text-emerald-800 text-lg">{actualCashBalance.toFixed(2)} ر.س</span>
+                      <span className="font-bold text-purple-800 text-lg">{freeDistQty}</span>
                     </div>
 
                     <div className={`flex justify-between items-center p-4 rounded-lg border-2 ${
-                      cashDifference >= 0 
+                      breadDifference === 0 
                         ? 'bg-green-100 border-green-400' 
                         : 'bg-red-100 border-red-400'
                     }`}>
                       <span className={`font-bold flex items-center gap-2 ${
-                        cashDifference >= 0 ? 'text-green-700' : 'text-red-700'
+                        breadDifference === 0 ? 'text-green-700' : 'text-red-700'
                       }`}>
-                        {cashDifference >= 0 ? (
+                        {breadDifference === 0 ? (
                           <CheckCircle className="h-5 w-5" />
                         ) : (
                           <AlertTriangle className="h-5 w-5" />
                         )}
-                        الفرق {cashDifference >= 0 ? '(زيادة)' : '(نقص)'}
+                        الفرق في الخبز
                       </span>
                       <span className={`font-bold text-xl ${
-                        cashDifference >= 0 ? 'text-green-800' : 'text-red-800'
+                        breadDifference === 0 ? 'text-green-800' : 'text-red-800'
                       }`}>
-                        {Math.abs(cashDifference).toFixed(2)} ر.س
+                        {breadDifference}
                       </span>
                     </div>
+                  </div>
 
-                    {cashDifference < 0 && (
+                  <div className="space-y-4">
+                    <h4 className="font-bold text-lg mb-2 flex items-center gap-2">
+                      <Wallet className="h-5 w-5 text-primary" />
+                      المعلومات المالية
+                    </h4>
+
+                    <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                      <span className="text-blue-700 font-medium flex items-center gap-2">
+                        <ShoppingCart className="h-4 w-4" />
+                        عدد العملاء
+                      </span>
+                      <span className="font-bold text-blue-800 text-lg">{customerCount}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg">
+                      <span className="text-indigo-700 font-medium flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        متوسط سعر البيع
+                      </span>
+                      <span className="font-bold text-indigo-800 text-lg">{avgSellingPrice.toFixed(2)} ر.س</span>
+                    </div>
+
+                    <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg border-2 border-emerald-300">
+                      <span className="text-emerald-700 font-bold flex items-center gap-2">
+                        <Wallet className="h-4 w-4" />
+                        رصيد المحفظة
+                      </span>
+                      <span className="font-bold text-emerald-800 text-lg">{actualCashBalance.toFixed(2)} ر.س</span>
+                    </div>
+
+                    <div className="flex justify-between items-center p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <span className="text-amber-700 font-medium flex items-center gap-2">
+                        <CreditCard className="h-4 w-4" />
+                        ديون غير محصلة
+                      </span>
+                      <span className="font-bold text-amber-800 text-lg">{totalUnpaidDebts.toFixed(2)} ر.س</span>
+                    </div>
+
+                    <div className="flex justify-between items-center p-3 bg-slate-100 rounded-lg border-2 border-slate-300">
+                      <span className="text-slate-700 font-bold flex items-center gap-2">
+                        <Banknote className="h-4 w-4" />
+                        المبالغ المسلمة للمخبز
+                      </span>
+                      <span className="font-bold text-slate-800 text-lg">{totalDeposits.toFixed(2)} ر.س</span>
+                    </div>
+
+                    {breadDifference !== 0 && (
                       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                         <div className="flex items-center gap-2 text-red-700">
                           <AlertTriangle className="h-5 w-5" />
-                          <span className="font-bold">تنبيه للمندوب!</span>
+                          <span className="font-bold">تنبيه!</span>
                         </div>
                         <p className="text-red-600 mt-2 text-sm">
-                          يوجد نقص في المبلغ المسلم بقيمة {Math.abs(cashDifference).toFixed(2)} ر.س
-                          يرجى مراجعة الحسابات والتأكد من صحة المبالغ.
+                          يوجد فرق في أعداد الخبز ({Math.abs(breadDifference)}) يرجى المراجعة.
                         </p>
-                      </div>
-                    )}
-
-                    {totalUnpaidDebts > 0 && (
-                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <span className="text-amber-700 font-medium">ديون غير محصلة</span>
-                          <span className="font-bold text-amber-800">{totalUnpaidDebts.toFixed(2)} ر.س</span>
-                        </div>
                       </div>
                     )}
                   </div>
