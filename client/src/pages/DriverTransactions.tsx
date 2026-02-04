@@ -866,18 +866,19 @@ export default function DriverTransactionsPage() {
                 <TableBody>
                   {transactions.map((tx) => {
                     const typeInfo = transactionTypeLabels[tx.type];
+                    const isExpense = (tx.type as string) === 'EXPENSE';
                     return (
                       <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
                         <TableCell>
-                          <Badge className={`${typeInfo.color} text-white gap-1`}>
-                            {typeInfo.icon}
-                            {typeInfo.label}
+                          <Badge className={`${typeInfo?.color || 'bg-gray-500'} text-white gap-1`}>
+                            {typeInfo?.icon}
+                            {typeInfo?.label || tx.type}
                           </Badge>
                         </TableCell>
-                        <TableCell>{getProductName(tx.productId)}</TableCell>
-                        <TableCell>{tx.quantity}</TableCell>
+                        <TableCell>{isExpense ? (tx.notes || '-') : getProductName(tx.productId)}</TableCell>
+                        <TableCell>{isExpense ? '-' : tx.quantity}</TableCell>
                         <TableCell>{tx.totalAmount ? `${parseFloat(tx.totalAmount).toFixed(2)} ر.س` : "-"}</TableCell>
-                        <TableCell>{getCustomerName(tx.customerId)}</TableCell>
+                        <TableCell>{isExpense ? '-' : getCustomerName(tx.customerId)}</TableCell>
                         <TableCell>
                           {tx.createdAt ? format(new Date(tx.createdAt), "dd/MM/yyyy HH:mm", { locale: ar }) : "-"}
                         </TableCell>
