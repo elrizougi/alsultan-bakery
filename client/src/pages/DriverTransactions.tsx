@@ -332,14 +332,32 @@ export default function DriverTransactionsPage() {
     const product = products.find(p => p.id === formData.productId);
     if (!product) return;
 
+    const requestedQuantity = formData.quantity || 1;
+
+    // التحقق من توفر الكمية في المخزون للعمليات التي تستهلك المخزون
+    const consumingTypes: TransactionType[] = ["CASH_SALE", "CREDIT_SALE", "FREE_DISTRIBUTION", "FREE_SAMPLE", "DAMAGED"];
+    if (consumingTypes.includes(formData.type as TransactionType)) {
+      const productInventory = inventory.find(inv => inv.productId === formData.productId);
+      const availableQuantity = productInventory?.quantity || 0;
+
+      if (requestedQuantity > availableQuantity) {
+        toast({ 
+          title: "الكمية غير متوفرة", 
+          description: `الكمية المتاحة من "${product.name}" هي ${availableQuantity} فقط`,
+          variant: "destructive" 
+        });
+        return;
+      }
+    }
+
     const unitPrice = customPrice ? customPrice : product.price;
-    const totalAmount = (parseFloat(unitPrice) * (formData.quantity || 1)).toFixed(2);
+    const totalAmount = (parseFloat(unitPrice) * requestedQuantity).toFixed(2);
 
     createTransaction.mutate({
       type: formData.type as TransactionType,
       driverId: driverId,
       productId: formData.productId,
-      quantity: formData.quantity || 1,
+      quantity: requestedQuantity,
       customerId: formData.customerId,
       unitPrice,
       totalAmount,
@@ -886,10 +904,16 @@ export default function DriverTransactionsPage() {
               <Input
                 type="number"
                 min={1}
+                max={formData.productId ? (inventory.find(inv => inv.productId === formData.productId)?.quantity || 0) : undefined}
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
                 data-testid="input-quantity"
               />
+              {formData.productId && (
+                <p className="text-xs text-muted-foreground">
+                  الكمية المتاحة: <span className="font-bold text-primary">{inventory.find(inv => inv.productId === formData.productId)?.quantity || 0}</span>
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2">
