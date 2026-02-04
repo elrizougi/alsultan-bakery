@@ -429,6 +429,20 @@ export default function DriverTransactionsPage() {
   // حساب المخزون الحالي
   const totalCurrentInventory = inventory.reduce((sum, item) => sum + item.quantity, 0);
 
+  // حساب الخبز المباع (بيع نقدي + بيع آجل)
+  const totalSoldBread = transactions
+    .filter(t => t.type === "CASH_SALE" || t.type === "CREDIT_SALE")
+    .reduce((sum, t) => sum + t.quantity, 0);
+
+  // حساب عدد العملاء الفريدين
+  const uniqueCustomersSet = new Set(
+    transactions
+      .filter(t => t.type === "CASH_SALE" || t.type === "CREDIT_SALE")
+      .map(t => t.customerId)
+      .filter(Boolean)
+  );
+  const uniqueCustomersCount = uniqueCustomersSet.size;
+
   return (
     <AdminLayout>
       <div className="flex flex-col gap-6" dir="rtl">
@@ -456,7 +470,7 @@ export default function DriverTransactionsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <Card className="border-slate-100 bg-blue-50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-blue-600 flex items-center gap-2">
@@ -481,6 +495,34 @@ export default function DriverTransactionsPage() {
             <CardContent>
               <div className="text-2xl font-bold text-orange-700" data-testid="text-current-inventory">
                 {totalCurrentInventory}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-green-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-green-600 flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                الخبز المباع
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-700" data-testid="text-sold-bread">
+                {totalSoldBread}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-purple-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-purple-600 flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                عدد العملاء
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-700" data-testid="text-customers-count">
+                {uniqueCustomersCount}
               </div>
             </CardContent>
           </Card>
