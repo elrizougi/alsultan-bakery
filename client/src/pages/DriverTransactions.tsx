@@ -298,7 +298,7 @@ export default function DriverTransactionsPage() {
 
     createDepositMutation.mutate({
       driverId: driverId,
-      amount: amount.toFixed(2),
+      amount: amount,
       depositDate: new Date().toISOString().split('T')[0],
       notes: depositNotes || undefined,
     });
