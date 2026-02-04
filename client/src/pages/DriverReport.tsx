@@ -462,8 +462,10 @@ export default function DriverReportPage() {
                         </TableRow>
                       ))}
                       <TableRow className="bg-slate-50 font-bold">
-                        <TableCell colSpan={3} className="text-left">إجمالي أعداد الخبز</TableCell>
+                        <TableCell className="text-right">إجمالي أعداد الخبز</TableCell>
                         <TableCell className="text-primary">{totalReceivedQty}</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
