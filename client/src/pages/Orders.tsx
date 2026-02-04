@@ -165,6 +165,17 @@ export default function OrdersPage() {
                             تأكيد وتسليم
                           </Button>
                         )}
+                        {order.status === 'CONFIRMED' && currentUser?.role !== 'DRIVER' && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-8 text-amber-600 border-amber-300 font-bold px-3 hover:bg-amber-50 rounded-lg gap-1"
+                            onClick={() => setEditingOrder(order)}
+                          >
+                            <Edit className="h-3 w-3" />
+                            تعديل
+                          </Button>
+                        )}
                         {order.status === 'CONFIRMED' && currentUser?.role === 'DRIVER' && (
                           <Button 
                             size="sm" 
@@ -662,8 +673,33 @@ function AdminConfirmDialog({ order, onOpenChange }: { order: Order; onOpenChang
     })) || []
   );
 
+  // التحقق من توفر المخزون
+  const checkInventoryAvailability = () => {
+    const insufficientItems: string[] = [];
+    
+    for (const deliveredItem of deliveredItems) {
+      const orderItem = order.items?.find(item => item.id === deliveredItem.id);
+      if (!orderItem) continue;
+      
+      const product = products.find(p => p.id === orderItem.productId);
+      if (!product) continue;
+      
+      if (deliveredItem.deliveredQuantity > product.stock) {
+        insufficientItems.push(`${product.name} (المطلوب: ${deliveredItem.deliveredQuantity}، المتاح: ${product.stock})`);
+      }
+    }
+    
+    return insufficientItems;
+  };
+
   const confirmMutation = useMutation({
     mutationFn: async () => {
+      // التحقق من المخزون قبل التأكيد
+      const insufficientItems = checkInventoryAvailability();
+      if (insufficientItems.length > 0) {
+        throw new Error(`المخزون غير كافٍ للأصناف التالية:\n${insufficientItems.join('\n')}`);
+      }
+      
       // أولاً: تحديث حالة الطلب إلى مؤكد
       await updateOrder.mutateAsync({ id: order.id, status: 'CONFIRMED' as any });
       // ثانياً: تأكيد الاستلام مع الكميات المسلمة
@@ -676,11 +712,12 @@ function AdminConfirmDialog({ order, onOpenChange }: { order: Order; onOpenChang
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "تم تأكيد الطلب وتسليم الكميات للسائق" });
       onOpenChange(false);
     },
-    onError: () => {
-      toast({ title: "حدث خطأ أثناء التأكيد", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ title: "خطأ", description: error.message || "حدث خطأ أثناء التأكيد", variant: "destructive" });
     },
   });
 
@@ -713,22 +750,33 @@ function AdminConfirmDialog({ order, onOpenChange }: { order: Order; onOpenChang
           <div className="space-y-3">
             {order.items?.map((item, index) => {
               const deliveredItem = deliveredItems.find(d => d.id === item.id);
+              const product = products.find(p => p.id === item.productId);
+              const availableStock = product?.stock || 0;
+              const isInsufficient = (deliveredItem?.deliveredQuantity || 0) > availableStock;
               return (
-                <div key={item.id} className="bg-white border rounded-xl p-4">
+                <div key={item.id} className={`bg-white border rounded-xl p-4 ${isInsufficient ? 'border-red-300 bg-red-50' : ''}`}>
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-bold">{getProductName(item.productId)}</span>
-                    <span className="text-sm text-muted-foreground">الكمية المطلوبة: {item.quantity}</span>
+                    <div className="flex gap-3 text-sm">
+                      <span className="text-muted-foreground">المطلوب: {item.quantity}</span>
+                      <span className={availableStock < item.quantity ? 'text-red-600 font-bold' : 'text-green-600'}>
+                        المتاح: {availableStock}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Label className="text-sm">الكمية المسلمة:</Label>
                     <Input
                       type="number"
                       min="0"
-                      max={item.quantity}
+                      max={availableStock}
                       value={deliveredItem?.deliveredQuantity || 0}
                       onChange={(e) => updateDeliveredQuantity(item.id!, parseInt(e.target.value) || 0)}
-                      className="w-24"
+                      className={`w-24 ${isInsufficient ? 'border-red-500' : ''}`}
                     />
+                    {isInsufficient && (
+                      <span className="text-xs text-red-600 font-bold">المخزون غير كافٍ!</span>
+                    )}
                   </div>
                 </div>
               );
