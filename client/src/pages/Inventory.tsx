@@ -174,14 +174,23 @@ export default function InventoryPage() {
           </Button>
         </div>
 
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">إجمالي الأصناف</CardTitle>
+              <CardTitle className="text-sm font-medium">عدد العجنات</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="text-right">
-              <div className="text-2xl font-bold">{products.length}</div>
+              <div className="text-2xl font-bold">{products.reduce((acc, item) => acc + (item.batchCount || 0), 0)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">عدد المخزون الحالي</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="text-right">
+              <div className="text-2xl font-bold">{products.reduce((acc, item) => acc + item.stock, 0)}</div>
             </CardContent>
           </Card>
           <Card className={lowStockItems.length > 0 ? "border-destructive/50" : ""}>
@@ -202,8 +211,9 @@ export default function InventoryPage() {
             </CardHeader>
             <CardContent className="text-right">
               <div className="text-2xl font-bold">
-                {products.reduce((acc, item) => acc + (item.stock * parseFloat(item.price)), 0).toLocaleString()} ر.س
+                {(products.reduce((acc, item) => acc + item.stock, 0) * 0.6).toFixed(2)} ر.س
               </div>
+              <p className="text-xs text-muted-foreground mt-1">بسعر 0.6 ر.س للوحدة</p>
             </CardContent>
           </Card>
         </div>
