@@ -11,11 +11,11 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   
   const labelMap: Record<string, string> = {
     'draft': 'مسودة',
-    'confirmed': 'مؤكد',
-    'assigned': 'بانتظار التحميل',
+    'confirmed': 'تم التحميل',
+    'assigned': 'في الطريق',
     'loaded': 'تم التحميل',
     'out': 'جاري التوصيل',
-    'delivered': 'مكتمل',
+    'delivered': 'عاد للمخبز',
     'returned': 'مرتجع الميدان',
     'closed': 'مغلق',
     'canceled': 'ملغي'
