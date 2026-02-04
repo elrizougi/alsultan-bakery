@@ -467,13 +467,15 @@ export default function DriverReportPage() {
                         <TableCell></TableCell>
                         <TableCell></TableCell>
                       </TableRow>
+                      <TableRow className="bg-orange-50 font-bold">
+                        <TableCell className="text-right text-orange-700">المخزون المتبقي لدى السائق</TableCell>
+                        <TableCell className="text-orange-800">{remainingInventoryQty}</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
                 )}
-                <div className="mt-3 p-2 bg-orange-50 rounded-lg text-sm flex items-center justify-between">
-                  <span className="text-orange-700 font-medium">المخزون المتبقي لدى السائق:</span>
-                  <span className="font-bold text-orange-800">{remainingInventoryQty}</span>
-                </div>
               </CardContent>
             </Card>
 
