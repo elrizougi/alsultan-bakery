@@ -120,7 +120,7 @@ export default function RoutesManagementPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="text-right">
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-800">إدارة خطوط التوزيع</h1>
-            <p className="text-sm text-muted-foreground">إضافة وتعديل وحذف خطوط التوزيع والسائقين.</p>
+            <p className="text-sm text-muted-foreground">إضافة وتعديل وحذف خطوط التوزيع والمناديب.</p>
           </div>
           <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto gap-2 bg-primary rounded-xl h-11 px-6 font-bold shadow-lg shadow-primary/20" data-testid="button-add-route">
             <Plus className="h-4 w-4" /> إضافة خط جديد
@@ -139,7 +139,7 @@ export default function RoutesManagementPage() {
           </Card>
           <Card className="rounded-2xl border-0 shadow-sm">
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">السائقين المعينين</CardTitle>
+              <CardTitle className="text-sm font-medium">المناديب المعينين</CardTitle>
               <User2 className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent className="text-right">
@@ -153,7 +153,7 @@ export default function RoutesManagementPage() {
             <TableHeader className="bg-slate-50/50">
               <TableRow>
                 <TableHead className="text-right font-bold text-slate-500">اسم الخط</TableHead>
-                <TableHead className="text-right font-bold text-slate-500">السائق المسؤول</TableHead>
+                <TableHead className="text-right font-bold text-slate-500">المندوب المسؤول</TableHead>
                 <TableHead className="text-left font-bold text-slate-500">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
@@ -216,7 +216,7 @@ export default function RoutesManagementPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="font-bold">السائق المسؤول</Label>
+                <Label className="font-bold">المندوب المسؤول</Label>
                 <Popover open={newDriverOpen} onOpenChange={setNewDriverOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -226,7 +226,7 @@ export default function RoutesManagementPage() {
                       className="w-full h-11 rounded-xl justify-between text-right"
                       data-testid="select-route-driver"
                     >
-                      {newDriverName || "اختر سائق أو اكتب اسم جديد..."}
+                      {newDriverName || "اختر مندوب أو اكتب اسم جديد..."}
                       <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -253,11 +253,11 @@ export default function RoutesManagementPage() {
                                 استخدام "{newDriverName}"
                               </Button>
                             ) : (
-                              "لا يوجد سائقين. اكتب اسم جديد..."
+                              "لا يوجد مناديب. اكتب اسم جديد..."
                             )}
                           </div>
                         </CommandEmpty>
-                        <CommandGroup heading="الموظفين (السائقين)">
+                        <CommandGroup heading="الموظفين (المناديب)">
                           {drivers.map((driver) => (
                             <CommandItem
                               key={driver.id}
@@ -281,7 +281,7 @@ export default function RoutesManagementPage() {
                     </Command>
                   </PopoverContent>
                 </Popover>
-                <p className="text-xs text-muted-foreground">يمكنك اختيار سائق من القائمة أو كتابة اسم شخص غير موظف</p>
+                <p className="text-xs text-muted-foreground">يمكنك اختيار مندوب من القائمة أو كتابة اسم شخص غير موظف</p>
               </div>
               <DialogFooter className="flex flex-row-reverse gap-3 pt-4">
                 <Button type="submit" className="h-11 rounded-xl font-bold" disabled={createRoute.isPending} data-testid="button-save-route">
@@ -311,7 +311,7 @@ export default function RoutesManagementPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="font-bold">السائق المسؤول</Label>
+                <Label className="font-bold">المندوب المسؤول</Label>
                 <Popover open={editDriverOpen} onOpenChange={setEditDriverOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -321,7 +321,7 @@ export default function RoutesManagementPage() {
                       className="w-full h-11 rounded-xl justify-between text-right"
                       data-testid="select-edit-route-driver"
                     >
-                      {editDriverName || "اختر سائق أو اكتب اسم جديد..."}
+                      {editDriverName || "اختر مندوب أو اكتب اسم جديد..."}
                       <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -348,11 +348,11 @@ export default function RoutesManagementPage() {
                                 استخدام "{editDriverName}"
                               </Button>
                             ) : (
-                              "لا يوجد سائقين. اكتب اسم جديد..."
+                              "لا يوجد مناديب. اكتب اسم جديد..."
                             )}
                           </div>
                         </CommandEmpty>
-                        <CommandGroup heading="الموظفين (السائقين)">
+                        <CommandGroup heading="الموظفين (المناديب)">
                           {drivers.map((driver) => (
                             <CommandItem
                               key={driver.id}
@@ -376,7 +376,7 @@ export default function RoutesManagementPage() {
                     </Command>
                   </PopoverContent>
                 </Popover>
-                <p className="text-xs text-muted-foreground">يمكنك اختيار سائق من القائمة أو كتابة اسم شخص غير موظف</p>
+                <p className="text-xs text-muted-foreground">يمكنك اختيار مندوب من القائمة أو كتابة اسم شخص غير موظف</p>
               </div>
               <DialogFooter className="flex flex-row-reverse gap-3 pt-4">
                 <Button type="submit" className="h-11 rounded-xl font-bold" disabled={updateRoute.isPending} data-testid="button-update-route">

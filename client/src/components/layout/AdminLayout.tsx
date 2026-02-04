@@ -23,7 +23,7 @@ interface AdminLayoutProps {
 
 const roleLabels: Record<string, string> = {
   ADMIN: "مدير النظام",
-  DRIVER: "سائق",
+  DRIVER: "مندوب",
   SALES: "مبيعات",
 };
 

@@ -184,7 +184,7 @@ export default function DriverReportPage() {
   const getProductPrice = (productId: string) => parseFloat(products.find(p => p.id === productId)?.price || "0");
   const getCustomerName = (customerId: string) => customers.find(c => c.id === customerId)?.name || "غير معروف";
   const getDriverName = (driverId: string) => {
-    if (driverId === "all") return "جميع السائقين";
+    if (driverId === "all") return "جميع المناديب";
     return users.find(u => u.id === driverId)?.name || "غير معروف";
   };
 
@@ -291,28 +291,28 @@ export default function DriverReportPage() {
           <div>
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
               <FileText className="h-8 w-8 text-primary" />
-              تقرير السائقين
+              تقرير المناديب
             </h1>
             <p className="text-muted-foreground mt-1">
-              تقرير شامل لعمليات السائق والحسابات
+              تقرير شامل لعمليات المندوب والحسابات
             </p>
           </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-right">اختر السائق والفترة</CardTitle>
+            <CardTitle className="text-right">اختر المندوب والفترة</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <Label className="mb-2 block">السائق</Label>
+                <Label className="mb-2 block">المندوب</Label>
                 <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
                   <SelectTrigger className="w-full" data-testid="select-driver-report">
-                    <SelectValue placeholder="اختر السائق" />
+                    <SelectValue placeholder="اختر المندوب" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع السائقين</SelectItem>
+                    <SelectItem value="all">جميع المناديب</SelectItem>
                     {drivers.map(driver => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.name}
@@ -484,7 +484,7 @@ export default function DriverReportPage() {
               <CardHeader className="bg-primary/5">
                 <CardTitle className="text-right flex items-center gap-2">
                   <Wallet className="h-5 w-5 text-primary" />
-                  حالة محفظة السائق - {getDriverName(selectedDriverId)}
+                  حالة محفظة المندوب - {getDriverName(selectedDriverId)}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">

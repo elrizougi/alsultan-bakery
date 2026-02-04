@@ -52,7 +52,7 @@ export default function CashDepositsPage() {
 
   const handleCreateDeposit = () => {
     if (!selectedDriverId || !depositAmount || parseFloat(depositAmount) <= 0) {
-      toast({ title: "خطأ", description: "يرجى اختيار السائق وإدخال مبلغ صحيح", variant: "destructive" });
+      toast({ title: "خطأ", description: "يرجى اختيار المندوب وإدخال مبلغ صحيح", variant: "destructive" });
       return;
     }
     createDepositMutation.mutate({
@@ -67,7 +67,7 @@ export default function CashDepositsPage() {
     mutationFn: ({ id, confirmedBy }: { id: string; confirmedBy: string }) => 
       api.confirmCashDeposit(id, confirmedBy),
     onSuccess: () => {
-      toast({ title: "تم التأكيد", description: "تم تأكيد تسليم المبلغ وخصمه من عهدة السائق" });
+      toast({ title: "تم التأكيد", description: "تم تأكيد تسليم المبلغ وخصمه من عهدة المندوب" });
       queryClient.invalidateQueries({ queryKey: ["/api/cash-deposits"] });
       queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
     },
@@ -122,7 +122,7 @@ export default function CashDepositsPage() {
           <div>
             <h1 className="text-3xl font-bold">تسليم المبالغ المحصلة</h1>
             <p className="text-muted-foreground">
-              إدارة طلبات تسليم المبالغ من السائقين للمخبز
+              إدارة طلبات تسليم المبالغ من المناديب للمخبز
             </p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -138,10 +138,10 @@ export default function CashDepositsPage() {
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div>
-                  <Label className="mb-2 block">السائق</Label>
+                  <Label className="mb-2 block">المندوب</Label>
                   <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
                     <SelectTrigger data-testid="select-driver-deposit">
-                      <SelectValue placeholder="اختر السائق" />
+                      <SelectValue placeholder="اختر المندوب" />
                     </SelectTrigger>
                     <SelectContent>
                       {drivers.map(driver => (
@@ -217,7 +217,7 @@ export default function CashDepositsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">السائق</TableHead>
+                    <TableHead className="text-right">المندوب</TableHead>
                     <TableHead className="text-right">المبلغ</TableHead>
                     <TableHead className="text-right">تاريخ التسليم</TableHead>
                     <TableHead className="text-right">ملاحظات</TableHead>
@@ -279,7 +279,7 @@ export default function CashDepositsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">السائق</TableHead>
+                    <TableHead className="text-right">المندوب</TableHead>
                     <TableHead className="text-right">المبلغ</TableHead>
                     <TableHead className="text-right">تاريخ التسليم</TableHead>
                     <TableHead className="text-right">الحالة</TableHead>

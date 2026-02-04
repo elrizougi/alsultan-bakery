@@ -10,7 +10,6 @@ import ReturnsPage from "@/pages/Returns";
 import CustomersPage from "@/pages/Customers";
 import SettingsPage from "@/pages/Settings";
 import LoginPage from "@/pages/Login";
-import ReportsPage from "@/pages/Reports";
 import UsersManagementPage from "@/pages/UsersManagement";
 import RoutesManagementPage from "@/pages/RoutesManagement";
 import DriverTransactionsPage from "@/pages/DriverTransactions";
@@ -28,7 +27,6 @@ function Router() {
       <Route path="/returns" component={ReturnsPage} />
       <Route path="/customers" component={CustomersPage} />
       <Route path="/settings" component={SettingsPage} />
-      <Route path="/reports" component={ReportsPage} />
       <Route path="/users" component={UsersManagementPage} />
       <Route path="/routes" component={RoutesManagementPage} />
       <Route path="/driver-transactions" component={DriverTransactionsPage} />

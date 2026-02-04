@@ -305,7 +305,7 @@ export default function Dashboard() {
                         {isExpense ? (transaction.notes || 'مصروفات') : (product?.name || 'منتج')}
                       </div>
                       <div className="text-xs font-medium text-slate-400 mt-0.5">
-                        {driver?.name || 'سائق'} {!isExpense && `• ${transaction.quantity} قطعة`}
+                        {driver?.name || 'مندوب'} {!isExpense && `• ${transaction.quantity} قطعة`}
                       </div>
                       {!isExpense && customer && <div className="text-xs font-medium text-slate-500 mt-0.5">{customer.name}</div>}
                     </div>

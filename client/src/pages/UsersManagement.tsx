@@ -40,7 +40,7 @@ import { MoreVertical } from "lucide-react";
 
 const roleLabels: Record<Role, string> = {
   ADMIN: "مدير النظام",
-  DRIVER: "سائق توصيل",
+  DRIVER: "مندوب توزيع",
   SALES: "موظف مبيعات",
 };
 
