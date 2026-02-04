@@ -260,7 +260,7 @@ export default function Dashboard() {
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
           <Card className="lg:col-span-4 rounded-3xl border-0 shadow-sm">
             <CardHeader className="text-right px-8 py-6">
-              <CardTitle className="text-xl font-bold text-slate-800">أحدث الطلبات</CardTitle>
+              <CardTitle className="text-xl font-bold text-slate-800">أحدث سجل العمليات</CardTitle>
             </CardHeader>
             <CardContent className="px-8 pb-8">
               <div className="space-y-4">
