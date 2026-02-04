@@ -57,55 +57,31 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
           </div>
         </div>
         <Sidebar className="flex-1" />
-        
-        {/* User Profile Section */}
-        <div className="p-4 border-t mt-auto bg-slate-50">
-          <div className="flex items-center gap-3 mb-3 p-2 rounded-xl bg-white border">
-            <Avatar className="h-10 w-10 bg-primary text-white">
-              <AvatarFallback className="bg-primary text-white font-bold">
-                {userInitials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 text-right">
-              <p className="font-bold text-slate-800 text-sm">{user.name}</p>
-              <div className="flex items-center gap-1 justify-end">
-                <Shield className="h-3 w-3 text-primary" />
-                <span className="text-xs text-primary font-medium">{roleLabels[user.role] || user.role}</span>
-              </div>
-            </div>
-          </div>
-          <Button 
-            variant="outline" 
-            className="w-full justify-center gap-2 text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50 hover:border-red-300 rounded-xl h-11 font-medium transition-all"
-            onClick={() => logout()}
-            data-testid="button-logout"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>تسجيل الخروج</span>
-          </Button>
-        </div>
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden h-screen overflow-y-auto">
         {/* Desktop Top Header with Profile */}
         <header className="hidden md:flex h-16 items-center justify-between border-b bg-white px-8 sticky top-0 z-20">
+          <div className="text-slate-500 text-sm">
+            {new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </div>
           <div className="flex items-center gap-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-3 h-auto py-2 px-3 hover:bg-slate-100 rounded-xl">
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                  <div className="text-right">
-                    <p className="font-bold text-slate-800 text-sm">{user.name}</p>
-                    <p className="text-xs text-slate-500">{roleLabels[user.role] || user.role}</p>
-                  </div>
                   <Avatar className="h-9 w-9 bg-primary">
                     <AvatarFallback className="bg-primary text-white font-bold text-sm">
                       {userInitials}
                     </AvatarFallback>
                   </Avatar>
+                  <div className="text-right">
+                    <p className="font-bold text-slate-800 text-sm">{user.name}</p>
+                    <p className="text-xs text-slate-500">{roleLabels[user.role] || user.role}</p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="text-right">
                   <div className="flex items-center gap-2 justify-end">
                     <div>
@@ -129,9 +105,6 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-          <div className="text-slate-500 text-sm">
-            {new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </div>
         </header>
 
