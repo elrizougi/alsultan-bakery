@@ -110,17 +110,17 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           
-          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-pending">
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-bread-count">
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
               <div className="h-10 w-10 rounded-2xl bg-amber-50 flex items-center justify-center">
-                <AlertCircle className="h-5 w-5 text-amber-600" />
+                <Package className="h-5 w-5 text-amber-600" />
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
               <div className="text-3xl font-black text-amber-600">
-                {todaysOrders.filter(o => o.status === 'DRAFT').length}
+                {products.reduce((sum, p) => sum + p.stock, 0)}
               </div>
-              <p className="text-sm font-medium text-slate-500 mt-1">قيد المراجعة</p>
+              <p className="text-sm font-medium text-slate-500 mt-1">عدد الخبز</p>
             </CardContent>
           </Card>
         </div>
