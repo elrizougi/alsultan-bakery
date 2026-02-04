@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -485,13 +485,33 @@ export default function DriverTransactionsPage() {
                         </Badge>
                       </div>
                       <div className="space-y-1 mb-3">
-                        {order.items?.map(item => (
-                          <div key={item.id} className="flex justify-between text-sm">
-                            <span>{getProductName(item.productId)}</span>
-                            <span className="font-bold">{item.quantity}</span>
-                          </div>
-                        ))}
+                        {order.items?.map(item => {
+                          const received = item.receivedQuantity ?? item.quantity;
+                          const hasShortage = item.receivedQuantity !== undefined && item.receivedQuantity < item.quantity;
+                          return (
+                            <div key={item.id} className="flex justify-between text-sm items-center">
+                              <span className="flex items-center gap-1">
+                                {hasShortage && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                                {getProductName(item.productId)}
+                              </span>
+                              <span className={`font-bold ${hasShortage ? 'text-amber-600' : ''}`}>
+                                {received}
+                                {hasShortage && (
+                                  <span className="text-xs text-slate-400 mr-1">
+                                    (من {item.quantity})
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
+                      {order.items?.some(item => item.receivedQuantity !== undefined && item.receivedQuantity < item.quantity) && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2 flex items-center gap-2 text-xs text-amber-700">
+                          <AlertTriangle className="h-4 w-4" />
+                          الكمية المستلمة أقل من المطلوبة بسبب نقص المخزون
+                        </div>
+                      )}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
