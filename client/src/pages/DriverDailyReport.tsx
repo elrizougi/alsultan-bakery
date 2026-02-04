@@ -71,6 +71,7 @@ export default function DriverDailyReportPage() {
                     <TableHead className="text-right font-bold">التاريخ</TableHead>
                     <TableHead className="text-right font-bold">المستلم</TableHead>
                     <TableHead className="text-right font-bold">المرتجع</TableHead>
+                    <TableHead className="text-right font-bold">خبز تالف</TableHead>
                     <TableHead className="text-right font-bold">توزيع مجاني</TableHead>
                     <TableHead className="text-right font-bold">عينات</TableHead>
                     <TableHead className="text-right font-bold">إجمالي المبيعات</TableHead>
@@ -83,7 +84,7 @@ export default function DriverDailyReportPage() {
                 <TableBody>
                   {sortedDates.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                         لا توجد بيانات للعرض
                       </TableCell>
                     </TableRow>
@@ -106,6 +107,9 @@ export default function DriverDailyReportPage() {
                       const returned = dayTransactions.filter(t => t.type === 'RETURN')
                         .reduce((sum, t) => sum + t.quantity, 0);
                       
+                      const damaged = dayTransactions.filter(t => t.type === 'DAMAGED')
+                        .reduce((sum, t) => sum + t.quantity, 0);
+                      
                       const freeDistribution = dayTransactions.filter(t => t.type === 'FREE_DISTRIBUTION')
                         .reduce((sum, t) => sum + t.quantity, 0);
                       
@@ -123,7 +127,7 @@ export default function DriverDailyReportPage() {
                       const soldQty = dayTransactions.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
                         .reduce((sum, t) => sum + t.quantity, 0);
                       
-                      const difference = received - soldQty - returned - freeDistribution - freeSamples;
+                      const difference = received - soldQty - returned - damaged - freeDistribution - freeSamples;
 
                       const deposited = dayDeposits.reduce((sum, d) => sum + parseFloat(d.amount), 0);
 
@@ -134,6 +138,7 @@ export default function DriverDailyReportPage() {
                           </TableCell>
                           <TableCell className="text-green-600 font-bold">{received}</TableCell>
                           <TableCell className="text-orange-600">{returned}</TableCell>
+                          <TableCell className="text-gray-600">{damaged}</TableCell>
                           <TableCell className="text-purple-600">{freeDistribution}</TableCell>
                           <TableCell className="text-pink-600">{freeSamples}</TableCell>
                           <TableCell className="text-blue-600 font-bold">{totalSales.toFixed(2)} ر.س</TableCell>
