@@ -503,7 +503,7 @@ export default function DriverTransactionsPage() {
         </div>
 
         {/* قسم طلبات الخبز */}
-        {(pendingOrders.length > 0 || assignedOrders.length > 0 || deliveredOrders.length > 0) && (
+        {(pendingOrders.length > 0 || assignedOrders.length > 0) && (
           <Card className="border-slate-100 mb-6">
             <CardHeader>
               <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -583,7 +583,7 @@ export default function DriverTransactionsPage() {
                           تم الاستلام
                         </Badge>
                       </div>
-                      <div className="space-y-1 mb-3">
+                      <div className="space-y-1">
                         {order.items?.map(item => {
                           const received = item.receivedQuantity ?? item.quantity;
                           const isDifferent = item.receivedQuantity !== undefined && item.receivedQuantity !== item.quantity;
@@ -601,46 +601,6 @@ export default function DriverTransactionsPage() {
                                   </span>
                                 )}
                               </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenCloseDialog(order)}
-                        className="w-full bg-slate-600 hover:bg-slate-700 gap-2"
-                        data-testid={`btn-close-trip-${order.id}`}
-                      >
-                        <FileText className="h-4 w-4" />
-                        إغلاق الرحلة
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* الطلبات المغلقة */}
-              {deliveredOrders.length > 0 && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                  <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    طلبات مغلقة ({deliveredOrders.length})
-                  </h4>
-                  {deliveredOrders.map(order => (
-                    <div key={order.id} className="bg-white rounded-lg p-3 mb-2 border border-slate-100">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-mono text-slate-500">#{order.id.slice(0, 8)}</span>
-                        <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300">
-                          مغلق
-                        </Badge>
-                      </div>
-                      <div className="space-y-1">
-                        {order.items?.map(item => {
-                          const received = item.receivedQuantity ?? item.quantity;
-                          return (
-                            <div key={item.id} className="flex justify-between text-sm">
-                              <span>{getProductName(item.productId)}</span>
-                              <span className="font-bold">{received}</span>
                             </div>
                           );
                         })}
