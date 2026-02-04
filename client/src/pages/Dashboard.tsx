@@ -271,78 +271,47 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Orders and Runs Tables */}
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-7">
-          <Card className="lg:col-span-4 rounded-3xl border-0 shadow-sm">
-            <CardHeader className="text-right px-8 py-6">
-              <CardTitle className="text-xl font-bold text-slate-800">أحدث سجل العمليات</CardTitle>
-            </CardHeader>
-            <CardContent className="px-8 pb-8">
-              <div className="space-y-4">
-                {transactions.slice(0, 8).map(transaction => {
-                  const driver = users.find(u => u.id === transaction.driverId);
-                  const customer = customers.find(c => c.id === transaction.customerId);
-                  const product = products.find(p => p.id === transaction.productId);
-                  return (
-                    <div key={transaction.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors flex-row-reverse gap-4 border border-slate-100/50" data-testid={`transaction-item-${transaction.id}`}>
-                      <div className="text-right flex-1 min-w-0">
-                        <div className="font-bold text-slate-800 truncate">{product?.name || 'منتج'} - {transactionTypeLabels[transaction.type] || transaction.type}</div>
-                        <div className="text-xs font-medium text-slate-400 mt-0.5">
-                          {driver?.name || 'سائق'} {customer ? `• ${customer.name}` : ''} • {transaction.quantity} قطعة
-                        </div>
+        {/* سجل العمليات اليومية */}
+        <Card className="rounded-3xl border-0 shadow-sm">
+          <CardHeader className="text-right px-8 py-6">
+            <CardTitle className="text-xl font-bold text-slate-800">سجل العمليات اليومية</CardTitle>
+          </CardHeader>
+          <CardContent className="px-8 pb-8">
+            <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {transactions.slice(0, 12).map(transaction => {
+                const driver = users.find(u => u.id === transaction.driverId);
+                const customer = customers.find(c => c.id === transaction.customerId);
+                const product = products.find(p => p.id === transaction.productId);
+                return (
+                  <div key={transaction.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors flex-row-reverse gap-4 border border-slate-100/50" data-testid={`transaction-item-${transaction.id}`}>
+                    <div className="text-right flex-1 min-w-0">
+                      <div className="font-bold text-slate-800 truncate">{product?.name || 'منتج'}</div>
+                      <div className="text-xs font-medium text-slate-400 mt-0.5">
+                        {driver?.name || 'سائق'} • {transaction.quantity} قطعة
                       </div>
-                      <div className="flex flex-col items-start gap-1.5">
-                        <div className="font-black text-sm text-slate-700">{parseFloat(transaction.totalAmount || '0').toFixed(1)} <span className="text-[10px]">ر.س</span></div>
-                        <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${
-                          transaction.type === 'CASH_SALE' ? 'bg-green-100 text-green-700' :
-                          transaction.type === 'CREDIT_SALE' ? 'bg-yellow-100 text-yellow-700' :
-                          transaction.type === 'RETURN' ? 'bg-blue-100 text-blue-700' :
-                          transaction.type === 'DAMAGED' ? 'bg-red-100 text-red-700' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
-                          {transactionTypeLabels[transaction.type] || transaction.type}
-                        </span>
-                      </div>
+                      {customer && <div className="text-xs font-medium text-slate-500 mt-0.5">{customer.name}</div>}
                     </div>
-                  );
-                })}
-                {transactions.length === 0 && (
-                  <div className="text-center py-8 text-slate-400">لا توجد عمليات حتى الآن</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="lg:col-span-3 rounded-3xl border-0 shadow-sm">
-            <CardHeader className="text-right px-8 py-6">
-              <CardTitle className="text-xl font-bold text-slate-800">مراقبة الرحلات</CardTitle>
-            </CardHeader>
-            <CardContent className="px-8 pb-8">
-              <div className="space-y-4">
-                 {dispatchRuns.map(run => {
-                   const route = routes.find(r => r.id === run.routeId);
-                   return (
-                     <div key={run.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 flex-row-reverse gap-3 border border-slate-100" data-testid={`run-item-${run.id}`}>
-                       <div className="flex items-center gap-3 flex-row-reverse flex-1 min-w-0">
-                          <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                            <Truck className="h-5 w-5 text-indigo-500" />
-                          </div>
-                          <div className="text-right truncate">
-                            <div className="font-bold text-slate-800 truncate">{route?.name || run.routeId}</div>
-                            <div className="text-xs font-medium text-slate-400 truncate">{run.driverName}</div>
-                          </div>
-                       </div>
-                       <StatusBadge status={run.status} className="text-[10px] px-3 py-1 rounded-full font-bold" />
-                     </div>
-                   );
-                 })}
-                 {dispatchRuns.length === 0 && (
-                   <div className="text-center py-8 text-slate-400">لا توجد رحلات نشطة</div>
-                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                    <div className="flex flex-col items-start gap-1.5">
+                      <div className="font-black text-sm text-slate-700">{parseFloat(transaction.totalAmount || '0').toFixed(1)} <span className="text-[10px]">ر.س</span></div>
+                      <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${
+                        transaction.type === 'CASH_SALE' ? 'bg-green-100 text-green-700' :
+                        transaction.type === 'CREDIT_SALE' ? 'bg-yellow-100 text-yellow-700' :
+                        transaction.type === 'RETURN' ? 'bg-blue-100 text-blue-700' :
+                        transaction.type === 'DAMAGED' ? 'bg-red-100 text-red-700' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>
+                        {transactionTypeLabels[transaction.type] || transaction.type}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              {transactions.length === 0 && (
+                <div className="col-span-full text-center py-8 text-slate-400">لا توجد عمليات حتى الآن</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );
