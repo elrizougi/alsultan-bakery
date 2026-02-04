@@ -6,6 +6,8 @@ import { DollarSign, Package, Truck, AlertCircle, Loader2, Users, UserCheck, Map
 import { StatusBadge } from "@/components/ui/status-badge";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { api, Transaction } from "@/lib/api";
 
 export default function Dashboard() {
   const user = useStore((state) => state.user);
@@ -15,6 +17,19 @@ export default function Dashboard() {
   const { data: routes = [] } = useRoutes();
   const { data: products = [] } = useProducts();
   const { data: users = [] } = useUsers();
+  const { data: transactions = [] } = useQuery({
+    queryKey: ['transactions'],
+    queryFn: api.getAllTransactions
+  });
+
+  const transactionTypeLabels: Record<string, string> = {
+    'CASH_SALE': 'بيع نقدي',
+    'CREDIT_SALE': 'بيع آجل',
+    'RETURN': 'مرتجع',
+    'FREE_DISTRIBUTION': 'توزيع مجاني',
+    'FREE_SAMPLE': 'عينة مجانية',
+    'DAMAGED': 'تالف'
+  };
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const todaysOrders = orders.filter(o => o.date === todayStr);
@@ -264,23 +279,35 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="px-8 pb-8">
               <div className="space-y-4">
-                {orders.slice(0, 5).map(order => {
-                  const customer = customers.find(c => c.id === order.customerId);
+                {transactions.slice(0, 8).map(transaction => {
+                  const driver = users.find(u => u.id === transaction.driverId);
+                  const customer = customers.find(c => c.id === transaction.customerId);
+                  const product = products.find(p => p.id === transaction.productId);
                   return (
-                    <div key={order.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors flex-row-reverse gap-4 border border-slate-100/50" data-testid={`order-item-${order.id}`}>
+                    <div key={transaction.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors flex-row-reverse gap-4 border border-slate-100/50" data-testid={`transaction-item-${transaction.id}`}>
                       <div className="text-right flex-1 min-w-0">
-                        <div className="font-bold text-slate-800 truncate">{customer?.name || 'عميل غير مسجل'}</div>
-                        <div className="text-xs font-medium text-slate-400 mt-0.5">{order.items?.length || 0} أصناف • {order.date}</div>
+                        <div className="font-bold text-slate-800 truncate">{product?.name || 'منتج'} - {transactionTypeLabels[transaction.type] || transaction.type}</div>
+                        <div className="text-xs font-medium text-slate-400 mt-0.5">
+                          {driver?.name || 'سائق'} {customer ? `• ${customer.name}` : ''} • {transaction.quantity} قطعة
+                        </div>
                       </div>
                       <div className="flex flex-col items-start gap-1.5">
-                        <div className="font-black text-sm text-slate-700">{parseFloat(order.totalAmount).toFixed(1)} <span className="text-[10px]">ر.س</span></div>
-                        <StatusBadge status={order.status} className="text-[10px] px-3 py-1 rounded-full font-bold" />
+                        <div className="font-black text-sm text-slate-700">{parseFloat(transaction.totalAmount || '0').toFixed(1)} <span className="text-[10px]">ر.س</span></div>
+                        <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${
+                          transaction.type === 'CASH_SALE' ? 'bg-green-100 text-green-700' :
+                          transaction.type === 'CREDIT_SALE' ? 'bg-yellow-100 text-yellow-700' :
+                          transaction.type === 'RETURN' ? 'bg-blue-100 text-blue-700' :
+                          transaction.type === 'DAMAGED' ? 'bg-red-100 text-red-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {transactionTypeLabels[transaction.type] || transaction.type}
+                        </span>
                       </div>
                     </div>
                   );
                 })}
-                {orders.length === 0 && (
-                  <div className="text-center py-8 text-slate-400">لا توجد طلبات حتى الآن</div>
+                {transactions.length === 0 && (
+                  <div className="text-center py-8 text-slate-400">لا توجد عمليات حتى الآن</div>
                 )}
               </div>
             </CardContent>

@@ -256,6 +256,11 @@ export const api = {
     return res.json();
   },
 
+  getAllTransactions: async (): Promise<Transaction[]> => {
+    const res = await fetch('/api/transactions');
+    return res.json();
+  },
+
   getDriverTransactions: async (driverId: string): Promise<Transaction[]> => {
     const res = await fetch(`/api/driver-transactions/${driverId}`);
     return res.json();
