@@ -421,6 +421,14 @@ export default function DriverTransactionsPage() {
   const unpaidDebts = debts.filter(d => !d.isPaid);
   const totalDebts = unpaidDebts.reduce((sum, d) => sum + parseFloat(d.amount), 0);
 
+  // حساب إجمالي الخبز المستلم من الطلبات المؤكدة
+  const totalReceivedBread = assignedOrders.reduce((sum, order) => {
+    return sum + (order.items?.reduce((itemSum, item) => itemSum + (item.receivedQuantity || item.quantity), 0) || 0);
+  }, 0);
+
+  // حساب المخزون الحالي
+  const totalCurrentInventory = inventory.reduce((sum, item) => sum + item.quantity, 0);
+
   return (
     <AdminLayout>
       <div className="flex flex-col gap-6" dir="rtl">
@@ -448,7 +456,35 @@ export default function DriverTransactionsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card className="border-slate-100 bg-blue-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-blue-600 flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                إجمالي الخبز المستلم
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-700" data-testid="text-total-received">
+                {totalReceivedBread}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-orange-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-orange-600 flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                المخزون الحالي
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-700" data-testid="text-current-inventory">
+                {totalCurrentInventory}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-slate-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
