@@ -151,7 +151,7 @@ export default function DriverTransactionsPage() {
     mutationFn: ({ orderId, receivedItems }: { orderId: string; receivedItems: { id: string; receivedQuantity: number }[] }) => 
       api.confirmOrderReceipt(orderId, receivedItems),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
       toast({ title: "تم تأكيد استلام الطلب وإضافته للمخزون" });
     },
@@ -176,7 +176,7 @@ export default function DriverTransactionsPage() {
   const createModification = useMutation({
     mutationFn: api.createOrderModification,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast({ title: "تم إرسال طلب التعديل للمسؤول" });
       setModifyingOrder(null);
       setModifiedQuantities({});
