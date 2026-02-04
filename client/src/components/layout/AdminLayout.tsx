@@ -2,15 +2,30 @@ import { Sidebar } from "./Sidebar";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Package, LogOut, Link2 } from "lucide-react";
+import { Menu, Package, LogOut, User, Shield, ChevronDown } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
   className?: string;
 }
+
+const roleLabels: Record<string, string> = {
+  ADMIN: "مدير النظام",
+  DRIVER: "سائق",
+  SALES: "مبيعات",
+};
 
 export function AdminLayout({ children, className }: AdminLayoutProps) {
   const { user, logout } = useStore();
@@ -23,6 +38,8 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
   }, [user, setLocation]);
 
   if (!user) return null;
+
+  const userInitials = user.name?.split(" ").map(n => n[0]).join("").slice(0, 2) || "م";
 
   return (
     <div className="flex min-h-screen w-full bg-[#f8fafc] flex-row" dir="rtl">
@@ -40,11 +57,28 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
           </div>
         </div>
         <Sidebar className="flex-1" />
-        <div className="p-6 border-t mt-auto">
+        
+        {/* User Profile Section */}
+        <div className="p-4 border-t mt-auto bg-slate-50">
+          <div className="flex items-center gap-3 mb-3 p-2 rounded-xl bg-white border">
+            <Avatar className="h-10 w-10 bg-primary text-white">
+              <AvatarFallback className="bg-primary text-white font-bold">
+                {userInitials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 text-right">
+              <p className="font-bold text-slate-800 text-sm">{user.name}</p>
+              <div className="flex items-center gap-1 justify-end">
+                <Shield className="h-3 w-3 text-primary" />
+                <span className="text-xs text-primary font-medium">{roleLabels[user.role] || user.role}</span>
+              </div>
+            </div>
+          </div>
           <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl px-4 flex-row-reverse"
+            variant="outline" 
+            className="w-full justify-center gap-2 text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50 hover:border-red-300 rounded-xl h-11 font-medium transition-all"
             onClick={() => logout()}
+            data-testid="button-logout"
           >
             <LogOut className="h-4 w-4" />
             <span>تسجيل الخروج</span>
@@ -53,6 +87,54 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden h-screen overflow-y-auto">
+        {/* Desktop Top Header with Profile */}
+        <header className="hidden md:flex h-16 items-center justify-between border-b bg-white px-8 sticky top-0 z-20">
+          <div className="flex items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-3 h-auto py-2 px-3 hover:bg-slate-100 rounded-xl">
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                  <div className="text-right">
+                    <p className="font-bold text-slate-800 text-sm">{user.name}</p>
+                    <p className="text-xs text-slate-500">{roleLabels[user.role] || user.role}</p>
+                  </div>
+                  <Avatar className="h-9 w-9 bg-primary">
+                    <AvatarFallback className="bg-primary text-white font-bold text-sm">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel className="text-right">
+                  <div className="flex items-center gap-2 justify-end">
+                    <div>
+                      <p className="font-bold">{user.name}</p>
+                      <p className="text-xs text-muted-foreground font-normal">{user.username}</p>
+                    </div>
+                    <Avatar className="h-8 w-8 bg-primary">
+                      <AvatarFallback className="bg-primary text-white text-xs font-bold">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer justify-end gap-2"
+                  onClick={() => logout()}
+                >
+                  <span>تسجيل الخروج</span>
+                  <LogOut className="h-4 w-4" />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="text-slate-500 text-sm">
+            {new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </div>
+        </header>
+
         {/* Mobile Header */}
         <header className="md:hidden flex h-16 items-center gap-4 border-b bg-white px-4 sticky top-0 z-40 flex-row-reverse">
           <Sheet>
@@ -61,7 +143,7 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
                 <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="p-0 w-72 border-l">
+            <SheetContent side="right" className="p-0 w-72 border-l flex flex-col">
               <div className="p-8 border-b text-right">
                 <div className="flex items-center gap-3 justify-end w-full">
                    <h2 className="text-xl font-black text-slate-800">نظام المخبز</h2>
@@ -70,11 +152,37 @@ export function AdminLayout({ children, className }: AdminLayoutProps) {
                    </div>
                 </div>
               </div>
-              <Sidebar className="border-0" />
+              <Sidebar className="border-0 flex-1" />
+              <div className="p-4 border-t bg-slate-50">
+                <div className="flex items-center gap-3 mb-3 p-2 rounded-xl bg-white border">
+                  <Avatar className="h-9 w-9 bg-primary">
+                    <AvatarFallback className="bg-primary text-white font-bold text-sm">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-right">
+                    <p className="font-bold text-slate-800 text-sm">{user.name}</p>
+                    <p className="text-xs text-primary">{roleLabels[user.role] || user.role}</p>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-center gap-2 text-red-600 border-red-200 hover:bg-red-50 rounded-xl"
+                  onClick={() => logout()}
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>تسجيل الخروج</span>
+                </Button>
+              </div>
             </SheetContent>
           </Sheet>
-          <div className="flex-1 text-right font-bold text-slate-800">
-            نظام توزيع الخبز
+          <div className="flex-1 flex items-center gap-2 justify-end">
+            <span className="font-bold text-slate-800">نظام توزيع الخبز</span>
+            <Avatar className="h-8 w-8 bg-primary">
+              <AvatarFallback className="bg-primary text-white font-bold text-xs">
+                {userInitials}
+              </AvatarFallback>
+            </Avatar>
           </div>
         </header>
 
