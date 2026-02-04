@@ -88,7 +88,7 @@ export default function DriverReportPage() {
     createDepositMutation.mutate({
       driverId: selectedDriverId,
       amount: parseFloat(depositAmount),
-      depositDate: selectedDate,
+      depositDate: format(new Date(), "yyyy-MM-dd"),
       notes: depositNotes || undefined,
     });
   };
@@ -470,49 +470,6 @@ export default function DriverReportPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-right flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5 text-primary" />
-                  عمليات التوزيع اليومية
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dailyTransactions.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">لا توجد عمليات لهذا اليوم</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-right">النوع</TableHead>
-                        <TableHead className="text-right">العميل</TableHead>
-                        <TableHead className="text-right">المنتج</TableHead>
-                        <TableHead className="text-right">الكمية</TableHead>
-                        <TableHead className="text-right">سعر البيع</TableHead>
-                        <TableHead className="text-right">الإجمالي</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {dailyTransactions.map(t => (
-                        <TableRow key={t.id}>
-                          <TableCell>
-                            <Badge className={transactionTypeLabels[t.type]?.color || "bg-gray-100"}>
-                              {transactionTypeLabels[t.type]?.label || t.type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{getCustomerName(t.customerId || "")}</TableCell>
-                          <TableCell>{getProductName(t.productId || "")}</TableCell>
-                          <TableCell>{t.quantity}</TableCell>
-                          <TableCell>{parseFloat(t.unitPrice || "0").toFixed(2)} ر.س</TableCell>
-                          <TableCell className="font-bold">{parseFloat(t.totalAmount || "0").toFixed(2)} ر.س</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-
             <Card className="border-2 border-primary">
               <CardHeader className="bg-primary/5">
                 <CardTitle className="text-right flex items-center gap-2">
@@ -650,6 +607,49 @@ export default function DriverReportPage() {
                     )}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-right flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5 text-primary" />
+                  عمليات التوزيع اليومية
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dailyTransactions.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">لا توجد عمليات لهذا اليوم</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">النوع</TableHead>
+                        <TableHead className="text-right">العميل</TableHead>
+                        <TableHead className="text-right">المنتج</TableHead>
+                        <TableHead className="text-right">الكمية</TableHead>
+                        <TableHead className="text-right">سعر البيع</TableHead>
+                        <TableHead className="text-right">الإجمالي</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dailyTransactions.map(t => (
+                        <TableRow key={t.id}>
+                          <TableCell>
+                            <Badge className={transactionTypeLabels[t.type]?.color || "bg-gray-100"}>
+                              {transactionTypeLabels[t.type]?.label || t.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{getCustomerName(t.customerId || "")}</TableCell>
+                          <TableCell>{getProductName(t.productId || "")}</TableCell>
+                          <TableCell>{t.quantity}</TableCell>
+                          <TableCell>{parseFloat(t.unitPrice || "0").toFixed(2)} ر.س</TableCell>
+                          <TableCell className="font-bold">{parseFloat(t.totalAmount || "0").toFixed(2)} ر.س</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
 
