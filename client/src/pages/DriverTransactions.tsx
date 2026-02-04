@@ -500,6 +500,11 @@ export default function DriverTransactionsPage() {
   );
   const uniqueCustomersCount = uniqueCustomersSet.size;
 
+  // حساب إجمالي المصروفات
+  const totalExpenses = transactions
+    .filter(t => (t.type as string) === 'EXPENSE')
+    .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+
   return (
     <AdminLayout>
       <div className="flex flex-col gap-6" dir="rtl">
@@ -527,7 +532,7 @@ export default function DriverTransactionsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           <Card className="border-slate-100 bg-blue-50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-blue-600 flex items-center gap-2">
@@ -633,6 +638,20 @@ export default function DriverTransactionsPage() {
             <CardContent>
               <div className="text-2xl font-bold text-primary" data-testid="text-today-transactions">
                 {transactions.length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-orange-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-orange-600 flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                إجمالي المصروفات
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-700" data-testid="text-total-expenses">
+                {totalExpenses.toFixed(2)} ر.س
               </div>
             </CardContent>
           </Card>
