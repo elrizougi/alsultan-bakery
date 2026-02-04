@@ -502,6 +502,157 @@ export default function DriverTransactionsPage() {
           </Card>
         </div>
 
+        {/* قسم طلبات الخبز */}
+        {(pendingOrders.length > 0 || assignedOrders.length > 0 || deliveredOrders.length > 0) && (
+          <Card className="border-slate-100 mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                طلبات الخبز
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* طلبات تنتظر تأكيد الاستلام */}
+              {pendingOrders.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <h4 className="font-bold text-amber-700 mb-3 flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    طلبات تنتظر التأكيد ({pendingOrders.length})
+                  </h4>
+                  {pendingOrders.map(order => (
+                    <div key={order.id} className="bg-white rounded-lg p-3 mb-2 border border-amber-100">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-mono text-slate-500">#{order.id.slice(0, 8)}</span>
+                        <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
+                          بانتظار التأكيد
+                        </Badge>
+                      </div>
+                      <div className="space-y-1 mb-3">
+                        {order.items?.map(item => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span>{getProductName(item.productId)}</span>
+                            <span className="font-bold">{item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleConfirmReceipt(order)}
+                          disabled={confirmReceipt.isPending}
+                          className="flex-1 bg-primary hover:bg-primary/90 gap-2"
+                          data-testid={`btn-confirm-receipt-${order.id}`}
+                        >
+                          {confirmReceipt.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4" />
+                              تأكيد الاستلام
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenModifyDialog(order)}
+                          className="flex-1 border-amber-500 text-amber-700 hover:bg-amber-50 gap-2"
+                          data-testid={`btn-modify-order-${order.id}`}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                          تعديل
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* الطلبات المستلمة من الإدارة */}
+              {assignedOrders.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <h4 className="font-bold text-green-700 mb-3 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    طلبات مستلمة من المخبز ({assignedOrders.length})
+                  </h4>
+                  {assignedOrders.map(order => (
+                    <div key={order.id} className="bg-white rounded-lg p-3 mb-2 border border-green-100">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-mono text-slate-500">#{order.id.slice(0, 8)}</span>
+                        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                          تم الاستلام
+                        </Badge>
+                      </div>
+                      <div className="space-y-1 mb-3">
+                        {order.items?.map(item => {
+                          const received = item.receivedQuantity ?? item.quantity;
+                          const isDifferent = item.receivedQuantity !== undefined && item.receivedQuantity !== item.quantity;
+                          return (
+                            <div key={item.id} className="flex justify-between text-sm items-center">
+                              <span className="flex items-center gap-1">
+                                {isDifferent && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                                {getProductName(item.productId)}
+                              </span>
+                              <span className={`font-bold ${isDifferent ? 'text-amber-600' : 'text-green-600'}`}>
+                                {received}
+                                {isDifferent && (
+                                  <span className="text-xs text-slate-400 mr-1">
+                                    (طلب: {item.quantity})
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenCloseDialog(order)}
+                        className="w-full bg-slate-600 hover:bg-slate-700 gap-2"
+                        data-testid={`btn-close-trip-${order.id}`}
+                      >
+                        <FileText className="h-4 w-4" />
+                        إغلاق الرحلة
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* الطلبات المغلقة */}
+              {deliveredOrders.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    طلبات مغلقة ({deliveredOrders.length})
+                  </h4>
+                  {deliveredOrders.map(order => (
+                    <div key={order.id} className="bg-white rounded-lg p-3 mb-2 border border-slate-100">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-mono text-slate-500">#{order.id.slice(0, 8)}</span>
+                        <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300">
+                          مغلق
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        {order.items?.map(item => {
+                          const received = item.receivedQuantity ?? item.quantity;
+                          return (
+                            <div key={item.id} className="flex justify-between text-sm">
+                              <span>{getProductName(item.productId)}</span>
+                              <span className="font-bold">{received}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="border-slate-100">
             <CardHeader>
