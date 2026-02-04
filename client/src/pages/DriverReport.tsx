@@ -26,8 +26,10 @@ const transactionTypeLabels: Record<string, { label: string; color: string }> = 
 };
 
 export default function DriverReportPage() {
-  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [depositAmount, setDepositAmount] = useState<string>("");
   const [depositNotes, setDepositNotes] = useState<string>("");
   
@@ -44,11 +46,26 @@ export default function DriverReportPage() {
 
   const drivers = users.filter(u => u.role === "DRIVER");
 
-  const { data: cashDeposits = [] } = useQuery({
+  const { data: allCashDeposits = [] } = useQuery({
+    queryKey: ["all-cash-deposits"],
+    queryFn: async () => {
+      const allDeposits: any[] = [];
+      for (const driver of drivers) {
+        const deposits = await api.getDriverCashDeposits(driver.id);
+        allDeposits.push(...deposits);
+      }
+      return allDeposits;
+    },
+    enabled: drivers.length > 0,
+  });
+
+  const { data: singleDriverDeposits = [] } = useQuery({
     queryKey: ["driver-cash-deposits", selectedDriverId],
     queryFn: () => api.getDriverCashDeposits(selectedDriverId),
-    enabled: !!selectedDriverId,
+    enabled: selectedDriverId !== "all" && !!selectedDriverId,
   });
+
+  const cashDeposits = selectedDriverId === "all" ? allCashDeposits : singleDriverDeposits;
 
   const createDepositMutation = useMutation({
     mutationFn: api.createCashDeposit,
@@ -76,40 +93,112 @@ export default function DriverReportPage() {
     });
   };
 
-  const { data: transactions = [] } = useQuery({
+  const { data: allTransactions = [] } = useQuery({
+    queryKey: ["all-driver-transactions"],
+    queryFn: async () => {
+      const allTx: any[] = [];
+      for (const driver of drivers) {
+        const tx = await api.getDriverTransactions(driver.id);
+        allTx.push(...tx);
+      }
+      return allTx;
+    },
+    enabled: drivers.length > 0,
+  });
+
+  const { data: singleDriverTransactions = [] } = useQuery({
     queryKey: ["driver-transactions", selectedDriverId],
     queryFn: () => api.getDriverTransactions(selectedDriverId),
-    enabled: !!selectedDriverId,
+    enabled: selectedDriverId !== "all" && !!selectedDriverId,
   });
 
-  const { data: inventory = [] } = useQuery({
+  const transactions = selectedDriverId === "all" ? allTransactions : singleDriverTransactions;
+
+  const { data: allInventory = [] } = useQuery({
+    queryKey: ["all-driver-inventory"],
+    queryFn: async () => {
+      const allInv: any[] = [];
+      for (const driver of drivers) {
+        const inv = await api.getDriverInventory(driver.id);
+        allInv.push(...inv);
+      }
+      return allInv;
+    },
+    enabled: drivers.length > 0,
+  });
+
+  const { data: singleDriverInventory = [] } = useQuery({
     queryKey: ["driver-inventory", selectedDriverId],
     queryFn: () => api.getDriverInventory(selectedDriverId),
-    enabled: !!selectedDriverId,
+    enabled: selectedDriverId !== "all" && !!selectedDriverId,
   });
 
-  const { data: balance } = useQuery({
+  const inventory = selectedDriverId === "all" ? allInventory : singleDriverInventory;
+
+  const { data: allBalances = [] } = useQuery({
+    queryKey: ["all-driver-balances"],
+    queryFn: async () => {
+      const balances: any[] = [];
+      for (const driver of drivers) {
+        const bal = await api.getDriverBalance(driver.id);
+        if (bal) balances.push(bal);
+      }
+      return balances;
+    },
+    enabled: drivers.length > 0,
+  });
+
+  const { data: singleDriverBalance } = useQuery({
     queryKey: ["driver-balance", selectedDriverId],
     queryFn: () => api.getDriverBalance(selectedDriverId),
-    enabled: !!selectedDriverId,
+    enabled: selectedDriverId !== "all" && !!selectedDriverId,
   });
 
-  const { data: debts = [] } = useQuery({
+  const balance = selectedDriverId === "all" 
+    ? { cashBalance: allBalances.reduce((sum, b) => sum + parseFloat(b?.cashBalance || "0"), 0).toString() }
+    : singleDriverBalance;
+
+  const { data: allDebts = [] } = useQuery({
+    queryKey: ["all-driver-debts"],
+    queryFn: async () => {
+      const debtsArr: any[] = [];
+      for (const driver of drivers) {
+        const d = await api.getDriverCustomerDebts(driver.id);
+        debtsArr.push(...d);
+      }
+      return debtsArr;
+    },
+    enabled: drivers.length > 0,
+  });
+
+  const { data: singleDriverDebts = [] } = useQuery({
     queryKey: ["driver-debts", selectedDriverId],
     queryFn: () => api.getDriverCustomerDebts(selectedDriverId),
-    enabled: !!selectedDriverId,
+    enabled: selectedDriverId !== "all" && !!selectedDriverId,
   });
+
+  const debts = selectedDriverId === "all" ? allDebts : singleDriverDebts;
 
   const getProductName = (productId: string) => products.find(p => p.id === productId)?.name || "غير معروف";
   const getProductPrice = (productId: string) => parseFloat(products.find(p => p.id === productId)?.price || "0");
   const getCustomerName = (customerId: string) => customers.find(c => c.id === customerId)?.name || "غير معروف";
-  const getDriverName = (driverId: string) => users.find(u => u.id === driverId)?.name || "غير معروف";
+  const getDriverName = (driverId: string) => {
+    if (driverId === "all") return "جميع السائقين";
+    return users.find(u => u.id === driverId)?.name || "غير معروف";
+  };
+
+  const isDateInRange = (dateStr: string) => {
+    if (dateFilter === "all") return true;
+    const date = dateStr.split('T')[0];
+    return date >= startDate && date <= endDate;
+  };
 
   const driverOrders = orders.filter(o => {
-    if (o.customerId !== selectedDriverId || o.status !== "ASSIGNED") return false;
+    if (selectedDriverId !== "all" && o.customerId !== selectedDriverId) return false;
+    if (selectedDriverId === "all" && !drivers.some(d => d.id === o.customerId)) return false;
+    if (o.status !== "ASSIGNED") return false;
     if (!o.date) return false;
-    const orderDate = typeof o.date === 'string' ? o.date.split('T')[0] : format(new Date(o.date), "yyyy-MM-dd");
-    return orderDate === selectedDate;
+    return isDateInRange(o.date);
   });
   
   const receivedInventory = driverOrders.flatMap(order => 
@@ -136,8 +225,7 @@ export default function DriverReportPage() {
 
   const dailyTransactions = transactions.filter(t => {
     if (!t.createdAt) return false;
-    const txDate = typeof t.createdAt === 'string' ? t.createdAt.split('T')[0] : format(new Date(t.createdAt), "yyyy-MM-dd");
-    return txDate === selectedDate;
+    return isDateInRange(t.createdAt);
   });
 
   const cashSales = dailyTransactions.filter(t => t.type === "CASH_SALE");
@@ -211,17 +299,18 @@ export default function DriverReportPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-right">اختر السائق والتاريخ</CardTitle>
+            <CardTitle className="text-right">اختر السائق والفترة</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
                 <Label className="mb-2 block">السائق</Label>
                 <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
                   <SelectTrigger className="w-full" data-testid="select-driver-report">
-                    <SelectValue placeholder="اختر السائق لعرض التقرير" />
+                    <SelectValue placeholder="اختر السائق" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">جميع السائقين</SelectItem>
                     {drivers.map(driver => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.name}
@@ -230,24 +319,53 @@ export default function DriverReportPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="w-full md:w-48">
-                <Label className="mb-2 block">التاريخ</Label>
-                <div className="relative">
-                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="pr-10"
-                    data-testid="input-report-date"
-                  />
-                </div>
+              <div>
+                <Label className="mb-2 block">الفترة</Label>
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger className="w-full" data-testid="select-date-filter">
+                    <SelectValue placeholder="اختر الفترة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل الفترة</SelectItem>
+                    <SelectItem value="range">فترة محددة</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              {dateFilter === "range" && (
+                <>
+                  <div>
+                    <Label className="mb-2 block">من تاريخ</Label>
+                    <div className="relative">
+                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="pr-10"
+                        data-testid="input-start-date"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block">إلى تاريخ</Label>
+                    <div className="relative">
+                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="pr-10"
+                        data-testid="input-end-date"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {selectedDriverId && (
+        {(selectedDriverId === "all" || selectedDriverId) && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
