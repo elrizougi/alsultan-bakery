@@ -268,6 +268,8 @@ export default function DriverTransactionsPage() {
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerAddress, setNewCustomerAddress] = useState("");
   const [customPrice, setCustomPrice] = useState<string>("");
+  const [expenseAmount, setExpenseAmount] = useState<string>("");
+  const [expenseDescription, setExpenseDescription] = useState<string>("");
   
   const [formData, setFormData] = useState<Partial<InsertTransaction> & { customerId?: string }>({
     type: "CASH_SALE",
@@ -288,6 +290,8 @@ export default function DriverTransactionsPage() {
       notes: "",
     });
     setCustomPrice("");
+    setExpenseAmount("");
+    setExpenseDescription("");
     setShowNewCustomerForm(false);
     setNewCustomerName("");
     setNewCustomerPhone("");
@@ -319,6 +323,40 @@ export default function DriverTransactionsPage() {
   };
 
   const handleSubmit = () => {
+    // معالجة خاصة للمصروفات
+    if ((formData.type as string) === 'EXPENSE') {
+      const amount = parseFloat(expenseAmount);
+      if (!amount || amount <= 0) {
+        toast({ title: "يرجى إدخال مبلغ المصروفات", variant: "destructive" });
+        return;
+      }
+      if (!expenseDescription.trim()) {
+        toast({ title: "يرجى إدخال وصف المصروفات", variant: "destructive" });
+        return;
+      }
+
+      // للمصروفات نستخدم أول منتج وأول عميل كقيم افتراضية (حقول مطلوبة في قاعدة البيانات)
+      const defaultProduct = products[0];
+      const defaultCustomer = customers[0];
+      
+      if (!defaultProduct || !defaultCustomer) {
+        toast({ title: "يجب وجود منتج وعميل واحد على الأقل في النظام", variant: "destructive" });
+        return;
+      }
+
+      createTransaction.mutate({
+        type: 'EXPENSE' as TransactionType,
+        driverId: driverId,
+        productId: defaultProduct.id,
+        quantity: 0,
+        customerId: defaultCustomer.id,
+        unitPrice: "0",
+        totalAmount: amount.toFixed(2),
+        notes: `${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
+      });
+      return;
+    }
+
     if (!formData.productId || !formData.type) {
       toast({ title: "يرجى تعبئة جميع الحقول المطلوبة", variant: "destructive" });
       return;
@@ -881,117 +919,160 @@ export default function DriverTransactionsPage() {
               </Select>
             </div>
 
-            <div className="grid gap-2">
-              <Label>المنتج *</Label>
-              <Select
-                value={formData.productId}
-                onValueChange={(value) => setFormData({ ...formData, productId: value })}
-              >
-                <SelectTrigger data-testid="select-product">
-                  <SelectValue placeholder="اختر المنتج" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name} - {product.price} ر.س
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>الكمية *</Label>
-              <Input
-                type="number"
-                min={1}
-                max={formData.productId ? (inventory.find(inv => inv.productId === formData.productId)?.quantity || 0) : undefined}
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-                data-testid="input-quantity"
-              />
-              {formData.productId && (
-                <p className="text-xs text-muted-foreground">
-                  الكمية المتاحة: <span className="font-bold text-primary">{inventory.find(inv => inv.productId === formData.productId)?.quantity || 0}</span>
-                </p>
-              )}
-            </div>
-
-            <div className="grid gap-2">
-              <Label>العميل *</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={formData.customerId || ""}
-                  onValueChange={(value) => setFormData({ ...formData, customerId: value })}
-                >
-                  <SelectTrigger data-testid="select-customer" className="flex-1">
-                    <SelectValue placeholder="اختر العميل" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="icon"
-                  onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
-                  data-testid="button-add-new-customer"
-                >
-                  <UserPlus className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              {showNewCustomerForm && (
-                <div className="p-3 bg-slate-50 rounded-lg space-y-3 mt-2">
-                  <div className="text-sm font-medium text-slate-700">إضافة عميل جديد</div>
+            {/* حقول خاصة بالمصروفات */}
+            {(formData.type as string) === 'EXPENSE' ? (
+              <>
+                <div className="grid gap-2">
+                  <Label>المبلغ *</Label>
                   <Input
-                    placeholder="اسم العميل *"
-                    value={newCustomerName}
-                    onChange={(e) => setNewCustomerName(e.target.value)}
-                    data-testid="input-new-customer-name"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={expenseAmount}
+                    onChange={(e) => setExpenseAmount(e.target.value)}
+                    placeholder="أدخل مبلغ المصروفات"
+                    data-testid="input-expense-amount"
                   />
-                  <Input
-                    placeholder="رقم الهاتف"
-                    value={newCustomerPhone}
-                    onChange={(e) => setNewCustomerPhone(e.target.value)}
-                    data-testid="input-new-customer-phone"
-                  />
-                  <Input
-                    placeholder="العنوان"
-                    value={newCustomerAddress}
-                    onChange={(e) => setNewCustomerAddress(e.target.value)}
-                    data-testid="input-new-customer-address"
-                  />
-                  <Button 
-                    type="button" 
-                    size="sm" 
-                    onClick={handleAddNewCustomer}
-                    disabled={createCustomer.isPending}
-                    data-testid="button-save-new-customer"
-                  >
-                    {createCustomer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ العميل"}
-                  </Button>
                 </div>
-              )}
-            </div>
 
-            <div className="grid gap-2">
-              <Label>السعر المخصص (اتركه فارغاً لاستخدام سعر المنتج)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min={0}
-                value={customPrice}
-                onChange={(e) => setCustomPrice(e.target.value)}
-                placeholder={formData.productId ? `سعر المنتج: ${products.find(p => p.id === formData.productId)?.price || 0} ر.س` : "اختر المنتج أولاً"}
-                data-testid="input-custom-price"
-              />
-            </div>
+                <div className="grid gap-2">
+                  <Label>البند / الوصف *</Label>
+                  <Input
+                    value={expenseDescription}
+                    onChange={(e) => setExpenseDescription(e.target.value)}
+                    placeholder="مثال: وقود، صيانة، غداء..."
+                    data-testid="input-expense-description"
+                  />
+                </div>
+
+                {expenseAmount && (
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      المبلغ:{" "}
+                      <span className="font-bold text-orange-600">
+                        {parseFloat(expenseAmount || "0").toFixed(2)} ر.س
+                      </span>
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  <Label>المنتج *</Label>
+                  <Select
+                    value={formData.productId}
+                    onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                  >
+                    <SelectTrigger data-testid="select-product">
+                      <SelectValue placeholder="اختر المنتج" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name} - {product.price} ر.س
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>الكمية *</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={formData.productId ? (inventory.find(inv => inv.productId === formData.productId)?.quantity || 0) : undefined}
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                    data-testid="input-quantity"
+                  />
+                  {formData.productId && (
+                    <p className="text-xs text-muted-foreground">
+                      الكمية المتاحة: <span className="font-bold text-primary">{inventory.find(inv => inv.productId === formData.productId)?.quantity || 0}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>العميل *</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={formData.customerId || ""}
+                      onValueChange={(value) => setFormData({ ...formData, customerId: value })}
+                    >
+                      <SelectTrigger data-testid="select-customer" className="flex-1">
+                        <SelectValue placeholder="اختر العميل" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                      data-testid="button-add-new-customer"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {showNewCustomerForm && (
+                    <div className="p-3 bg-slate-50 rounded-lg space-y-3 mt-2">
+                      <div className="text-sm font-medium text-slate-700">إضافة عميل جديد</div>
+                      <Input
+                        placeholder="اسم العميل *"
+                        value={newCustomerName}
+                        onChange={(e) => setNewCustomerName(e.target.value)}
+                        data-testid="input-new-customer-name"
+                      />
+                      <Input
+                        placeholder="رقم الهاتف"
+                        value={newCustomerPhone}
+                        onChange={(e) => setNewCustomerPhone(e.target.value)}
+                        data-testid="input-new-customer-phone"
+                      />
+                      <Input
+                        placeholder="العنوان"
+                        value={newCustomerAddress}
+                        onChange={(e) => setNewCustomerAddress(e.target.value)}
+                        data-testid="input-new-customer-address"
+                      />
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        onClick={handleAddNewCustomer}
+                        disabled={createCustomer.isPending}
+                        data-testid="button-save-new-customer"
+                      >
+                        {createCustomer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ العميل"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {(formData.type as string) !== 'EXPENSE' && (
+              <div className="grid gap-2">
+                <Label>السعر المخصص (اتركه فارغاً لاستخدام سعر المنتج)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={customPrice}
+                  onChange={(e) => setCustomPrice(e.target.value)}
+                  placeholder={formData.productId ? `سعر المنتج: ${products.find(p => p.id === formData.productId)?.price || 0} ر.س` : "اختر المنتج أولاً"}
+                  data-testid="input-custom-price"
+                />
+              </div>
+            )}
 
             <div className="grid gap-2">
               <Label>ملاحظات</Label>
@@ -1003,7 +1084,7 @@ export default function DriverTransactionsPage() {
               />
             </div>
 
-            {formData.productId && (
+            {(formData.type as string) !== 'EXPENSE' && formData.productId && (
               <div className="p-3 bg-slate-50 rounded-lg">
                 <p className="text-sm text-muted-foreground">
                   المبلغ الإجمالي:{" "}
