@@ -45,6 +45,9 @@ export default function DriverTransactionsPage() {
   // طلبات السائق التي تحتاج تأكيد استلام
   const pendingOrders = orders.filter(o => o.customerId === driverId && o.status === 'CONFIRMED');
   
+  // طلبات السائق المؤكدة من الإدارة (المستلمة)
+  const assignedOrders = orders.filter(o => o.customerId === driverId && o.status === 'ASSIGNED');
+  
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ["driver-transactions", driverId],
     queryFn: () => api.getDriverTransactions(driverId),
@@ -539,8 +542,50 @@ export default function DriverTransactionsPage() {
                 </div>
               )}
 
+              {/* الطلبات المستلمة من الإدارة */}
+              {assignedOrders.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-bold text-primary mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    طلبات مستلمة من المخبز ({assignedOrders.length})
+                  </h4>
+                  {assignedOrders.map(order => (
+                    <div key={order.id} className="bg-white rounded-lg p-3 mb-2 border border-green-100">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-mono text-slate-500">#{order.id.slice(0, 8)}</span>
+                        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                          تم الاستلام
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        {order.items?.map(item => {
+                          const received = item.receivedQuantity ?? item.quantity;
+                          const isDifferent = item.receivedQuantity !== undefined && item.receivedQuantity !== item.quantity;
+                          return (
+                            <div key={item.id} className="flex justify-between text-sm items-center">
+                              <span className="flex items-center gap-1">
+                                {isDifferent && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                                {getProductName(item.productId)}
+                              </span>
+                              <span className={`font-bold ${isDifferent ? 'text-amber-600' : 'text-green-600'}`}>
+                                {received}
+                                {isDifferent && (
+                                  <span className="text-xs text-slate-400 mr-1">
+                                    (طلب: {item.quantity})
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* المخزون المتاح */}
-              {inventory.length === 0 && pendingOrders.length === 0 ? (
+              {inventory.length === 0 && pendingOrders.length === 0 && assignedOrders.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">لا يوجد مخزون حالياً</p>
               ) : inventory.length > 0 && (
                 <Table>
