@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Plus, Search, Filter, MoreVertical, Trash2, Edit, Save, Loader2, CheckCircle, Package } from "lucide-react";
+import { Plus, Search, Filter, MoreVertical, Trash2, Edit, Save, Loader2, CheckCircle, Package, Truck, RotateCcw, Lock, AlertTriangle } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -43,6 +43,7 @@ export default function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [confirmingOrder, setConfirmingOrder] = useState<Order | null>(null);
   const [adminConfirmingOrder, setAdminConfirmingOrder] = useState<Order | null>(null);
+  const [closingOrder, setClosingOrder] = useState<Order | null>(null);
 
   const filteredOrders = orders.filter(order => {
     // السائقون يرون الطلبات المرتبطة بهم مباشرة
@@ -166,14 +167,47 @@ export default function OrdersPage() {
                           </Button>
                         )}
                         {order.status === 'CONFIRMED' && currentUser?.role !== 'DRIVER' && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8 text-amber-600 border-amber-300 font-bold px-3 hover:bg-amber-50 rounded-lg gap-1"
+                              onClick={() => setEditingOrder(order)}
+                            >
+                              <Edit className="h-3 w-3" />
+                              تعديل
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="default" 
+                              className="h-8 font-bold px-3 bg-blue-600 hover:bg-blue-700 rounded-lg gap-1"
+                              onClick={() => handleUpdateStatus(order.id, 'ASSIGNED')}
+                            >
+                              <Truck className="h-3 w-3" />
+                              مغادرة
+                            </Button>
+                          </>
+                        )}
+                        {order.status === 'ASSIGNED' && currentUser?.role !== 'DRIVER' && (
                           <Button 
                             size="sm" 
-                            variant="outline" 
-                            className="h-8 text-amber-600 border-amber-300 font-bold px-3 hover:bg-amber-50 rounded-lg gap-1"
-                            onClick={() => setEditingOrder(order)}
+                            variant="default" 
+                            className="h-8 font-bold px-3 bg-orange-600 hover:bg-orange-700 rounded-lg gap-1"
+                            onClick={() => handleUpdateStatus(order.id, 'DELIVERED')}
                           >
-                            <Edit className="h-3 w-3" />
-                            تعديل
+                            <RotateCcw className="h-3 w-3" />
+                            العودة
+                          </Button>
+                        )}
+                        {order.status === 'DELIVERED' && currentUser?.role !== 'DRIVER' && (
+                          <Button 
+                            size="sm" 
+                            variant="default" 
+                            className="h-8 font-bold px-3 bg-green-600 hover:bg-green-700 rounded-lg gap-1"
+                            onClick={() => setClosingOrder(order)}
+                          >
+                            <Lock className="h-3 w-3" />
+                            إغلاق
                           </Button>
                         )}
                         {order.status === 'CONFIRMED' && currentUser?.role === 'DRIVER' && (
@@ -230,6 +264,7 @@ export default function OrdersPage() {
         {editingOrder && <EditOrderDialog order={editingOrder} onOpenChange={(open) => !open && setEditingOrder(null)} />}
         {confirmingOrder && <ConfirmReceiptDialog order={confirmingOrder} onOpenChange={(open) => !open && setConfirmingOrder(null)} />}
         {adminConfirmingOrder && <AdminConfirmDialog order={adminConfirmingOrder} onOpenChange={(open) => !open && setAdminConfirmingOrder(null)} />}
+        {closingOrder && <CloseOrderDialog order={closingOrder} onOpenChange={(open) => !open && setClosingOrder(null)} />}
       </div>
     </AdminLayout>
   );
@@ -799,6 +834,179 @@ function AdminConfirmDialog({ order, onOpenChange }: { order: Order; onOpenChang
               </>
             ) : (
               "تأكيد وتسليم"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CloseOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange: (open: boolean) => void }) {
+  const { data: products = [] } = useProducts();
+  const { data: returns = [] } = useQuery({
+    queryKey: ["returns", order.id],
+    queryFn: () => api.getReturns()
+  });
+  const updateOrder = useUpdateOrder();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  const [returnItems, setReturnItems] = useState<{ productId: string; goodQty: number; damagedQty: number }[]>(
+    order.items?.map(item => ({
+      productId: item.productId,
+      goodQty: 0,
+      damagedQty: 0
+    })) || []
+  );
+  const [hasConfirmedReturns, setHasConfirmedReturns] = useState(false);
+
+  const getProductName = (productId: string) => {
+    return products.find(p => p.id === productId)?.name || "غير معروف";
+  };
+
+  const totalReturns = returnItems.reduce((sum, item) => sum + item.goodQty + item.damagedQty, 0);
+  const hasAnyReturns = totalReturns > 0;
+
+  const closeMutation = useMutation({
+    mutationFn: async () => {
+      if (hasAnyReturns && !hasConfirmedReturns) {
+        throw new Error("يجب تأكيد استلام المرتجعات قبل إغلاق الرحلة");
+      }
+      
+      // تسجيل المرتجعات إذا وجدت
+      for (const item of returnItems) {
+        if (item.goodQty > 0) {
+          await api.createReturn({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.goodQty,
+            reason: 'GOOD'
+          });
+        }
+        if (item.damagedQty > 0) {
+          await api.createReturn({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.damagedQty,
+            reason: 'DAMAGED'
+          });
+        }
+      }
+      
+      // إغلاق الطلب
+      await updateOrder.mutateAsync({ id: order.id, status: 'CLOSED' as any });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["returns"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast({ title: "تم إغلاق الرحلة بنجاح" });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "خطأ", description: error.message || "حدث خطأ", variant: "destructive" });
+    },
+  });
+
+  const updateReturnQuantity = (productId: string, type: 'goodQty' | 'damagedQty', value: number) => {
+    setReturnItems(prev => prev.map(item => 
+      item.productId === productId ? { ...item, [type]: value } : item
+    ));
+  };
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg" dir="rtl">
+        <DialogHeader className="text-right">
+          <DialogTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5 text-green-600" />
+            إغلاق الرحلة
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-800">تأكيد المرتجعات</p>
+                <p className="text-sm text-amber-700">يجب إدخال كميات الخبز المرتجع (سليم أو تالف) قبل إغلاق الرحلة</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {order.items?.map((item) => {
+              const returnItem = returnItems.find(r => r.productId === item.productId);
+              return (
+                <div key={item.productId} className="bg-white border rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-bold">{getProductName(item.productId)}</span>
+                    <span className="text-sm text-muted-foreground">الكمية المسلمة: {item.receivedQuantity || item.quantity}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-sm text-green-700">مرتجع سليم:</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={returnItem?.goodQty || 0}
+                        onChange={(e) => updateReturnQuantity(item.productId, 'goodQty', parseInt(e.target.value) || 0)}
+                        className="mt-1 border-green-300 focus:ring-green-500"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm text-red-700">مرتجع تالف:</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={returnItem?.damagedQty || 0}
+                        onChange={(e) => updateReturnQuantity(item.productId, 'damagedQty', parseInt(e.target.value) || 0)}
+                        className="mt-1 border-red-300 focus:ring-red-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {hasAnyReturns && (
+            <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+              <input
+                type="checkbox"
+                id="confirmReturns"
+                checked={hasConfirmedReturns}
+                onChange={(e) => setHasConfirmedReturns(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              <Label htmlFor="confirmReturns" className="text-sm cursor-pointer">
+                أؤكد استلام المرتجعات (إجمالي: {totalReturns} قطعة)
+              </Label>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            إلغاء
+          </Button>
+          <Button 
+            onClick={() => closeMutation.mutate()}
+            disabled={closeMutation.isPending || (hasAnyReturns && !hasConfirmedReturns)}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {closeMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                جاري الإغلاق...
+              </>
+            ) : (
+              <>
+                <Lock className="h-4 w-4 ml-2" />
+                إغلاق الرحلة
+              </>
             )}
           </Button>
         </DialogFooter>
