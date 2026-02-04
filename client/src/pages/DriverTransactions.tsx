@@ -48,6 +48,9 @@ export default function DriverTransactionsPage() {
   // طلبات السائق المؤكدة من الإدارة (المستلمة)
   const assignedOrders = orders.filter(o => o.customerId === driverId && o.status === 'ASSIGNED');
   
+  // طلبات تم تسليمها للعملاء
+  const deliveredOrders = orders.filter(o => o.customerId === driverId && o.status === 'DELIVERED');
+  
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ["driver-transactions", driverId],
     queryFn: () => api.getDriverTransactions(driverId),
@@ -219,6 +222,42 @@ export default function DriverTransactionsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  
+  // حالة إغلاق الرحلة
+  const [closingOrder, setClosingOrder] = useState<Order | null>(null);
+  const [unsoldQuantities, setUnsoldQuantities] = useState<Record<string, number>>({});
+  
+  const updateOrderStatus = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: string; status: string }) => 
+      api.updateOrder(orderId, { status: status as any }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast({ title: "تم تحديث حالة الطلب" });
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ في تحديث الحالة", variant: "destructive" });
+    },
+  });
+  
+  const handleDeliverOrder = (order: Order) => {
+    updateOrderStatus.mutate({ orderId: order.id, status: 'DELIVERED' });
+  };
+  
+  const handleOpenCloseDialog = (order: Order) => {
+    setClosingOrder(order);
+    const quantities: Record<string, number> = {};
+    order.items?.forEach(item => {
+      quantities[item.productId] = 0;
+    });
+    setUnsoldQuantities(quantities);
+  };
+  
+  const handleCloseOrder = () => {
+    if (!closingOrder) return;
+    updateOrderStatus.mutate({ orderId: closingOrder.id, status: 'CLOSED' });
+    setClosingOrder(null);
+    setUnsoldQuantities({});
+  };
   const [depositAmount, setDepositAmount] = useState<string>("");
   const [depositNotes, setDepositNotes] = useState<string>("");
   const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
@@ -557,7 +596,7 @@ export default function DriverTransactionsPage() {
                           تم الاستلام
                         </Badge>
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1 mb-3">
                         {order.items?.map(item => {
                           const received = item.receivedQuantity ?? item.quantity;
                           const isDifferent = item.receivedQuantity !== undefined && item.receivedQuantity !== item.quantity;
@@ -579,6 +618,62 @@ export default function DriverTransactionsPage() {
                           );
                         })}
                       </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleDeliverOrder(order)}
+                        disabled={updateOrderStatus.isPending}
+                        className="w-full bg-blue-600 hover:bg-blue-700 gap-2"
+                        data-testid={`btn-deliver-${order.id}`}
+                      >
+                        {updateOrderStatus.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Package className="h-4 w-4" />
+                            تسليم للعميل
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* الطلبات المسلمة - في انتظار إغلاق الرحلة */}
+              {deliveredOrders.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-bold text-blue-600 mb-2 flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    طلبات مسلمة للعملاء ({deliveredOrders.length})
+                  </h4>
+                  {deliveredOrders.map(order => (
+                    <div key={order.id} className="bg-white rounded-lg p-3 mb-2 border border-blue-100">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-mono text-slate-500">#{order.id.slice(0, 8)}</span>
+                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                          تم التسليم
+                        </Badge>
+                      </div>
+                      <div className="space-y-1 mb-3">
+                        {order.items?.map(item => {
+                          const received = item.receivedQuantity ?? item.quantity;
+                          return (
+                            <div key={item.id} className="flex justify-between text-sm">
+                              <span>{getProductName(item.productId)}</span>
+                              <span className="font-bold text-blue-600">{received}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenCloseDialog(order)}
+                        className="w-full bg-slate-600 hover:bg-slate-700 gap-2"
+                        data-testid={`btn-close-trip-${order.id}`}
+                      >
+                        <FileText className="h-4 w-4" />
+                        إغلاق الرحلة
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -1133,6 +1228,70 @@ export default function DriverTransactionsPage() {
               data-testid="button-submit-order"
             >
               {createOrderMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إرسال الطلب"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* حوار إغلاق الرحلة */}
+      <Dialog open={!!closingOrder} onOpenChange={(open) => !open && setClosingOrder(null)}>
+        <DialogContent className="sm:max-w-lg" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              إغلاق الرحلة
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              حدد الكمية غير المباعة لكل منتج (إن وجدت):
+            </p>
+            
+            {closingOrder?.items?.map(item => {
+              const received = item.receivedQuantity ?? item.quantity;
+              return (
+                <div key={item.id} className="flex items-center justify-between gap-4 p-3 bg-slate-50 rounded-lg">
+                  <div className="flex-1">
+                    <span className="font-medium">{getProductName(item.productId)}</span>
+                    <span className="text-sm text-muted-foreground mr-2">
+                      (المستلم: {received})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">غير مباع:</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max={received}
+                      value={unsoldQuantities[item.productId] || 0}
+                      onChange={(e) => setUnsoldQuantities(prev => ({
+                        ...prev,
+                        [item.productId]: parseInt(e.target.value) || 0
+                      }))}
+                      className="w-20 text-center"
+                      data-testid={`input-unsold-${item.productId}`}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setClosingOrder(null)}>
+              إلغاء
+            </Button>
+            <Button 
+              onClick={handleCloseOrder}
+              disabled={updateOrderStatus.isPending}
+              data-testid="button-confirm-close"
+            >
+              {updateOrderStatus.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "تأكيد الإغلاق"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
