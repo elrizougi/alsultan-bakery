@@ -25,7 +25,7 @@ export function Sidebar({ className }: SidebarProps) {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "الرئيسية", href: "/", roles: ['ADMIN', 'SALES'] },
-    { icon: ShoppingCart, label: "طلبات الخبز", href: "/orders", roles: ['ADMIN', 'SALES', 'DRIVER'] },
+    { icon: ShoppingCart, label: "طلبات الخبز", href: "/orders", roles: ['ADMIN', 'SALES'] },
     { icon: Wallet, label: "العمليات الميدانية", href: "/driver-transactions", roles: ['DRIVER'] },
     { icon: FileEdit, label: "طلبات التعديل", href: "/order-modifications", roles: ['ADMIN'] },
     { icon: Send, label: "تسليم المبالغ", href: "/cash-deposits", roles: ['ADMIN'] },
