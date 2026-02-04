@@ -28,14 +28,29 @@ export default function Dashboard() {
     'RETURN': 'مرتجع',
     'FREE_DISTRIBUTION': 'توزيع مجاني',
     'FREE_SAMPLE': 'عينة مجانية',
-    'DAMAGED': 'تالف'
+    'DAMAGED': 'تالف',
+    'EXPENSE': 'مصروفات'
   };
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const todaysOrders = orders.filter(o => o.date === todayStr);
   const activeRuns = dispatchRuns.filter(r => r.status !== 'CLOSED');
   
-  const totalRevenue = todaysOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount), 0);
+  // حساب الإيرادات من الطلبات
+  const ordersRevenue = todaysOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount), 0);
+  
+  // حساب المصروفات من العمليات اليوم
+  const todaysTransactions = transactions.filter(t => {
+    if (!t.createdAt) return false;
+    const txDate = format(new Date(t.createdAt), 'yyyy-MM-dd');
+    return txDate === todayStr;
+  });
+  const totalExpenses = todaysTransactions
+    .filter(t => (t.type as string) === 'EXPENSE')
+    .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+  
+  // صافي الإيرادات = الإيرادات - المصروفات
+  const totalRevenue = ordersRevenue - totalExpenses;
   
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   const salesReps = users.filter(u => u.role === 'SALES' && u.isActive !== false);

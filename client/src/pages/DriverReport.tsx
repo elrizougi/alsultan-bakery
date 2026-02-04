@@ -23,6 +23,7 @@ const transactionTypeLabels: Record<string, { label: string; color: string }> = 
   RETURN_DAMAGED: { label: "مرتجع تالف", color: "bg-red-100 text-red-700" },
   FREE_DISTRIBUTION: { label: "توزيع مجاني", color: "bg-purple-100 text-purple-700" },
   SAMPLE: { label: "عينة", color: "bg-pink-100 text-pink-700" },
+  EXPENSE: { label: "مصروفات", color: "bg-orange-100 text-orange-700" },
 };
 
 export default function DriverReportPage() {

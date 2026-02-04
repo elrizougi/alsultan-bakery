@@ -24,13 +24,14 @@ import { useProducts, useCustomers, useCreateCustomer, useOrders } from "@/hooks
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
-const transactionTypeLabels: Record<TransactionType, { label: string; icon: React.ReactNode; color: string }> = {
+const transactionTypeLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   CASH_SALE: { label: "بيع نقدي", icon: <DollarSign className="h-4 w-4" />, color: "bg-green-500" },
   CREDIT_SALE: { label: "بيع آجل", icon: <FileText className="h-4 w-4" />, color: "bg-yellow-500" },
   RETURN: { label: "مرتجع", icon: <Undo2 className="h-4 w-4" />, color: "bg-red-500" },
   FREE_DISTRIBUTION: { label: "توزيع مجاني", icon: <Gift className="h-4 w-4" />, color: "bg-purple-500" },
   FREE_SAMPLE: { label: "عينات", icon: <Package className="h-4 w-4" />, color: "bg-blue-500" },
   DAMAGED: { label: "خبز تالف", icon: <AlertTriangle className="h-4 w-4" />, color: "bg-gray-500" },
+  EXPENSE: { label: "مصروفات", icon: <DollarSign className="h-4 w-4" />, color: "bg-orange-500" },
 };
 
 export default function DriverTransactionsPage() {

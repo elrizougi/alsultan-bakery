@@ -8,7 +8,7 @@ export const roleEnum = pgEnum('role', ['ADMIN', 'DRIVER', 'SALES']);
 export const orderStatusEnum = pgEnum('order_status', ['DRAFT', 'CONFIRMED', 'ASSIGNED', 'DELIVERED', 'CLOSED', 'CANCELED']);
 export const runStatusEnum = pgEnum('run_status', ['DRAFT', 'LOADED', 'OUT', 'RETURNED', 'CLOSED']);
 export const returnReasonEnum = pgEnum('return_reason', ['GOOD', 'DAMAGED', 'EXPIRED']);
-export const transactionTypeEnum = pgEnum('transaction_type', ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE', 'DAMAGED']);
+export const transactionTypeEnum = pgEnum('transaction_type', ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE', 'DAMAGED', 'EXPENSE']);
 
 // Users table
 export const users = pgTable("users", {
@@ -195,7 +195,7 @@ export const transactions = pgTable("transactions", {
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
-export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE' | 'DAMAGED';
+export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE' | 'DAMAGED' | 'EXPENSE';
 
 // Order Modification Requests - طلبات تعديل الطلبات
 export const modificationStatusEnum = pgEnum("modification_status", ["PENDING", "APPROVED", "REJECTED"]);
