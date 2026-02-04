@@ -193,17 +193,6 @@ export default function InventoryPage() {
               <div className="text-2xl font-bold">{products.reduce((acc, item) => acc + item.stock, 0)}</div>
             </CardContent>
           </Card>
-          <Card className={lowStockItems.length > 0 ? "border-destructive/50" : ""}>
-            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">أصناف منخفضة المخزون</CardTitle>
-              <AlertTriangle className={lowStockItems.length > 0 ? "h-4 w-4 text-destructive" : "h-4 w-4 text-muted-foreground"} />
-            </CardHeader>
-            <CardContent className="text-right">
-              <div className={lowStockItems.length > 0 ? "text-2xl font-bold text-destructive" : "text-2xl font-bold"}>
-                {lowStockItems.length}
-              </div>
-            </CardContent>
-          </Card>
           <Card>
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">قيمة المخزون التقريبية</CardTitle>
@@ -216,6 +205,17 @@ export default function InventoryPage() {
               <p className="text-xs text-muted-foreground mt-1">بسعر 0.6 ر.س للوحدة</p>
             </CardContent>
           </Card>
+          <Card className={lowStockItems.length > 0 ? "border-destructive/50" : ""}>
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">أصناف منخفضة المخزون</CardTitle>
+              <AlertTriangle className={lowStockItems.length > 0 ? "h-4 w-4 text-destructive" : "h-4 w-4 text-muted-foreground"} />
+            </CardHeader>
+            <CardContent className="text-right">
+              <div className={lowStockItems.length > 0 ? "text-2xl font-bold text-destructive" : "text-2xl font-bold"}>
+                {lowStockItems.length}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="rounded-md border bg-card overflow-hidden">
@@ -224,8 +224,8 @@ export default function InventoryPage() {
               <TableRow>
                 <TableHead className="text-right">المنتج</TableHead>
                 <TableHead className="text-right">عدد العجنات</TableHead>
-                <TableHead className="text-right">السعر</TableHead>
                 <TableHead className="text-right">المخزون الحالي</TableHead>
+                <TableHead className="text-right">السعر</TableHead>
                 <TableHead className="text-right">الحالة</TableHead>
                 <TableHead className="text-right">إجراءات</TableHead>
               </TableRow>
@@ -235,8 +235,8 @@ export default function InventoryPage() {
                 <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell className="font-bold text-primary">{product.batchCount || 0}</TableCell>
-                  <TableCell>{parseFloat(product.price).toFixed(2)} ر.س</TableCell>
                   <TableCell className="font-bold">{product.stock}</TableCell>
+                  <TableCell>{parseFloat(product.price).toFixed(2)} ر.س</TableCell>
                   <TableCell>
                     {product.stock < 50 ? (
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
