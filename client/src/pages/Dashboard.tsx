@@ -86,15 +86,15 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           
-          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-runs">
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-stock-value">
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
               <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                <Truck className="h-5 w-5 text-indigo-600" />
+                <DollarSign className="h-5 w-5 text-indigo-600" />
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-slate-800">{activeRuns.length}</div>
-              <p className="text-sm font-medium text-slate-500 mt-1">الرحلات النشطة</p>
+              <div className="text-3xl font-black text-slate-800">{totalStockValue.toFixed(0)} <span className="text-sm">ر.س</span></div>
+              <p className="text-sm font-medium text-slate-500 mt-1">قيمة المخزون</p>
             </CardContent>
           </Card>
           
