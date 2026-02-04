@@ -166,50 +166,6 @@ export default function OrdersPage() {
                             تأكيد وتسليم
                           </Button>
                         )}
-                        {order.status === 'CONFIRMED' && currentUser?.role !== 'DRIVER' && (
-                          <>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="h-8 text-amber-600 border-amber-300 font-bold px-3 hover:bg-amber-50 rounded-lg gap-1"
-                              onClick={() => setEditingOrder(order)}
-                            >
-                              <Edit className="h-3 w-3" />
-                              تعديل
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="default" 
-                              className="h-8 font-bold px-3 bg-blue-600 hover:bg-blue-700 rounded-lg gap-1"
-                              onClick={() => handleUpdateStatus(order.id, 'ASSIGNED')}
-                            >
-                              <Truck className="h-3 w-3" />
-                              مغادرة
-                            </Button>
-                          </>
-                        )}
-                        {order.status === 'ASSIGNED' && currentUser?.role !== 'DRIVER' && (
-                          <Button 
-                            size="sm" 
-                            variant="default" 
-                            className="h-8 font-bold px-3 bg-orange-600 hover:bg-orange-700 rounded-lg gap-1"
-                            onClick={() => handleUpdateStatus(order.id, 'DELIVERED')}
-                          >
-                            <RotateCcw className="h-3 w-3" />
-                            العودة
-                          </Button>
-                        )}
-                        {order.status === 'DELIVERED' && currentUser?.role !== 'DRIVER' && (
-                          <Button 
-                            size="sm" 
-                            variant="default" 
-                            className="h-8 font-bold px-3 bg-green-600 hover:bg-green-700 rounded-lg gap-1"
-                            onClick={() => setClosingOrder(order)}
-                          >
-                            <Lock className="h-3 w-3" />
-                            إغلاق
-                          </Button>
-                        )}
                         {order.status === 'CONFIRMED' && currentUser?.role === 'DRIVER' && (
                           <Button 
                             size="sm" 
@@ -227,7 +183,43 @@ export default function OrdersPage() {
                               <MoreVertical className="h-4 w-4 text-slate-400" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="text-right min-w-[140px] rounded-xl shadow-xl">
+                          <DropdownMenuContent align="end" className="text-right min-w-[180px] rounded-xl shadow-xl">
+                            {currentUser?.role !== 'DRIVER' && order.status === 'CONFIRMED' && (
+                              <>
+                                <DropdownMenuItem 
+                                  className="flex items-center gap-2 justify-end font-bold text-blue-600 focus:text-blue-700 focus:bg-blue-50 p-3"
+                                  onClick={() => handleUpdateStatus(order.id, 'ASSIGNED')}
+                                >
+                                  مغادرة السائق
+                                  <Truck className="h-4 w-4" />
+                                </DropdownMenuItem>
+                                <div className="h-px bg-slate-100 my-1" />
+                              </>
+                            )}
+                            {currentUser?.role !== 'DRIVER' && order.status === 'ASSIGNED' && (
+                              <>
+                                <DropdownMenuItem 
+                                  className="flex items-center gap-2 justify-end font-bold text-orange-600 focus:text-orange-700 focus:bg-orange-50 p-3"
+                                  onClick={() => handleUpdateStatus(order.id, 'DELIVERED')}
+                                >
+                                  العودة للمخبز
+                                  <RotateCcw className="h-4 w-4" />
+                                </DropdownMenuItem>
+                                <div className="h-px bg-slate-100 my-1" />
+                              </>
+                            )}
+                            {currentUser?.role !== 'DRIVER' && order.status === 'DELIVERED' && (
+                              <>
+                                <DropdownMenuItem 
+                                  className="flex items-center gap-2 justify-end font-bold text-green-600 focus:text-green-700 focus:bg-green-50 p-3"
+                                  onClick={() => setClosingOrder(order)}
+                                >
+                                  إغلاق الرحلة
+                                  <Lock className="h-4 w-4" />
+                                </DropdownMenuItem>
+                                <div className="h-px bg-slate-100 my-1" />
+                              </>
+                            )}
                             <DropdownMenuItem 
                               className="flex items-center gap-2 justify-end font-bold text-slate-600 focus:text-primary focus:bg-primary/5 p-3"
                               onClick={() => setEditingOrder(order)}
@@ -875,23 +867,30 @@ function CloseOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange:
       }
       
       // تسجيل المرتجعات إذا وجدت
-      for (const item of returnItems) {
-        if (item.goodQty > 0) {
-          await api.createReturn({
-            orderId: order.id,
-            productId: item.productId,
-            quantity: item.goodQty,
-            reason: 'GOOD'
-          });
-        }
-        if (item.damagedQty > 0) {
-          await api.createReturn({
-            orderId: order.id,
-            productId: item.productId,
-            quantity: item.damagedQty,
-            reason: 'DAMAGED'
-          });
-        }
+      const goodItems = returnItems
+        .filter(item => item.goodQty > 0)
+        .map(item => ({
+          productId: item.productId,
+          quantity: item.goodQty,
+          reason: 'GOOD' as const
+        }));
+      
+      const damagedItems = returnItems
+        .filter(item => item.damagedQty > 0)
+        .map(item => ({
+          productId: item.productId,
+          quantity: item.damagedQty,
+          reason: 'DAMAGED' as const
+        }));
+      
+      const allReturnItems = [...goodItems, ...damagedItems];
+      
+      if (allReturnItems.length > 0) {
+        await api.createReturn({
+          runId: order.id,
+          customerId: order.customerId,
+          items: allReturnItems
+        });
       }
       
       // إغلاق الطلب
