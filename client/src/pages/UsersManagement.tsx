@@ -81,7 +81,7 @@ export default function UsersManagementPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = () => {
-    const csvContent = "username,password,name,role\nاسم_المستخدم,كلمة_المرور,الاسم_الكامل,الدور\nuser1,pass123,محمد أحمد,SALES\ndriver1,pass456,خالد السائق,DRIVER";
+    const csvContent = "username,password,name,role\nاسم_المستخدم,كلمة_المرور,الاسم_الكامل,الدور\nuser1,pass123,محمد أحمد,SALES\ndriver1,pass456,خالد المندوب,DRIVER";
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -441,7 +441,7 @@ export default function UsersManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ADMIN">مدير النظام</SelectItem>
-                    <SelectItem value="DRIVER">سائق توصيل</SelectItem>
+                    <SelectItem value="DRIVER">مندوب توزيع</SelectItem>
                     <SelectItem value="SALES">موظف مبيعات</SelectItem>
                   </SelectContent>
                 </Select>
@@ -480,7 +480,7 @@ export default function UsersManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ADMIN">مدير النظام</SelectItem>
-                    <SelectItem value="DRIVER">سائق توصيل</SelectItem>
+                    <SelectItem value="DRIVER">مندوب توزيع</SelectItem>
                     <SelectItem value="SALES">موظف مبيعات</SelectItem>
                   </SelectContent>
                 </Select>
