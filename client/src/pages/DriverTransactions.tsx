@@ -13,13 +13,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3 } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type TransactionType, type InsertTransaction, type Transaction, type DriverInventory, type DriverBalance, type CustomerDebt, type Order } from "@/lib/api";
+import { api, type TransactionType, type InsertTransaction, type Transaction, type DriverInventory, type DriverBalance, type CustomerDebt, type Order, type CashDeposit } from "@/lib/api";
 import { useProducts, useCustomers, useCreateCustomer, useOrders } from "@/hooks/useData";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -69,6 +69,12 @@ export default function DriverTransactionsPage() {
     enabled: !!driverId,
   });
 
+  const { data: cashDeposits = [] } = useQuery({
+    queryKey: ["driver-cash-deposits", driverId],
+    queryFn: () => api.getDriverCashDeposits(driverId),
+    enabled: !!driverId,
+  });
+
   const createTransaction = useMutation({
     mutationFn: api.createTransaction,
     onSuccess: () => {
@@ -106,6 +112,20 @@ export default function DriverTransactionsPage() {
     },
     onError: () => {
       toast({ title: "حدث خطأ في تسجيل الدفع", variant: "destructive" });
+    },
+  });
+
+  const createDepositMutation = useMutation({
+    mutationFn: api.createCashDeposit,
+    onSuccess: () => {
+      toast({ title: "تم تقديم طلب التسليم", description: "سيتم خصم المبلغ بعد تأكيد المخبز" });
+      setDepositAmount("");
+      setDepositNotes("");
+      setIsDepositDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["driver-cash-deposits"] });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في تقديم طلب التسليم", variant: "destructive" });
     },
   });
 
@@ -181,6 +201,9 @@ export default function DriverTransactionsPage() {
   };
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState<string>("");
+  const [depositNotes, setDepositNotes] = useState<string>("");
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
@@ -266,6 +289,21 @@ export default function DriverTransactionsPage() {
     });
   };
 
+  const handleSubmitDeposit = () => {
+    const amount = parseFloat(depositAmount);
+    if (!amount || amount <= 0) {
+      toast({ title: "يرجى إدخال مبلغ صحيح", variant: "destructive" });
+      return;
+    }
+
+    createDepositMutation.mutate({
+      driverId: driverId,
+      amount: amount.toFixed(2),
+      depositDate: new Date().toISOString().split('T')[0],
+      notes: depositNotes || undefined,
+    });
+  };
+
   const getProductName = (productId: string) => {
     return products.find(p => p.id === productId)?.name || "غير معروف";
   };
@@ -313,10 +351,20 @@ export default function DriverTransactionsPage() {
                 الرصيد النقدي
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
               <div className="text-2xl font-bold text-green-600" data-testid="text-cash-balance">
                 {parseFloat(balance?.cashBalance || "0").toFixed(2)} ر.س
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={() => setIsDepositDialogOpen(true)}
+                data-testid="button-open-deposit-dialog"
+              >
+                <Banknote className="h-4 w-4 ml-2" />
+                تسليم مبلغ للمخبز
+              </Button>
             </CardContent>
           </Card>
 
@@ -839,6 +887,53 @@ export default function DriverTransactionsPage() {
               data-testid="button-confirm-partial-payment"
             >
               {partialPayment.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الدفع"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* حوار تسليم المبالغ للمخبز */}
+      <Dialog open={isDepositDialogOpen} onOpenChange={setIsDepositDialogOpen}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تسليم مبلغ للمخبز</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>المبلغ (ر.س)</Label>
+              <Input
+                type="number"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                placeholder="أدخل المبلغ المراد تسليمه"
+                data-testid="input-deposit-amount"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>ملاحظات (اختياري)</Label>
+              <Input
+                value={depositNotes}
+                onChange={(e) => setDepositNotes(e.target.value)}
+                placeholder="ملاحظات إضافية"
+                data-testid="input-deposit-notes"
+              />
+            </div>
+            {parseFloat(balance?.cashBalance || "0") > 0 && (
+              <div className="text-sm text-muted-foreground bg-slate-50 p-3 rounded-lg">
+                رصيدك الحالي: <span className="font-bold text-green-600">{parseFloat(balance?.cashBalance || "0").toFixed(2)} ر.س</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsDepositDialogOpen(false)}>
+              إلغاء
+            </Button>
+            <Button 
+              onClick={handleSubmitDeposit}
+              disabled={createDepositMutation.isPending || !depositAmount || parseFloat(depositAmount) <= 0}
+              data-testid="button-submit-deposit"
+            >
+              {createDepositMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "تقديم طلب التسليم"}
             </Button>
           </DialogFooter>
         </DialogContent>
