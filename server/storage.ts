@@ -17,6 +17,7 @@ import {
   transactions, type Transaction, type InsertTransaction,
   orderModifications, type OrderModification, type InsertOrderModification,
   orderModificationItems, type OrderModificationItem, type InsertOrderModificationItem,
+  cashDeposits, type CashDeposit, type InsertCashDeposit,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -124,6 +125,14 @@ export interface IStorage {
   createOrderModification(modification: InsertOrderModification, items: InsertOrderModificationItem[]): Promise<OrderModification>;
   approveOrderModification(id: string): Promise<OrderModification | undefined>;
   rejectOrderModification(id: string): Promise<OrderModification | undefined>;
+
+  // Cash Deposits - تسليم المبالغ
+  getAllCashDeposits(): Promise<CashDeposit[]>;
+  getDriverCashDeposits(driverId: string): Promise<CashDeposit[]>;
+  getPendingCashDeposits(): Promise<CashDeposit[]>;
+  createCashDeposit(deposit: InsertCashDeposit): Promise<CashDeposit>;
+  confirmCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
+  rejectCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -779,6 +788,71 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db.update(orderModifications)
       .set({ status: "REJECTED", processedAt: new Date() })
       .where(eq(orderModifications.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Cash Deposits - تسليم المبالغ
+  async getAllCashDeposits(): Promise<CashDeposit[]> {
+    return db.select().from(cashDeposits);
+  }
+
+  async getDriverCashDeposits(driverId: string): Promise<CashDeposit[]> {
+    return db.select().from(cashDeposits).where(eq(cashDeposits.driverId, driverId));
+  }
+
+  async getPendingCashDeposits(): Promise<CashDeposit[]> {
+    return db.select().from(cashDeposits).where(eq(cashDeposits.status, "PENDING"));
+  }
+
+  async createCashDeposit(deposit: InsertCashDeposit): Promise<CashDeposit> {
+    const [newDeposit] = await db.insert(cashDeposits).values(deposit).returning();
+    return newDeposit;
+  }
+
+  async confirmCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined> {
+    return db.transaction(async (tx) => {
+      const [deposit] = await tx.select().from(cashDeposits).where(eq(cashDeposits.id, id));
+      if (!deposit || deposit.status !== "PENDING") {
+        return undefined;
+      }
+
+      // Update deposit status
+      const [updated] = await tx.update(cashDeposits)
+        .set({ status: "CONFIRMED", confirmedAt: new Date(), confirmedBy })
+        .where(eq(cashDeposits.id, id))
+        .returning();
+
+      // Deduct amount from driver's cash balance (ensure balance exists)
+      const [balance] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, deposit.driverId));
+      if (balance) {
+        const newBalance = parseFloat(balance.cashBalance) - parseFloat(deposit.amount);
+        await tx.update(driverBalance)
+          .set({ cashBalance: newBalance.toFixed(2) })
+          .where(eq(driverBalance.driverId, deposit.driverId));
+      } else {
+        // Create balance record with negative amount (deposit submitted before any balance)
+        const negativeAmount = (0 - parseFloat(deposit.amount)).toFixed(2);
+        await tx.insert(driverBalance).values({
+          driverId: deposit.driverId,
+          cashBalance: negativeAmount,
+        });
+      }
+
+      return updated;
+    });
+  }
+
+  async rejectCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined> {
+    // Only reject PENDING deposits
+    const [deposit] = await db.select().from(cashDeposits).where(eq(cashDeposits.id, id));
+    if (!deposit || deposit.status !== "PENDING") {
+      return undefined;
+    }
+    
+    const [updated] = await db.update(cashDeposits)
+      .set({ status: "REJECTED", confirmedAt: new Date(), confirmedBy })
+      .where(eq(cashDeposits.id, id))
       .returning();
     return updated;
   }

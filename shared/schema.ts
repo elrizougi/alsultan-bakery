@@ -225,3 +225,23 @@ export type OrderModification = typeof orderModifications.$inferSelect;
 export const insertOrderModificationItemSchema = createInsertSchema(orderModificationItems).omit({ id: true });
 export type InsertOrderModificationItem = z.infer<typeof insertOrderModificationItemSchema>;
 export type OrderModificationItem = typeof orderModificationItems.$inferSelect;
+
+// Cash Deposits - تسليم المبالغ المحصلة للمخبز
+export const depositStatusEnum = pgEnum("deposit_status", ["PENDING", "CONFIRMED", "REJECTED"]);
+
+export const cashDeposits = pgTable("cash_deposits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").references(() => users.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: depositStatusEnum("status").notNull().default("PENDING"),
+  depositDate: text("deposit_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  confirmedAt: timestamp("confirmed_at"),
+  confirmedBy: varchar("confirmed_by").references(() => users.id),
+  notes: text("notes"),
+});
+
+export const insertCashDepositSchema = createInsertSchema(cashDeposits).omit({ id: true, createdAt: true, confirmedAt: true });
+export type InsertCashDeposit = z.infer<typeof insertCashDepositSchema>;
+export type CashDeposit = typeof cashDeposits.$inferSelect;
+export type DepositStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';

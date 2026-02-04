@@ -890,5 +890,86 @@ export async function registerRoutes(
     }
   });
 
+  // ============ CASH DEPOSITS - تسليم المبالغ ============
+  app.get("/api/cash-deposits", async (req, res) => {
+    try {
+      const deposits = await storage.getAllCashDeposits();
+      res.json(deposits);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.get("/api/cash-deposits/driver/:driverId", async (req, res) => {
+    try {
+      const deposits = await storage.getDriverCashDeposits(req.params.driverId);
+      res.json(deposits);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.get("/api/cash-deposits/pending", async (req, res) => {
+    try {
+      const deposits = await storage.getPendingCashDeposits();
+      res.json(deposits);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/cash-deposits", async (req, res) => {
+    try {
+      const { driverId, amount, depositDate, notes } = req.body;
+      if (!driverId || !amount || !depositDate) {
+        return res.status(400).json({ message: "البيانات المطلوبة غير مكتملة" });
+      }
+      const deposit = await storage.createCashDeposit({
+        driverId,
+        amount: String(amount),
+        depositDate,
+        notes,
+      });
+      res.json(deposit);
+    } catch (error) {
+      console.error("Create deposit error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/cash-deposits/:id/confirm", async (req, res) => {
+    try {
+      const { confirmedBy } = req.body;
+      if (!confirmedBy) {
+        return res.status(400).json({ message: "معرف المؤكد مطلوب" });
+      }
+      const deposit = await storage.confirmCashDeposit(req.params.id, confirmedBy);
+      if (!deposit) {
+        return res.status(404).json({ message: "طلب التسليم غير موجود أو تم معالجته مسبقاً" });
+      }
+      res.json(deposit);
+    } catch (error) {
+      console.error("Confirm deposit error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/cash-deposits/:id/reject", async (req, res) => {
+    try {
+      const { confirmedBy } = req.body;
+      if (!confirmedBy) {
+        return res.status(400).json({ message: "معرف المرفض مطلوب" });
+      }
+      const deposit = await storage.rejectCashDeposit(req.params.id, confirmedBy);
+      if (!deposit) {
+        return res.status(404).json({ message: "طلب التسليم غير موجود" });
+      }
+      res.json(deposit);
+    } catch (error) {
+      console.error("Reject deposit error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   return httpServer;
 }

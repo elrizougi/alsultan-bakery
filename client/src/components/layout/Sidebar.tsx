@@ -11,7 +11,8 @@ import {
   Shield,
   MapPin,
   Wallet,
-  FileEdit
+  FileEdit,
+  Send
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useStore } from "@/lib/store";
@@ -27,6 +28,7 @@ export function Sidebar({ className }: SidebarProps) {
     { icon: ShoppingCart, label: "طلبات الخبز", href: "/orders", roles: ['ADMIN', 'SALES', 'DRIVER'] },
     { icon: Wallet, label: "العمليات الميدانية", href: "/driver-transactions", roles: ['DRIVER'] },
     { icon: FileEdit, label: "طلبات التعديل", href: "/order-modifications", roles: ['ADMIN'] },
+    { icon: Send, label: "تسليم المبالغ", href: "/cash-deposits", roles: ['ADMIN'] },
     { icon: Package, label: "خبز في الصالة", href: "/inventory", roles: ['ADMIN'] },
     { icon: Users, label: "قائمة العملاء", href: "/customers", roles: ['ADMIN', 'SALES'] },
     { icon: MapPin, label: "خطوط التوزيع", href: "/routes", roles: ['ADMIN'] },

@@ -7,12 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useQuery } from "@tanstack/react-query";
+import { Textarea } from "@/components/ui/textarea";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useProducts, useUsers, useCustomers } from "@/hooks/useData";
-import { FileText, TrendingUp, TrendingDown, Wallet, Package, ShoppingCart, AlertTriangle, CheckCircle, Banknote, CreditCard, Gift, RotateCcw, Calendar } from "lucide-react";
+import { FileText, TrendingUp, TrendingDown, Wallet, Package, ShoppingCart, AlertTriangle, CheckCircle, Banknote, CreditCard, Gift, RotateCcw, Calendar, Send, Clock, X } from "lucide-react";
 import { format, isToday, parseISO, startOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
 
 const transactionTypeLabels: Record<string, { label: string; color: string }> = {
   CASH_SALE: { label: "بيع نقدي", color: "bg-green-100 text-green-700" },
@@ -26,6 +28,11 @@ const transactionTypeLabels: Record<string, { label: string; color: string }> = 
 export default function DriverReportPage() {
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [depositAmount, setDepositAmount] = useState<string>("");
+  const [depositNotes, setDepositNotes] = useState<string>("");
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: users = [] } = useUsers();
   const { data: products = [] } = useProducts();
@@ -36,6 +43,38 @@ export default function DriverReportPage() {
   });
 
   const drivers = users.filter(u => u.role === "DRIVER");
+
+  const { data: cashDeposits = [] } = useQuery({
+    queryKey: ["driver-cash-deposits", selectedDriverId],
+    queryFn: () => api.getDriverCashDeposits(selectedDriverId),
+    enabled: !!selectedDriverId,
+  });
+
+  const createDepositMutation = useMutation({
+    mutationFn: api.createCashDeposit,
+    onSuccess: () => {
+      toast({ title: "تم تقديم طلب التسليم", description: "سيتم خصم المبلغ بعد تأكيد المخبز" });
+      setDepositAmount("");
+      setDepositNotes("");
+      queryClient.invalidateQueries({ queryKey: ["driver-cash-deposits"] });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في تقديم طلب التسليم", variant: "destructive" });
+    },
+  });
+
+  const handleSubmitDeposit = () => {
+    if (!selectedDriverId || !depositAmount || parseFloat(depositAmount) <= 0) {
+      toast({ title: "خطأ", description: "يرجى إدخال مبلغ صحيح", variant: "destructive" });
+      return;
+    }
+    createDepositMutation.mutate({
+      driverId: selectedDriverId,
+      amount: parseFloat(depositAmount),
+      depositDate: selectedDate,
+      notes: depositNotes || undefined,
+    });
+  };
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["driver-transactions", selectedDriverId],
@@ -431,6 +470,93 @@ export default function DriverReportPage() {
                           <span className="text-amber-700 font-medium">ديون غير محصلة</span>
                           <span className="font-bold text-amber-800">{totalUnpaidDebts.toFixed(2)} ر.س</span>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-amber-300">
+              <CardHeader className="bg-amber-50">
+                <CardTitle className="text-right flex items-center gap-2">
+                  <Send className="h-5 w-5 text-amber-600" />
+                  تسليم المبالغ المحصلة للمخبز
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="mb-2 block">المبلغ المراد تسليمه</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        placeholder="أدخل المبلغ"
+                        className="text-lg"
+                        data-testid="input-deposit-amount"
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-2 block">ملاحظات (اختياري)</Label>
+                      <Textarea
+                        value={depositNotes}
+                        onChange={(e) => setDepositNotes(e.target.value)}
+                        placeholder="أي ملاحظات إضافية..."
+                        data-testid="input-deposit-notes"
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSubmitDeposit}
+                      disabled={!depositAmount || parseFloat(depositAmount) <= 0 || createDepositMutation.isPending}
+                      className="w-full bg-amber-600 hover:bg-amber-700"
+                      data-testid="button-submit-deposit"
+                    >
+                      <Send className="h-4 w-4 ml-2" />
+                      {createDepositMutation.isPending ? "جاري الإرسال..." : "تقديم طلب التسليم"}
+                    </Button>
+                    <p className="text-sm text-muted-foreground text-center">
+                      سيتم خصم المبلغ من عهدتك بعد تأكيد المخبز
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-bold mb-3 flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      طلبات التسليم السابقة
+                    </h4>
+                    {cashDeposits.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-4">لا توجد طلبات تسليم</p>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {cashDeposits.map((deposit: any) => (
+                          <div key={deposit.id} className={`p-3 rounded-lg border ${
+                            deposit.status === 'CONFIRMED' ? 'bg-green-50 border-green-200' :
+                            deposit.status === 'REJECTED' ? 'bg-red-50 border-red-200' :
+                            'bg-amber-50 border-amber-200'
+                          }`}>
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold">{parseFloat(deposit.amount).toFixed(2)} ر.س</span>
+                              <Badge className={
+                                deposit.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
+                                deposit.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                'bg-amber-100 text-amber-700'
+                              }>
+                                {deposit.status === 'CONFIRMED' ? 'تم التأكيد' :
+                                 deposit.status === 'REJECTED' ? 'مرفوض' : 'قيد الانتظار'}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {deposit.depositDate}
+                            </p>
+                            {deposit.notes && (
+                              <p className="text-sm mt-1">{deposit.notes}</p>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

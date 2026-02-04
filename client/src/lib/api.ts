@@ -311,6 +311,37 @@ export const api = {
     const res = await apiRequest("POST", `/api/order-modifications/${id}/reject`);
     return res.json();
   },
+
+  // Cash Deposits - تسليم المبالغ
+  getCashDeposits: async (): Promise<CashDeposit[]> => {
+    const res = await fetch("/api/cash-deposits");
+    return res.json();
+  },
+
+  getDriverCashDeposits: async (driverId: string): Promise<CashDeposit[]> => {
+    const res = await fetch(`/api/cash-deposits/driver/${driverId}`);
+    return res.json();
+  },
+
+  getPendingCashDeposits: async (): Promise<CashDeposit[]> => {
+    const res = await fetch("/api/cash-deposits/pending");
+    return res.json();
+  },
+
+  createCashDeposit: async (data: { driverId: string; amount: number; depositDate: string; notes?: string }): Promise<CashDeposit> => {
+    const res = await apiRequest("POST", "/api/cash-deposits", data);
+    return res.json();
+  },
+
+  confirmCashDeposit: async (id: string, confirmedBy: string): Promise<CashDeposit> => {
+    const res = await apiRequest("POST", `/api/cash-deposits/${id}/confirm`, { confirmedBy });
+    return res.json();
+  },
+
+  rejectCashDeposit: async (id: string, confirmedBy: string): Promise<CashDeposit> => {
+    const res = await apiRequest("POST", `/api/cash-deposits/${id}/reject`, { confirmedBy });
+    return res.json();
+  },
 };
 
 // Types for transactions
@@ -380,4 +411,16 @@ export interface OrderModification {
   processedAt?: string;
   notes?: string;
   items?: OrderModificationItem[];
+}
+
+export interface CashDeposit {
+  id: string;
+  driverId: string;
+  amount: string;
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
+  depositDate: string;
+  createdAt?: string;
+  confirmedAt?: string;
+  confirmedBy?: string;
+  notes?: string;
 }
