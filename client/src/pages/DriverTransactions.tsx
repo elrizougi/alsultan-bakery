@@ -708,6 +708,108 @@ export default function DriverTransactionsPage() {
           </Card>
         </div>
 
+        {/* تقرير السائق */}
+        <Card className="border-slate-100">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              تقرير السائق
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {/* إجمالي الخبز المستلم */}
+              <div className="bg-green-50 rounded-xl p-4 border border-green-100">
+                <p className="text-sm text-green-600 mb-1">إجمالي الخبز المستلم</p>
+                <p className="text-2xl font-bold text-green-700" data-testid="report-total-received">
+                  {assignedOrders.reduce((sum, order) => 
+                    sum + (order.items?.reduce((itemSum, item) => 
+                      itemSum + (item.receivedQuantity ?? item.quantity), 0) || 0), 0)}
+                </p>
+              </div>
+
+              {/* إجمالي المرتجع */}
+              <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                <p className="text-sm text-orange-600 mb-1">المرتجع إلى المخبز</p>
+                <p className="text-2xl font-bold text-orange-700" data-testid="report-total-returns">
+                  {transactions.filter(t => t.type === 'RETURN').reduce((sum, t) => sum + t.quantity, 0)}
+                </p>
+              </div>
+
+              {/* التوزيع المجاني */}
+              <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                <p className="text-sm text-purple-600 mb-1">التوزيع المجاني</p>
+                <p className="text-2xl font-bold text-purple-700" data-testid="report-free-distribution">
+                  {transactions.filter(t => t.type === 'FREE_DISTRIBUTION').reduce((sum, t) => sum + t.quantity, 0)}
+                </p>
+              </div>
+
+              {/* العينات المجانية */}
+              <div className="bg-pink-50 rounded-xl p-4 border border-pink-100">
+                <p className="text-sm text-pink-600 mb-1">العينات المجانية</p>
+                <p className="text-2xl font-bold text-pink-700" data-testid="report-free-samples">
+                  {transactions.filter(t => t.type === 'FREE_SAMPLE').reduce((sum, t) => sum + t.quantity, 0)}
+                </p>
+              </div>
+
+              {/* إجمالي المبيعات */}
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <p className="text-sm text-blue-600 mb-1">إجمالي المبيعات</p>
+                <p className="text-2xl font-bold text-blue-700" data-testid="report-total-sales">
+                  {transactions.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
+                    .reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0).toFixed(2)} ر.س
+                </p>
+              </div>
+
+              {/* بيع نقدي */}
+              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                <p className="text-sm text-emerald-600 mb-1">بيع نقدي</p>
+                <p className="text-2xl font-bold text-emerald-700" data-testid="report-cash-sales">
+                  {transactions.filter(t => t.type === 'CASH_SALE')
+                    .reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0).toFixed(2)} ر.س
+                </p>
+              </div>
+
+              {/* بيع آجل */}
+              <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                <p className="text-sm text-amber-600 mb-1">بيع آجل</p>
+                <p className="text-2xl font-bold text-amber-700" data-testid="report-credit-sales">
+                  {transactions.filter(t => t.type === 'CREDIT_SALE')
+                    .reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0).toFixed(2)} ر.س
+                </p>
+              </div>
+
+              {/* الفروقات */}
+              <div className="bg-red-50 rounded-xl p-4 border border-red-100">
+                <p className="text-sm text-red-600 mb-1">الفروقات</p>
+                <p className="text-2xl font-bold text-red-700" data-testid="report-difference">
+                  {(() => {
+                    const received = assignedOrders.reduce((sum, order) => 
+                      sum + (order.items?.reduce((itemSum, item) => 
+                        itemSum + (item.receivedQuantity ?? item.quantity), 0) || 0), 0);
+                    const sold = transactions.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
+                      .reduce((sum, t) => sum + t.quantity, 0);
+                    const returned = transactions.filter(t => t.type === 'RETURN').reduce((sum, t) => sum + t.quantity, 0);
+                    const free = transactions.filter(t => t.type === 'FREE_DISTRIBUTION' || t.type === 'FREE_SAMPLE')
+                      .reduce((sum, t) => sum + t.quantity, 0);
+                    const currentInventory = inventory.reduce((sum, i) => sum + i.quantity, 0);
+                    return received - sold - returned - free - currentInventory;
+                  })()}
+                </p>
+              </div>
+
+              {/* المبالغ الموردة للمخبز */}
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 col-span-2">
+                <p className="text-sm text-slate-600 mb-1">المبالغ الموردة للمخبز</p>
+                <p className="text-2xl font-bold text-slate-700" data-testid="report-deposits">
+                  {cashDeposits.filter(d => d.status === 'CONFIRMED')
+                    .reduce((sum, d) => sum + parseFloat(d.amount), 0).toFixed(2)} ر.س
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-slate-100">
           <CardHeader>
             <CardTitle className="text-lg font-bold">سجل العمليات</CardTitle>
