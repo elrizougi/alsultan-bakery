@@ -17,6 +17,7 @@ import DriverTransactionsPage from "@/pages/DriverTransactions";
 import OrderModificationsPage from "@/pages/OrderModifications";
 import DriverReportPage from "@/pages/DriverReport";
 import CashDepositsPage from "@/pages/CashDeposits";
+import DriverDailyReportPage from "@/pages/DriverDailyReport";
 
 function Router() {
   return (
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/order-modifications" component={OrderModificationsPage} />
       <Route path="/driver-report" component={DriverReportPage} />
       <Route path="/cash-deposits" component={CashDepositsPage} />
+      <Route path="/driver-daily-report" component={DriverDailyReportPage} />
       <Route component={NotFound} />
     </Switch>
   );
