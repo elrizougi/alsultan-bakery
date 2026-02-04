@@ -4,11 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, CashDeposit } from "@/lib/api";
 import { useUsers } from "@/hooks/useData";
 import { useStore } from "@/lib/store";
-import { Send, Check, X, Clock } from "lucide-react";
+import { Send, Check, X, Clock, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,11 +21,45 @@ export default function CashDepositsPage() {
   const queryClient = useQueryClient();
   const user = useStore(state => state.user);
   const { data: users = [] } = useUsers();
+  
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const [depositAmount, setDepositAmount] = useState<string>("");
+  const [depositNotes, setDepositNotes] = useState<string>("");
+  const [depositDate, setDepositDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+
+  const drivers = users.filter(u => u.role === "DRIVER");
 
   const { data: deposits = [], isLoading } = useQuery({
     queryKey: ["/api/cash-deposits"],
     queryFn: api.getCashDeposits,
   });
+
+  const createDepositMutation = useMutation({
+    mutationFn: api.createCashDeposit,
+    onSuccess: () => {
+      toast({ title: "تم إضافة عملية التسليم", description: "تم تسجيل استلام المبلغ بنجاح" });
+      setSelectedDriverId("");
+      setDepositAmount("");
+      setDepositNotes("");
+      queryClient.invalidateQueries({ queryKey: ["/api/cash-deposits"] });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في إضافة عملية التسليم", variant: "destructive" });
+    },
+  });
+
+  const handleCreateDeposit = () => {
+    if (!selectedDriverId || !depositAmount || parseFloat(depositAmount) <= 0) {
+      toast({ title: "خطأ", description: "يرجى اختيار السائق وإدخال مبلغ صحيح", variant: "destructive" });
+      return;
+    }
+    createDepositMutation.mutate({
+      driverId: selectedDriverId,
+      amount: parseFloat(depositAmount),
+      depositDate,
+      notes: depositNotes || undefined,
+    });
+  };
 
   const confirmMutation = useMutation({
     mutationFn: ({ id, confirmedBy }: { id: string; confirmedBy: string }) => 
@@ -86,6 +124,75 @@ export default function CashDepositsPage() {
             </p>
           </div>
         </div>
+
+        <Card className="border-2 border-green-300">
+          <CardHeader className="bg-green-50">
+            <CardTitle className="text-right flex items-center gap-2">
+              <Plus className="h-5 w-5 text-green-600" />
+              إضافة عملية استلام مبالغ
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label className="mb-2 block">السائق</Label>
+                <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                  <SelectTrigger data-testid="select-driver-deposit">
+                    <SelectValue placeholder="اختر السائق" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {drivers.map(driver => (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        {driver.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="mb-2 block">المبلغ</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  placeholder="أدخل المبلغ"
+                  data-testid="input-admin-deposit-amount"
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">التاريخ</Label>
+                <Input
+                  type="date"
+                  value={depositDate}
+                  onChange={(e) => setDepositDate(e.target.value)}
+                  data-testid="input-admin-deposit-date"
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">ملاحظات</Label>
+                <Input
+                  value={depositNotes}
+                  onChange={(e) => setDepositNotes(e.target.value)}
+                  placeholder="ملاحظات (اختياري)"
+                  data-testid="input-admin-deposit-notes"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button
+                onClick={handleCreateDeposit}
+                disabled={!selectedDriverId || !depositAmount || parseFloat(depositAmount) <= 0 || createDepositMutation.isPending}
+                className="bg-green-600 hover:bg-green-700"
+                data-testid="button-create-deposit"
+              >
+                <Plus className="h-4 w-4 ml-2" />
+                {createDepositMutation.isPending ? "جاري الإضافة..." : "إضافة عملية التسليم"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {pendingDeposits.length > 0 && (
           <Card className="border-2 border-amber-300">
