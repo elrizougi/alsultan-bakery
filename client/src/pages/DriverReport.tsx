@@ -247,6 +247,7 @@ export default function DriverReportPage() {
   const samplesQty = samples.reduce((sum, t) => sum + t.quantity, 0);
   const freeDistQty = freeDist.reduce((sum, t) => sum + t.quantity, 0);
   const soldQty = cashSales.reduce((sum, t) => sum + t.quantity, 0) + creditSales.reduce((sum, t) => sum + t.quantity, 0);
+  const remainingInventoryQty = inventory.reduce((sum, item) => sum + item.quantity, 0);
   const breadDifference = totalReceivedQty - soldQty - returnedQty - damagedQty - samplesQty - freeDistQty;
 
   const uniqueCustomers = new Set(dailyTransactions
@@ -461,12 +462,16 @@ export default function DriverReportPage() {
                         </TableRow>
                       ))}
                       <TableRow className="bg-slate-50 font-bold">
-                        <TableCell colSpan={3} className="text-left">إجمالي قيمة العهدة</TableCell>
-                        <TableCell className="text-primary">{totalReceivedValue.toFixed(2)} ر.س</TableCell>
+                        <TableCell colSpan={3} className="text-left">إجمالي أعداد الخبز</TableCell>
+                        <TableCell className="text-primary">{totalReceivedQty}</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
                 )}
+                <div className="mt-3 p-2 bg-orange-50 rounded-lg text-sm flex items-center justify-between">
+                  <span className="text-orange-700 font-medium">المخزون المتبقي لدى السائق:</span>
+                  <span className="font-bold text-orange-800">{remainingInventoryQty}</span>
+                </div>
               </CardContent>
             </Card>
 
@@ -545,6 +550,14 @@ export default function DriverReportPage() {
                       }`}>
                         {breadDifference}
                       </span>
+                    </div>
+
+                    <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <span className="text-orange-700 font-medium flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        المخزون المتبقي
+                      </span>
+                      <span className="font-bold text-orange-800 text-lg">{remainingInventoryQty}</span>
                     </div>
                   </div>
 
