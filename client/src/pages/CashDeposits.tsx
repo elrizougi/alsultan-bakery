@@ -6,8 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, CashDeposit } from "@/lib/api";
 import { useUsers } from "@/hooks/useData";
@@ -22,6 +22,7 @@ export default function CashDepositsPage() {
   const user = useStore(state => state.user);
   const { data: users = [] } = useUsers();
   
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [depositAmount, setDepositAmount] = useState<string>("");
   const [depositNotes, setDepositNotes] = useState<string>("");
@@ -41,6 +42,7 @@ export default function CashDepositsPage() {
       setSelectedDriverId("");
       setDepositAmount("");
       setDepositNotes("");
+      setIsDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/cash-deposits"] });
     },
     onError: () => {
@@ -123,76 +125,85 @@ export default function CashDepositsPage() {
               إدارة طلبات تسليم المبالغ من السائقين للمخبز
             </p>
           </div>
-        </div>
-
-        <Card className="border-2 border-green-300">
-          <CardHeader className="bg-green-50">
-            <CardTitle className="text-right flex items-center gap-2">
-              <Plus className="h-5 w-5 text-green-600" />
-              إضافة عملية استلام مبالغ
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <Label className="mb-2 block">السائق</Label>
-                <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-                  <SelectTrigger data-testid="select-driver-deposit">
-                    <SelectValue placeholder="اختر السائق" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {drivers.map(driver => (
-                      <SelectItem key={driver.id} value={driver.id}>
-                        {driver.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="mb-2 block">المبلغ</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  placeholder="أدخل المبلغ"
-                  data-testid="input-admin-deposit-amount"
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">التاريخ</Label>
-                <Input
-                  type="date"
-                  value={depositDate}
-                  onChange={(e) => setDepositDate(e.target.value)}
-                  data-testid="input-admin-deposit-date"
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">ملاحظات</Label>
-                <Input
-                  value={depositNotes}
-                  onChange={(e) => setDepositNotes(e.target.value)}
-                  placeholder="ملاحظات (اختياري)"
-                  data-testid="input-admin-deposit-notes"
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end">
-              <Button
-                onClick={handleCreateDeposit}
-                disabled={!selectedDriverId || !depositAmount || parseFloat(depositAmount) <= 0 || createDepositMutation.isPending}
-                className="bg-green-600 hover:bg-green-700"
-                data-testid="button-create-deposit"
-              >
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-green-600 hover:bg-green-700" data-testid="button-open-deposit-dialog">
                 <Plus className="h-4 w-4 ml-2" />
-                {createDepositMutation.isPending ? "جاري الإضافة..." : "إضافة عملية التسليم"}
+                عملية استلام جديدة
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md" dir="rtl">
+              <DialogHeader>
+                <DialogTitle className="text-right">إضافة عملية استلام مبالغ</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div>
+                  <Label className="mb-2 block">السائق</Label>
+                  <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                    <SelectTrigger data-testid="select-driver-deposit">
+                      <SelectValue placeholder="اختر السائق" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {drivers.map(driver => (
+                        <SelectItem key={driver.id} value={driver.id}>
+                          {driver.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="mb-2 block">المبلغ</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    placeholder="أدخل المبلغ"
+                    className="text-lg"
+                    data-testid="input-admin-deposit-amount"
+                  />
+                </div>
+                <div>
+                  <Label className="mb-2 block">التاريخ</Label>
+                  <Input
+                    type="date"
+                    value={depositDate}
+                    onChange={(e) => setDepositDate(e.target.value)}
+                    data-testid="input-admin-deposit-date"
+                  />
+                </div>
+                <div>
+                  <Label className="mb-2 block">ملاحظات (اختياري)</Label>
+                  <Input
+                    value={depositNotes}
+                    onChange={(e) => setDepositNotes(e.target.value)}
+                    placeholder="ملاحظات..."
+                    data-testid="input-admin-deposit-notes"
+                  />
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    onClick={handleCreateDeposit}
+                    disabled={!selectedDriverId || !depositAmount || parseFloat(depositAmount) <= 0 || createDepositMutation.isPending}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    data-testid="button-create-deposit"
+                  >
+                    <Plus className="h-4 w-4 ml-2" />
+                    {createDepositMutation.isPending ? "جاري الإضافة..." : "إضافة"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
+                  >
+                    إلغاء
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         {pendingDeposits.length > 0 && (
           <Card className="border-2 border-amber-300">
