@@ -502,12 +502,13 @@ export default function DriverTransactionsPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-slate-100">
+        {/* قسم طلبات الخبز */}
+        {(pendingOrders.length > 0 || assignedOrders.length > 0 || deliveredOrders.length > 0) && (
+          <Card className="border-slate-100 mb-6">
             <CardHeader>
               <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                مخزوني الحالي
+                <ShoppingCart className="h-5 w-5" />
+                طلبات الخبز
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -516,7 +517,7 @@ export default function DriverTransactionsPage() {
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                   <h4 className="font-bold text-amber-700 mb-3 flex items-center gap-2">
                     <ShoppingCart className="h-4 w-4" />
-                    طلبات تنتظر التأكيد
+                    طلبات تنتظر التأكيد ({pendingOrders.length})
                   </h4>
                   {pendingOrders.map(order => (
                     <div key={order.id} className="bg-white rounded-lg p-3 mb-2 border border-amber-100">
@@ -527,26 +528,12 @@ export default function DriverTransactionsPage() {
                         </Badge>
                       </div>
                       <div className="space-y-1 mb-3">
-                        {order.items?.map(item => {
-                          const received = item.receivedQuantity ?? item.quantity;
-                          const hasShortage = item.receivedQuantity !== undefined && item.receivedQuantity < item.quantity;
-                          return (
-                            <div key={item.id} className="flex justify-between text-sm items-center">
-                              <span className="flex items-center gap-1">
-                                {hasShortage && <AlertTriangle className="h-3 w-3 text-amber-500" />}
-                                {getProductName(item.productId)}
-                              </span>
-                              <span className={`font-bold ${hasShortage ? 'text-amber-600' : ''}`}>
-                                {received}
-                                {hasShortage && (
-                                  <span className="text-xs text-slate-400 mr-1">
-                                    (من {item.quantity})
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          );
-                        })}
+                        {order.items?.map(item => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span>{getProductName(item.productId)}</span>
+                            <span className="font-bold">{item.quantity}</span>
+                          </div>
+                        ))}
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -561,7 +548,7 @@ export default function DriverTransactionsPage() {
                           ) : (
                             <>
                               <CheckCircle className="h-4 w-4" />
-                              تأكيد
+                              تأكيد الاستلام
                             </>
                           )}
                         </Button>
@@ -583,8 +570,8 @@ export default function DriverTransactionsPage() {
 
               {/* الطلبات المستلمة من الإدارة */}
               {assignedOrders.length > 0 && (
-                <div className="mb-4">
-                  <h4 className="text-sm font-bold text-primary mb-2 flex items-center gap-2">
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <h4 className="font-bold text-green-700 mb-3 flex items-center gap-2">
                     <CheckCircle className="h-4 w-4" />
                     طلبات مستلمة من المخبز ({assignedOrders.length})
                   </h4>
@@ -641,8 +628,8 @@ export default function DriverTransactionsPage() {
 
               {/* الطلبات المسلمة - في انتظار إغلاق الرحلة */}
               {deliveredOrders.length > 0 && (
-                <div className="mb-4">
-                  <h4 className="text-sm font-bold text-blue-600 mb-2 flex items-center gap-2">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <h4 className="font-bold text-blue-700 mb-3 flex items-center gap-2">
                     <Package className="h-4 w-4" />
                     طلبات مسلمة للعملاء ({deliveredOrders.length})
                   </h4>
@@ -678,11 +665,22 @@ export default function DriverTransactionsPage() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
 
-              {/* المخزون المتاح */}
-              {inventory.length === 0 && pendingOrders.length === 0 && assignedOrders.length === 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="border-slate-100">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                مخزوني الحالي
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {inventory.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">لا يوجد مخزون حالياً</p>
-              ) : inventory.length > 0 && (
+              ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
