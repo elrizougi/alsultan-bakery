@@ -708,104 +708,118 @@ export default function DriverTransactionsPage() {
           </Card>
         </div>
 
-        {/* تقرير السائق */}
+        {/* تقرير السائق اليومي */}
         <Card className="border-slate-100">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              تقرير السائق
+          <CardHeader className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-t-lg">
+            <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <FileText className="h-6 w-6 text-blue-600" />
+              التقرير اليومي
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {/* إجمالي الخبز المستلم */}
-              <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-                <p className="text-sm text-green-600 mb-1">إجمالي الخبز المستلم</p>
-                <p className="text-2xl font-bold text-green-700" data-testid="report-total-received">
-                  {assignedOrders.reduce((sum, order) => 
-                    sum + (order.items?.reduce((itemSum, item) => 
-                      itemSum + (item.receivedQuantity ?? item.quantity), 0) || 0), 0)}
-                </p>
-              </div>
-
-              {/* إجمالي المرتجع */}
-              <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
-                <p className="text-sm text-orange-600 mb-1">المرتجع إلى المخبز</p>
-                <p className="text-2xl font-bold text-orange-700" data-testid="report-total-returns">
-                  {transactions.filter(t => t.type === 'RETURN').reduce((sum, t) => sum + t.quantity, 0)}
-                </p>
-              </div>
-
-              {/* التوزيع المجاني */}
-              <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
-                <p className="text-sm text-purple-600 mb-1">التوزيع المجاني</p>
-                <p className="text-2xl font-bold text-purple-700" data-testid="report-free-distribution">
-                  {transactions.filter(t => t.type === 'FREE_DISTRIBUTION').reduce((sum, t) => sum + t.quantity, 0)}
-                </p>
-              </div>
-
-              {/* العينات المجانية */}
-              <div className="bg-pink-50 rounded-xl p-4 border border-pink-100">
-                <p className="text-sm text-pink-600 mb-1">العينات المجانية</p>
-                <p className="text-2xl font-bold text-pink-700" data-testid="report-free-samples">
-                  {transactions.filter(t => t.type === 'FREE_SAMPLE').reduce((sum, t) => sum + t.quantity, 0)}
-                </p>
-              </div>
-
-              {/* إجمالي المبيعات */}
-              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                <p className="text-sm text-blue-600 mb-1">إجمالي المبيعات</p>
-                <p className="text-2xl font-bold text-blue-700" data-testid="report-total-sales">
-                  {transactions.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
-                    .reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0).toFixed(2)} ر.س
-                </p>
-              </div>
-
-              {/* بيع نقدي */}
-              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
-                <p className="text-sm text-emerald-600 mb-1">بيع نقدي</p>
-                <p className="text-2xl font-bold text-emerald-700" data-testid="report-cash-sales">
-                  {transactions.filter(t => t.type === 'CASH_SALE')
-                    .reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0).toFixed(2)} ر.س
-                </p>
-              </div>
-
-              {/* بيع آجل */}
-              <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
-                <p className="text-sm text-amber-600 mb-1">بيع آجل</p>
-                <p className="text-2xl font-bold text-amber-700" data-testid="report-credit-sales">
-                  {transactions.filter(t => t.type === 'CREDIT_SALE')
-                    .reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0).toFixed(2)} ر.س
-                </p>
-              </div>
-
-              {/* الفروقات */}
-              <div className="bg-red-50 rounded-xl p-4 border border-red-100">
-                <p className="text-sm text-red-600 mb-1">الفروقات</p>
-                <p className="text-2xl font-bold text-red-700" data-testid="report-difference">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50">
+                    <TableHead className="text-right font-bold">التاريخ</TableHead>
+                    <TableHead className="text-right font-bold">المستلم</TableHead>
+                    <TableHead className="text-right font-bold">المرتجع</TableHead>
+                    <TableHead className="text-right font-bold">توزيع مجاني</TableHead>
+                    <TableHead className="text-right font-bold">عينات</TableHead>
+                    <TableHead className="text-right font-bold">إجمالي المبيعات</TableHead>
+                    <TableHead className="text-right font-bold">نقدي</TableHead>
+                    <TableHead className="text-right font-bold">آجل</TableHead>
+                    <TableHead className="text-right font-bold">الفروقات</TableHead>
+                    <TableHead className="text-right font-bold">الموردة للمخبز</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {(() => {
-                    const received = assignedOrders.reduce((sum, order) => 
-                      sum + (order.items?.reduce((itemSum, item) => 
-                        itemSum + (item.receivedQuantity ?? item.quantity), 0) || 0), 0);
-                    const sold = transactions.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
-                      .reduce((sum, t) => sum + t.quantity, 0);
-                    const returned = transactions.filter(t => t.type === 'RETURN').reduce((sum, t) => sum + t.quantity, 0);
-                    const free = transactions.filter(t => t.type === 'FREE_DISTRIBUTION' || t.type === 'FREE_SAMPLE')
-                      .reduce((sum, t) => sum + t.quantity, 0);
-                    const currentInventory = inventory.reduce((sum, i) => sum + i.quantity, 0);
-                    return received - sold - returned - free - currentInventory;
-                  })()}
-                </p>
-              </div>
+                    const allDates = new Set<string>();
+                    
+                    transactions.forEach(t => {
+                      if (t.createdAt) allDates.add(format(new Date(t.createdAt), 'yyyy-MM-dd'));
+                    });
+                    assignedOrders.forEach(o => {
+                      if (o.createdAt) allDates.add(format(new Date(o.createdAt), 'yyyy-MM-dd'));
+                    });
+                    cashDeposits.forEach(d => {
+                      if (d.createdAt) allDates.add(format(new Date(d.createdAt), 'yyyy-MM-dd'));
+                    });
 
-              {/* المبالغ الموردة للمخبز */}
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 col-span-2">
-                <p className="text-sm text-slate-600 mb-1">المبالغ الموردة للمخبز</p>
-                <p className="text-2xl font-bold text-slate-700" data-testid="report-deposits">
-                  {cashDeposits.filter(d => d.status === 'CONFIRMED')
-                    .reduce((sum, d) => sum + parseFloat(d.amount), 0).toFixed(2)} ر.س
-                </p>
-              </div>
+                    const sortedDates = Array.from(allDates).sort((a, b) => b.localeCompare(a));
+
+                    if (sortedDates.length === 0) {
+                      return (
+                        <TableRow>
+                          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                            لا توجد بيانات للعرض
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    return sortedDates.map(date => {
+                      const dayTransactions = transactions.filter(t => 
+                        t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === date
+                      );
+                      const dayOrders = assignedOrders.filter(o => 
+                        o.createdAt && format(new Date(o.createdAt), 'yyyy-MM-dd') === date
+                      );
+                      const dayDeposits = cashDeposits.filter(d => 
+                        d.createdAt && format(new Date(d.createdAt), 'yyyy-MM-dd') === date && d.status === 'CONFIRMED'
+                      );
+
+                      const received = dayOrders.reduce((sum, order) => 
+                        sum + (order.items?.reduce((itemSum, item) => 
+                          itemSum + (item.receivedQuantity ?? item.quantity), 0) || 0), 0);
+                      
+                      const returned = dayTransactions.filter(t => t.type === 'RETURN')
+                        .reduce((sum, t) => sum + t.quantity, 0);
+                      
+                      const freeDistribution = dayTransactions.filter(t => t.type === 'FREE_DISTRIBUTION')
+                        .reduce((sum, t) => sum + t.quantity, 0);
+                      
+                      const freeSamples = dayTransactions.filter(t => t.type === 'FREE_SAMPLE')
+                        .reduce((sum, t) => sum + t.quantity, 0);
+                      
+                      const cashSales = dayTransactions.filter(t => t.type === 'CASH_SALE')
+                        .reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0);
+                      
+                      const creditSales = dayTransactions.filter(t => t.type === 'CREDIT_SALE')
+                        .reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0);
+                      
+                      const totalSales = cashSales + creditSales;
+
+                      const soldQty = dayTransactions.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
+                        .reduce((sum, t) => sum + t.quantity, 0);
+                      
+                      const difference = received - soldQty - returned - freeDistribution - freeSamples;
+
+                      const deposited = dayDeposits.reduce((sum, d) => sum + parseFloat(d.amount), 0);
+
+                      return (
+                        <TableRow key={date} data-testid={`report-row-${date}`}>
+                          <TableCell className="font-medium">
+                            {format(new Date(date), 'EEEE dd/MM/yyyy', { locale: ar })}
+                          </TableCell>
+                          <TableCell className="text-green-600 font-bold">{received}</TableCell>
+                          <TableCell className="text-orange-600">{returned}</TableCell>
+                          <TableCell className="text-purple-600">{freeDistribution}</TableCell>
+                          <TableCell className="text-pink-600">{freeSamples}</TableCell>
+                          <TableCell className="text-blue-600 font-bold">{totalSales.toFixed(2)} ر.س</TableCell>
+                          <TableCell className="text-emerald-600">{cashSales.toFixed(2)} ر.س</TableCell>
+                          <TableCell className="text-amber-600">{creditSales.toFixed(2)} ر.س</TableCell>
+                          <TableCell className={difference !== 0 ? "text-red-600 font-bold" : "text-slate-600"}>
+                            {difference}
+                          </TableCell>
+                          <TableCell className="text-slate-700 font-medium">{deposited.toFixed(2)} ر.س</TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
