@@ -14,7 +14,6 @@ import ReportsPage from "@/pages/Reports";
 import UsersManagementPage from "@/pages/UsersManagement";
 import RoutesManagementPage from "@/pages/RoutesManagement";
 import DriverTransactionsPage from "@/pages/DriverTransactions";
-import OrderModificationsPage from "@/pages/OrderModifications";
 import DriverReportPage from "@/pages/DriverReport";
 import CashDepositsPage from "@/pages/CashDeposits";
 import DriverDailyReportPage from "@/pages/DriverDailyReport";
@@ -34,7 +33,6 @@ function Router() {
       <Route path="/routes" component={RoutesManagementPage} />
       <Route path="/driver-transactions" component={DriverTransactionsPage} />
       <Route path="/driver" component={DriverTransactionsPage} />
-      <Route path="/order-modifications" component={OrderModificationsPage} />
       <Route path="/driver-report" component={DriverReportPage} />
       <Route path="/cash-deposits" component={CashDepositsPage} />
       <Route path="/driver-daily-report" component={DriverDailyReportPage} />
