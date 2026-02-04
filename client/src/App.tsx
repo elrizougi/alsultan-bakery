@@ -32,6 +32,7 @@ function Router() {
       <Route path="/users" component={UsersManagementPage} />
       <Route path="/routes" component={RoutesManagementPage} />
       <Route path="/driver-transactions" component={DriverTransactionsPage} />
+      <Route path="/driver" component={DriverTransactionsPage} />
       <Route path="/order-modifications" component={OrderModificationsPage} />
       <Route path="/driver-report" component={DriverReportPage} />
       <Route path="/cash-deposits" component={CashDepositsPage} />

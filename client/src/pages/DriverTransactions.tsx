@@ -506,12 +506,6 @@ export default function DriverTransactionsPage() {
                           );
                         })}
                       </div>
-                      {order.items?.some(item => item.receivedQuantity !== undefined && item.receivedQuantity < item.quantity) && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2 flex items-center gap-2 text-xs text-amber-700">
-                          <AlertTriangle className="h-4 w-4" />
-                          الكمية المستلمة أقل من المطلوبة بسبب نقص المخزون
-                        </div>
-                      )}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
