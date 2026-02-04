@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Plus, Search, Filter, MoreVertical, Trash2, Edit, Save, Loader2, CheckCircle } from "lucide-react";
+import { Plus, Search, Filter, MoreVertical, Trash2, Edit, Save, Loader2, CheckCircle, Package } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -42,6 +42,7 @@ export default function OrdersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [confirmingOrder, setConfirmingOrder] = useState<Order | null>(null);
+  const [adminConfirmingOrder, setAdminConfirmingOrder] = useState<Order | null>(null);
 
   const filteredOrders = orders.filter(order => {
     // السائقون يرون الطلبات المرتبطة بهم مباشرة
@@ -159,9 +160,9 @@ export default function OrdersPage() {
                             size="sm" 
                             variant="ghost" 
                             className="h-8 text-primary font-bold px-3 hover:bg-primary/5 rounded-lg"
-                            onClick={() => handleUpdateStatus(order.id, 'CONFIRMED')}
+                            onClick={() => setAdminConfirmingOrder(order)}
                           >
-                            تأكيد
+                            تأكيد وتسليم
                           </Button>
                         )}
                         {order.status === 'CONFIRMED' && currentUser?.role === 'DRIVER' && (
@@ -217,6 +218,7 @@ export default function OrdersPage() {
         <CreateOrderDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
         {editingOrder && <EditOrderDialog order={editingOrder} onOpenChange={(open) => !open && setEditingOrder(null)} />}
         {confirmingOrder && <ConfirmReceiptDialog order={confirmingOrder} onOpenChange={(open) => !open && setConfirmingOrder(null)} />}
+        {adminConfirmingOrder && <AdminConfirmDialog order={adminConfirmingOrder} onOpenChange={(open) => !open && setAdminConfirmingOrder(null)} />}
       </div>
     </AdminLayout>
   );
@@ -642,6 +644,116 @@ function ConfirmReceiptDialog({ order, onOpenChange }: { order: Order; onOpenCha
             </div>
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AdminConfirmDialog({ order, onOpenChange }: { order: Order; onOpenChange: (open: boolean) => void }) {
+  const { data: products = [] } = useProducts();
+  const updateOrder = useUpdateOrder();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  const [deliveredItems, setDeliveredItems] = useState<{ id: string; deliveredQuantity: number }[]>(
+    order.items?.map(item => ({
+      id: item.id!,
+      deliveredQuantity: item.quantity
+    })) || []
+  );
+
+  const confirmMutation = useMutation({
+    mutationFn: async () => {
+      // أولاً: تحديث حالة الطلب إلى مؤكد
+      await updateOrder.mutateAsync({ id: order.id, status: 'CONFIRMED' as any });
+      // ثانياً: تأكيد الاستلام مع الكميات المسلمة
+      const receivedItems = deliveredItems.map(item => ({
+        id: item.id,
+        receivedQuantity: item.deliveredQuantity
+      }));
+      await api.confirmOrderReceipt(order.id, receivedItems);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+      toast({ title: "تم تأكيد الطلب وتسليم الكميات للسائق" });
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ أثناء التأكيد", variant: "destructive" });
+    },
+  });
+
+  const updateDeliveredQuantity = (itemId: string, quantity: number) => {
+    setDeliveredItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, deliveredQuantity: quantity } : item
+    ));
+  };
+
+  const getProductName = (productId: string) => {
+    return products.find(p => p.id === productId)?.name || "غير معروف";
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg" dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="text-right flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            تأكيد الطلب وتحديد الكميات
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+            <p className="text-sm text-muted-foreground mb-2">رقم الطلب: #{order.id.slice(0, 8)}</p>
+            <p className="text-sm text-muted-foreground">حدد الكميات التي سيتم تسليمها للسائق</p>
+          </div>
+
+          <div className="space-y-3">
+            {order.items?.map((item, index) => {
+              const deliveredItem = deliveredItems.find(d => d.id === item.id);
+              return (
+                <div key={item.id} className="bg-white border rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold">{getProductName(item.productId)}</span>
+                    <span className="text-sm text-muted-foreground">الكمية المطلوبة: {item.quantity}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Label className="text-sm">الكمية المسلمة:</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max={item.quantity}
+                      value={deliveredItem?.deliveredQuantity || 0}
+                      onChange={(e) => updateDeliveredQuantity(item.id!, parseInt(e.target.value) || 0)}
+                      className="w-24"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            إلغاء
+          </Button>
+          <Button 
+            onClick={() => confirmMutation.mutate()}
+            disabled={confirmMutation.isPending}
+          >
+            {confirmMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                جاري التأكيد...
+              </>
+            ) : (
+              "تأكيد وتسليم"
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
