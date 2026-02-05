@@ -636,12 +636,23 @@ export async function registerRoutes(
     try {
       console.log("Creating return with data:", JSON.stringify(req.body));
       const { items, ...returnData } = req.body;
-      const parsed = insertReturnSchema.parse(returnData);
+      
+      // Get customerId from order if orderId is provided
+      let customerId = returnData.customerId;
+      if (!customerId && returnData.orderId) {
+        const order = await storage.getOrder(returnData.orderId);
+        if (order) {
+          customerId = order.customerId;
+        }
+      }
+      
+      const parsed = insertReturnSchema.parse({ ...returnData, customerId });
       console.log("Parsed return data:", JSON.stringify(parsed));
       const ret = await storage.createReturn(parsed);
       console.log("Created return:", JSON.stringify(ret));
       
       // Create return items
+      const products = await storage.getAllProducts();
       if (items && Array.isArray(items)) {
         for (const item of items) {
           await storage.createReturnItem({
@@ -650,6 +661,25 @@ export async function registerRoutes(
             quantity: item.quantity,
             reason: item.reason,
           });
+          
+          // Create transaction for driver record
+          if (ret.driverId && customerId) {
+            const product = products.find(p => p.id === item.productId);
+            const unitPrice = product?.price || "0";
+            const totalAmount = (parseFloat(unitPrice) * item.quantity).toFixed(2);
+            const transactionType = item.reason === 'DAMAGED' ? 'DAMAGED' : 'RETURN';
+            
+            await storage.createTransaction({
+              driverId: ret.driverId,
+              customerId,
+              productId: item.productId,
+              type: transactionType,
+              quantity: item.quantity,
+              unitPrice,
+              totalAmount,
+              notes: item.reason === 'DAMAGED' ? 'خبز تالف' : item.reason === 'EXPIRED' ? 'منتهي الصلاحية' : 'مرتجع سليم',
+            });
+          }
         }
       }
       
