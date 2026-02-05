@@ -28,7 +28,6 @@ const transactionTypeLabels: Record<string, { label: string; color: string }> = 
 
 export default function DriverReportPage() {
   const [selectedDriverId, setSelectedDriverId] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [depositAmount, setDepositAmount] = useState<string>("");
@@ -189,7 +188,6 @@ export default function DriverReportPage() {
   };
 
   const isDateInRange = (dateStr: string) => {
-    if (dateFilter === "all") return true;
     const date = dateStr.split('T')[0];
     return date >= startDate && date <= endDate;
   };
@@ -320,47 +318,31 @@ export default function DriverReportPage() {
                 </Select>
               </div>
               <div>
-                <Label className="mb-2 block">الفترة</Label>
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-full" data-testid="select-date-filter">
-                    <SelectValue placeholder="اختر الفترة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">كل الفترة</SelectItem>
-                    <SelectItem value="range">فترة محددة</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="mb-2 block">من تاريخ</Label>
+                <div className="relative">
+                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="pr-10"
+                    data-testid="input-start-date"
+                  />
+                </div>
               </div>
-              {dateFilter === "range" && (
-                <>
-                  <div>
-                    <Label className="mb-2 block">من تاريخ</Label>
-                    <div className="relative">
-                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="pr-10"
-                        data-testid="input-start-date"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="mb-2 block">إلى تاريخ</Label>
-                    <div className="relative">
-                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="pr-10"
-                        data-testid="input-end-date"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
+              <div>
+                <Label className="mb-2 block">إلى تاريخ</Label>
+                <div className="relative">
+                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="pr-10"
+                    data-testid="input-end-date"
+                  />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
