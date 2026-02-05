@@ -1,5 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { useCustomers, useRoutes, useCreateCustomer, useUpdateCustomer, useDeleteCustomer } from "@/hooks/useData";
+import { useCustomers, useRoutes, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useUsers } from "@/hooks/useData";
 import {
   Table,
   TableBody,
@@ -47,11 +47,13 @@ interface CustomerFormData {
   locationUrl: string;
   phone: string;
   routeId: string;
+  driverId: string;
 }
 
 export default function CustomersPage() {
   const { data: customers = [], isLoading } = useCustomers();
   const { data: routes = [] } = useRoutes();
+  const { data: users = [] } = useUsers();
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const deleteCustomer = useDeleteCustomer();
@@ -61,6 +63,7 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [filterDriverId, setFilterDriverId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<CustomerFormData>({
     name: "",
@@ -68,7 +71,14 @@ export default function CustomersPage() {
     locationUrl: "",
     phone: "",
     routeId: "",
+    driverId: "",
   });
+
+  const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
+  
+  const filteredCustomers = filterDriverId && filterDriverId !== "all"
+    ? customers.filter(c => c.driverId === filterDriverId)
+    : customers;
 
   const downloadTemplate = () => {
     const csvContent = "name,address,phone,locationUrl\nاسم العميل,العنوان,رقم الجوال,رابط الموقع\nمثال: محمد أحمد,حي الملك فهد - شارع العليا,0501234567,https://maps.google.com/...";
@@ -125,7 +135,8 @@ export default function CustomersPage() {
             address,
             phone,
             locationUrl: locationUrl || "",
-            routeId: null,
+            routeId: undefined,
+            driverId: undefined,
           });
           successCount++;
         } catch {
@@ -154,6 +165,7 @@ export default function CustomersPage() {
       locationUrl: "",
       phone: "",
       routeId: "",
+      driverId: "",
     });
     setShowForm(true);
   };
@@ -166,6 +178,7 @@ export default function CustomersPage() {
       locationUrl: customer.locationUrl || "",
       phone: customer.phone,
       routeId: customer.routeId || "",
+      driverId: customer.driverId || "",
     });
     setShowForm(true);
   };
@@ -184,6 +197,7 @@ export default function CustomersPage() {
         locationUrl: formData.locationUrl || undefined,
         phone: formData.phone,
         routeId: formData.routeId || undefined,
+        driverId: formData.driverId || undefined,
       };
 
       if (editingCustomer) {
@@ -262,7 +276,7 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">إجمالي العملاء</CardTitle>
@@ -281,6 +295,41 @@ export default function CustomersPage() {
               <div className="text-2xl font-bold">{routes.length}</div>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">المناديب النشطين</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="text-right">
+              <div className="text-2xl font-bold">{drivers.length}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* فلتر المناديب */}
+        <div className="flex items-center gap-4 bg-card p-4 rounded-lg border">
+          <Label className="font-medium whitespace-nowrap">فلتر حسب المندوب:</Label>
+          <Select value={filterDriverId} onValueChange={setFilterDriverId}>
+            <SelectTrigger className="w-64" data-testid="select-filter-driver">
+              <SelectValue placeholder="جميع المناديب" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">جميع المناديب</SelectItem>
+              {drivers.map((driver) => (
+                <SelectItem key={driver.id} value={driver.id}>
+                  {driver.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {filterDriverId && filterDriverId !== "all" && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterDriverId("")}>
+              إزالة الفلتر
+            </Button>
+          )}
+          <span className="text-sm text-muted-foreground">
+            ({filteredCustomers.length} عميل)
+          </span>
         </div>
 
         <div className="rounded-md border bg-card overflow-hidden">
@@ -290,14 +339,16 @@ export default function CustomersPage() {
                 <TableHead className="text-right">اسم العميل</TableHead>
                 <TableHead className="text-right">رقم الهاتف</TableHead>
                 <TableHead className="text-right">العنوان</TableHead>
+                <TableHead className="text-right">المندوب</TableHead>
                 <TableHead className="text-right">خط التوزيع</TableHead>
                 <TableHead className="text-right">الموقع</TableHead>
                 <TableHead className="text-right">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => {
+              {filteredCustomers.map((customer) => {
                 const route = routes.find(r => r.id === customer.routeId);
+                const driver = drivers.find(d => d.id === customer.driverId);
                 return (
                   <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
@@ -308,6 +359,11 @@ export default function CustomersPage() {
                       </div>
                     </TableCell>
                     <TableCell>{customer.address}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
+                        {driver?.name || '-'}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
                         {route?.name || '-'}
@@ -352,10 +408,10 @@ export default function CustomersPage() {
                   </TableRow>
                 );
               })}
-              {customers.length === 0 && (
+              {filteredCustomers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-slate-400">
-                    لا يوجد عملاء مسجلين
+                  <TableCell colSpan={7} className="text-center py-8 text-slate-400">
+                    {filterDriverId ? 'لا يوجد عملاء لهذا المندوب' : 'لا يوجد عملاء مسجلين'}
                   </TableCell>
                 </TableRow>
               )}
@@ -392,6 +448,21 @@ export default function CustomersPage() {
                     data-testid="input-customer-phone"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="driver">المندوب المسؤول</Label>
+                  <Select onValueChange={(value) => setFormData({ ...formData, driverId: value })} value={formData.driverId}>
+                    <SelectTrigger className="text-right" data-testid="select-customer-driver">
+                      <SelectValue placeholder="اختر المندوب" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {drivers.map(driver => (
+                        <SelectItem key={driver.id} value={driver.id}>{driver.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="route">خط التوزيع</Label>
                   <Select onValueChange={(value) => setFormData({ ...formData, routeId: value })} value={formData.routeId}>

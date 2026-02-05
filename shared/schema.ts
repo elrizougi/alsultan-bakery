@@ -58,6 +58,7 @@ export const customers = pgTable("customers", {
   address: text("address").notNull(),
   locationUrl: text("location_url"),
   routeId: varchar("route_id").references(() => routes.id),
+  driverId: varchar("driver_id").references(() => users.id),
   phone: text("phone").notNull(),
 });
 

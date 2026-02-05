@@ -29,6 +29,7 @@ export interface Customer {
   address: string;
   locationUrl?: string;
   routeId?: string;
+  driverId?: string;
   phone: string;
 }
 
