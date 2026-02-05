@@ -755,6 +755,37 @@ export default function DriverTransactionsPage() {
           </Card>
         </div>
 
+        {/* قائمة عملائي */}
+        <Card className="border-slate-100">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              عملائي ({customers.filter(c => c.driverId === driverId).length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {customers.filter(c => c.driverId === driverId).length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">لا يوجد عملاء مسجلين لك</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {customers.filter(c => c.driverId === driverId).map((customer) => (
+                  <div 
+                    key={customer.id} 
+                    className="p-3 border rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
+                    data-testid={`card-my-customer-${customer.id}`}
+                  >
+                    <div className="font-bold text-slate-800">{customer.name}</div>
+                    <div className="text-sm text-slate-500">{customer.address}</div>
+                    {customer.phone && customer.phone !== '0' && (
+                      <div className="text-xs text-slate-400 mt-1">📞 {customer.phone}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="border-slate-100">
           <CardHeader>
             <CardTitle className="text-lg font-bold">سجل العمليات</CardTitle>
