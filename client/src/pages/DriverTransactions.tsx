@@ -562,20 +562,6 @@ export default function DriverTransactionsPage() {
 
         {/* الصف الأول: إحصائيات المخزون والمبيعات */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <Card className="border-slate-100 bg-blue-50 hover:shadow-md transition-shadow">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500 rounded-lg">
-                  <Package className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-blue-600">الخبز المستلم</p>
-                  <p className="text-xl font-bold text-blue-700" data-testid="text-total-received">{totalReceivedBread}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           <Card className="border-slate-100 bg-orange-50 hover:shadow-md transition-shadow">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-3">
