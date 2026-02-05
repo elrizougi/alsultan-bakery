@@ -197,30 +197,28 @@ export default function DriverReportPage() {
   const driverOrders = orders.filter(o => {
     if (selectedDriverId !== "all" && o.customerId !== selectedDriverId) return false;
     if (selectedDriverId === "all" && !drivers.some(d => d.id === o.customerId)) return false;
-    if (o.status !== "ASSIGNED") return false;
+    if (!["ASSIGNED", "DELIVERED", "CLOSED"].includes(o.status)) return false;
     if (!o.date) return false;
     return isDateInRange(o.date);
   });
   
-  const receivedInventory = driverOrders.flatMap(order => 
-    order.items?.map(item => ({
-      productId: item.productId,
-      quantity: item.receivedQuantity || item.quantity,
-      bakeryPrice: getProductPrice(item.productId),
-    })) || []
-  );
-
-  const aggregatedReceived = receivedInventory.reduce((acc, item) => {
-    const existing = acc.find(a => a.productId === item.productId);
+  // العهدة المستلمة من المخبز - من مخزون السائق الفعلي
+  type ReceivedItem = { productId: string; quantity: number; bakeryPrice: number };
+  const aggregatedReceived = inventory.reduce((acc: ReceivedItem[], item) => {
+    const existing = acc.find((a: ReceivedItem) => a.productId === item.productId);
     if (existing) {
       existing.quantity += item.quantity;
     } else {
-      acc.push({ ...item });
+      acc.push({ 
+        productId: item.productId, 
+        quantity: item.quantity, 
+        bakeryPrice: getProductPrice(item.productId) 
+      });
     }
     return acc;
-  }, [] as typeof receivedInventory);
+  }, [] as ReceivedItem[]);
 
-  const totalReceivedValue = aggregatedReceived.reduce((sum, item) => 
+  const totalReceivedValue = aggregatedReceived.reduce((sum: number, item: ReceivedItem) => 
     sum + (item.quantity * item.bakeryPrice), 0
   );
 
@@ -242,7 +240,7 @@ export default function DriverReportPage() {
   const totalFreeDist = freeDist.reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0);
   const totalSamples = samples.reduce((sum, t) => sum + parseFloat(t.totalAmount || "0"), 0);
 
-  const totalReceivedQty = aggregatedReceived.reduce((sum, item) => sum + item.quantity, 0);
+  const totalReceivedQty = aggregatedReceived.reduce((sum: number, item: ReceivedItem) => sum + item.quantity, 0);
   const returnedQty = returns.reduce((sum, t) => sum + t.quantity, 0);
   const damagedQty = damaged.reduce((sum, t) => sum + t.quantity, 0);
   const samplesQty = samples.reduce((sum, t) => sum + t.quantity, 0);
@@ -454,7 +452,7 @@ export default function DriverReportPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {aggregatedReceived.map((item, idx) => (
+                      {aggregatedReceived.map((item: ReceivedItem, idx: number) => (
                         <TableRow key={idx}>
                           <TableCell className="font-medium">{getProductName(item.productId)}</TableCell>
                           <TableCell>{item.quantity}</TableCell>
