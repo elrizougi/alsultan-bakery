@@ -113,7 +113,7 @@ export default function MyCustomersPage() {
                       <TableHead className="text-right font-bold">الخبز المباع</TableHead>
                       <TableHead className="text-right font-bold">السعر</TableHead>
                       <TableHead className="text-right font-bold">المرتجع</TableHead>
-                      <TableHead className="text-right font-bold">نوع العملية</TableHead>
+                      <TableHead className="text-right font-bold">نوع الخبز</TableHead>
                       <TableHead className="text-right font-bold">المبلغ المتحصل</TableHead>
                       <TableHead className="text-right font-bold">الدين</TableHead>
                     </TableRow>
@@ -170,21 +170,17 @@ export default function MyCustomersPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-col gap-1">
-                              {stats.hasCashSales && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
-                                  نقدي
-                                </span>
-                              )}
-                              {stats.hasCreditSales && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">
-                                  آجل
-                                </span>
-                              )}
-                              {!stats.hasCashSales && !stats.hasCreditSales && (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </div>
+                            {Object.keys(stats.soldProducts).length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {Object.keys(stats.soldProducts).map((productName, idx) => (
+                                  <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                    {productName}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="font-bold text-green-600">{stats.cashAmount.toFixed(2)} ر.س</TableCell>
                           <TableCell>
