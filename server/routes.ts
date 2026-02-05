@@ -578,9 +578,12 @@ export async function registerRoutes(
 
   app.post("/api/returns", async (req, res) => {
     try {
+      console.log("Creating return with data:", JSON.stringify(req.body));
       const { items, ...returnData } = req.body;
       const parsed = insertReturnSchema.parse(returnData);
+      console.log("Parsed return data:", JSON.stringify(parsed));
       const ret = await storage.createReturn(parsed);
+      console.log("Created return:", JSON.stringify(ret));
       
       // Create return items
       if (items && Array.isArray(items)) {
@@ -597,6 +600,7 @@ export async function registerRoutes(
       const returnItems = await storage.getReturnItems(ret.id);
       res.status(201).json({ ...ret, items: returnItems });
     } catch (error) {
+      console.error("Error creating return:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "بيانات غير صالحة", errors: error.errors });
       }
