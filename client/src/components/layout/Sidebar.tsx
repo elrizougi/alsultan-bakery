@@ -27,6 +27,7 @@ export function Sidebar({ className }: SidebarProps) {
     { icon: ShoppingCart, label: "طلبات الخبز", href: "/orders", roles: ['ADMIN', 'SALES'] },
     { icon: FileText, label: "التقرير اليومي", href: "/driver-daily-report", roles: ['DRIVER'] },
     { icon: Wallet, label: "العمليات الميدانية", href: "/driver-transactions", roles: ['DRIVER'] },
+    { icon: Users, label: "عملائي", href: "/my-customers", roles: ['DRIVER'] },
     { icon: Send, label: "تسليم المبالغ", href: "/cash-deposits", roles: ['ADMIN'] },
     { icon: Package, label: "خبز في الصالة", href: "/inventory", roles: ['ADMIN'] },
     { icon: Users, label: "قائمة العملاء", href: "/customers", roles: ['ADMIN', 'SALES'] },
