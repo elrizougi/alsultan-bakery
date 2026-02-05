@@ -1,15 +1,23 @@
+import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useStore } from "@/lib/store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, ExternalLink, Loader2, Phone, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Users, Loader2, Phone, MapPin, Download, Calendar } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useProducts, useCustomers } from "@/hooks/useData";
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
 export default function MyCustomersPage() {
   const currentUser = useStore(state => state.user);
   const driverId = currentUser?.id || "";
+
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
   const { data: products = [] } = useProducts();
@@ -34,8 +42,33 @@ export default function MyCustomersPage() {
     return product?.name || "-";
   };
 
+  const filteredTransactions = transactions.filter(t => {
+    if (!t.createdAt) return false;
+    
+    if (!dateFrom && !dateTo) return true;
+    
+    const txDate = new Date(t.createdAt);
+    
+    if (dateFrom && dateTo) {
+      return isWithinInterval(txDate, {
+        start: startOfDay(parseISO(dateFrom)),
+        end: endOfDay(parseISO(dateTo))
+      });
+    }
+    
+    if (dateFrom) {
+      return txDate >= startOfDay(parseISO(dateFrom));
+    }
+    
+    if (dateTo) {
+      return txDate <= endOfDay(parseISO(dateTo));
+    }
+    
+    return true;
+  });
+
   const getCustomerStats = (customerId: string) => {
-    const customerTransactions = transactions.filter(t => t.customerId === customerId);
+    const customerTransactions = filteredTransactions.filter(t => t.customerId === customerId);
     
     const cashSales = customerTransactions.filter(t => t.type === 'CASH_SALE');
     const creditSales = customerTransactions.filter(t => t.type === 'CREDIT_SALE');
@@ -44,7 +77,6 @@ export default function MyCustomersPage() {
     const totalSoldQty = [...cashSales, ...creditSales].reduce((sum, t) => sum + (t.quantity || 0), 0);
     const totalSoldAmount = [...cashSales, ...creditSales].reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
     const cashAmount = cashSales.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
-    const creditAmount = creditSales.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
     const returnQty = returns.reduce((sum, t) => sum + (t.quantity || 0), 0);
 
     const soldProducts = [...cashSales, ...creditSales].reduce((acc, t) => {
@@ -62,13 +94,47 @@ export default function MyCustomersPage() {
       totalSoldQty,
       totalSoldAmount,
       cashAmount,
-      creditAmount,
       returnQty,
       soldProducts,
       customerDebt,
-      hasCashSales: cashSales.length > 0,
-      hasCreditSales: creditSales.length > 0,
     };
+  };
+
+  const handleExportCSV = () => {
+    const headers = ["اسم العميل", "رقم الجوال", "رابط الموقع", "الخبز المباع", "نوع الخبز", "السعر", "المرتجع", "المبلغ المتحصل", "الدين"];
+    
+    const rows = myCustomers.map(customer => {
+      const stats = getCustomerStats(customer.id);
+      const breadTypes = Object.keys(stats.soldProducts).join(" / ") || "-";
+      
+      return [
+        customer.name,
+        customer.phone || "-",
+        customer.locationUrl || "-",
+        stats.totalSoldQty.toString(),
+        breadTypes,
+        stats.totalSoldAmount.toFixed(2),
+        stats.returnQty.toString(),
+        stats.cashAmount.toFixed(2),
+        stats.customerDebt.toFixed(2)
+      ];
+    });
+
+    const csvContent = "\uFEFF" + [headers, ...rows].map(row => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    
+    const dateStr = dateFrom && dateTo ? `_${dateFrom}_${dateTo}` : "";
+    link.download = `عملائي${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const clearFilters = () => {
+    setDateFrom("");
+    setDateTo("");
   };
 
   if (customersLoading || transactionsLoading) {
@@ -89,11 +155,53 @@ export default function MyCustomersPage() {
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800">عملائي</h1>
             <p className="text-sm text-muted-foreground">قائمة العملاء المسجلين لك مع تفاصيل المبيعات</p>
           </div>
-          <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-lg">
-            <Users className="h-5 w-5 text-primary" />
-            <span className="font-bold text-primary">{myCustomers.length} عميل</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-lg">
+              <Users className="h-5 w-5 text-primary" />
+              <span className="font-bold text-primary">{myCustomers.length} عميل</span>
+            </div>
+            <Button onClick={handleExportCSV} variant="outline" className="gap-2" data-testid="button-export-csv">
+              <Download className="h-4 w-4" />
+              تحميل CSV
+            </Button>
           </div>
         </div>
+
+        <Card className="border-slate-100">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-slate-500" />
+                <span className="font-medium text-slate-700">فلتر التاريخ:</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-slate-500">من</Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-40"
+                  data-testid="input-date-from"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-slate-500">إلى</Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-40"
+                  data-testid="input-date-to"
+                />
+              </div>
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} data-testid="button-clear-filter">
+                  مسح الفلتر
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="border-slate-100">
           <CardContent className="p-0">
@@ -121,9 +229,6 @@ export default function MyCustomersPage() {
                   <TableBody>
                     {myCustomers.map((customer) => {
                       const stats = getCustomerStats(customer.id);
-                      const soldProductsText = Object.entries(stats.soldProducts)
-                        .map(([name, qty]) => `${name}: ${qty}`)
-                        .join(', ') || '-';
                       
                       return (
                         <TableRow key={customer.id} data-testid={`row-my-customer-${customer.id}`} className="hover:bg-slate-50">
@@ -154,12 +259,7 @@ export default function MyCustomersPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm">
-                              <span className="font-bold text-green-600">{stats.totalSoldQty}</span>
-                              {soldProductsText !== '-' && (
-                                <div className="text-xs text-slate-500 mt-1">{soldProductsText}</div>
-                              )}
-                            </div>
+                            <span className="font-bold text-green-600">{stats.totalSoldQty}</span>
                           </TableCell>
                           <TableCell className="font-bold">{stats.totalSoldAmount.toFixed(2)} ر.س</TableCell>
                           <TableCell>
