@@ -532,126 +532,134 @@ export default function DriverTransactionsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          <Card className="border-slate-100 bg-blue-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-blue-600 flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                إجمالي الخبز المستلم
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-700" data-testid="text-total-received">
-                {totalReceivedBread}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-100 bg-orange-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-orange-600 flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                المخزون الحالي
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-700" data-testid="text-current-inventory">
-                {totalCurrentInventory}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-100 bg-green-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-green-600 flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4" />
-                الخبز المباع
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-700" data-testid="text-sold-bread">
-                {totalSoldBread}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-100 bg-purple-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-purple-600 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                عدد العملاء
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-700" data-testid="text-customers-count">
-                {uniqueCustomersCount}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                الرصيد النقدي
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="text-2xl font-bold text-green-600" data-testid="text-cash-balance">
-                {parseFloat(balance?.cashBalance || "0").toFixed(2)} ر.س
+        {/* بطاقة الرصيد النقدي الكبيرة */}
+        <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-4 bg-green-500 rounded-2xl shadow-md">
+                  <DollarSign className="h-10 w-10 text-white" />
+                </div>
+                <div className="text-center md:text-right">
+                  <p className="text-lg font-medium text-green-700">الرصيد النقدي</p>
+                  <div className="text-4xl md:text-5xl font-bold text-green-600" data-testid="text-cash-balance">
+                    {parseFloat(balance?.cashBalance || "0").toFixed(2)} <span className="text-2xl">ر.س</span>
+                  </div>
+                </div>
               </div>
               <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full"
+                size="lg"
+                className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg rounded-xl shadow-md"
                 onClick={() => setIsDepositDialogOpen(true)}
                 data-testid="button-open-deposit-dialog"
               >
-                <Banknote className="h-4 w-4 ml-2" />
+                <Banknote className="h-6 w-6 ml-2" />
                 تسليم مبلغ للمخبز
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="border-slate-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                إجمالي الديون
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600" data-testid="text-total-debts">
-                {totalDebts.toFixed(2)} ر.س
-              </div>
-              <p className="text-xs text-muted-foreground">{unpaidDebts.length} دين غير مدفوع</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4" />
-                العمليات اليوم
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary" data-testid="text-today-transactions">
-                {transactions.length}
+        {/* الصف الأول: إحصائيات المخزون والمبيعات */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <Card className="border-slate-100 bg-blue-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <Package className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-blue-600">الخبز المستلم</p>
+                  <p className="text-xl font-bold text-blue-700" data-testid="text-total-received">{totalReceivedBread}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-slate-100 bg-orange-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-orange-600 flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                إجمالي المصروفات
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-700" data-testid="text-total-expenses">
-                {totalExpenses.toFixed(2)} ر.س
+          <Card className="border-slate-100 bg-orange-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500 rounded-lg">
+                  <Package className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-orange-600">المخزون الحالي</p>
+                  <p className="text-xl font-bold text-orange-700" data-testid="text-current-inventory">{totalCurrentInventory}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-green-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-500 rounded-lg">
+                  <ShoppingCart className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-green-600">الخبز المباع</p>
+                  <p className="text-xl font-bold text-green-700" data-testid="text-sold-bread">{totalSoldBread}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-purple-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500 rounded-lg">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-purple-600">عدد العملاء</p>
+                  <p className="text-xl font-bold text-purple-700" data-testid="text-customers-count">{uniqueCustomersCount}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* الصف الثاني: الإحصائيات المالية */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="border-slate-100 bg-yellow-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-500 rounded-lg">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-yellow-600">إجمالي الديون</p>
+                  <p className="text-xl font-bold text-yellow-700" data-testid="text-total-debts">{totalDebts.toFixed(2)} ر.س</p>
+                  <p className="text-xs text-yellow-600/70">{unpaidDebts.length} دين غير مدفوع</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-red-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-500 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-red-600">إجمالي المصروفات</p>
+                  <p className="text-xl font-bold text-red-700" data-testid="text-total-expenses">{totalExpenses.toFixed(2)} ر.س</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-slate-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-slate-500 rounded-lg">
+                  <ShoppingCart className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-600">العمليات اليوم</p>
+                  <p className="text-xl font-bold text-slate-700" data-testid="text-today-transactions">{transactions.length}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
