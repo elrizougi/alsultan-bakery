@@ -335,12 +335,16 @@ export async function registerRoutes(
             quantity: item.quantity,
           });
           
-          // إذا كان الطلب مؤكد، خصم الكمية من المخزون تلقائياً
-          if (parsed.status === 'CONFIRMED') {
+          // إذا كان الطلب مؤكد أو تم التسليم، خصم من مخزون المخبز وأضف لمخزون المندوب
+          if (parsed.status === 'CONFIRMED' || parsed.status === 'DELIVERED') {
             const product = await storage.getProduct(item.productId);
             if (product) {
               const newStock = Math.max(0, product.stock - item.quantity);
               await storage.updateProductStock(item.productId, newStock);
+            }
+            // إضافة لمخزون المندوب (customerId يشير للمندوب في طلبات الخبز)
+            if (order.customerId) {
+              await storage.updateDriverInventory(order.customerId, item.productId, item.quantity);
             }
           }
         }
@@ -371,19 +375,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "الطلب غير موجود" });
       }
       
-      // إذا تغيرت الحالة إلى مؤكد، خصم الكمية من المخزون
-      if (orderData.status === 'CONFIRMED' && existingOrder.status !== 'CONFIRMED') {
-        const existingItems = await storage.getOrderItems(order.id);
-        for (const item of existingItems) {
-          const product = await storage.getProduct(item.productId);
-          if (product) {
-            const newStock = Math.max(0, product.stock - item.quantity);
-            await storage.updateProductStock(item.productId, newStock);
-          }
-        }
-      }
-      
-      // Update order items if provided
+      // Update order items if provided (قبل تحديث المخزون)
       if (items && Array.isArray(items)) {
         await storage.deleteOrderItems(order.id);
         for (const item of items) {
@@ -392,6 +384,27 @@ export async function registerRoutes(
             productId: item.productId,
             quantity: item.quantity,
           });
+        }
+      }
+      
+      // إذا تغيرت الحالة إلى مؤكد أو تم التسليم من أي حالة غير مؤكدة، خصم من مخزون المخبز وأضف لمخزون المندوب
+      const confirmedStatuses = ['CONFIRMED', 'DELIVERED'];
+      const wasNotConfirmed = !confirmedStatuses.includes(existingOrder.status);
+      const isNowConfirmed = confirmedStatuses.includes(orderData.status);
+      
+      if (wasNotConfirmed && isNowConfirmed) {
+        const finalItems = await storage.getOrderItems(order.id);
+        for (const item of finalItems) {
+          const product = await storage.getProduct(item.productId);
+          if (product) {
+            // خصم من مخزون المخبز
+            const newStock = Math.max(0, product.stock - item.quantity);
+            await storage.updateProductStock(item.productId, newStock);
+          }
+          // إضافة لمخزون المندوب (customerId يشير للمندوب في طلبات الخبز)
+          if (order.customerId) {
+            await storage.updateDriverInventory(order.customerId, item.productId, item.quantity);
+          }
         }
       }
       
