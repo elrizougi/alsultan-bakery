@@ -120,7 +120,8 @@ export const returns = pgTable("returns", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   runId: varchar("run_id").references(() => dispatchRuns.id),
   orderId: varchar("order_id").references(() => orders.id),
-  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  customerId: varchar("customer_id"),
+  driverId: varchar("driver_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
