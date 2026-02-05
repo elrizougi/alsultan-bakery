@@ -72,7 +72,8 @@ export interface ReturnItemData {
 
 export interface ReturnRecord {
   id: string;
-  runId: string;
+  runId?: string;
+  orderId?: string;
   customerId: string;
   items: ReturnItemData[];
 }
@@ -192,7 +193,7 @@ export const api = {
     return res.json();
   },
 
-  createReturn: async (ret: { runId: string; customerId: string; items: ReturnItemData[] }): Promise<ReturnRecord> => {
+  createReturn: async (ret: { runId?: string; orderId?: string; customerId: string; items: ReturnItemData[] }): Promise<ReturnRecord> => {
     const res = await apiRequest("POST", "/api/returns", ret);
     return res.json();
   },

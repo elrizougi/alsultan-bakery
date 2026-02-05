@@ -887,7 +887,7 @@ function CloseOrderDialog({ order, onOpenChange }: { order: Order; onOpenChange:
       
       if (allReturnItems.length > 0) {
         await api.createReturn({
-          runId: order.id,
+          orderId: order.id,
           customerId: order.customerId,
           items: allReturnItems
         });

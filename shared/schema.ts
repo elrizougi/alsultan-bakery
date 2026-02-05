@@ -118,7 +118,8 @@ export type RunOrder = typeof runOrders.$inferSelect;
 // Returns table
 export const returns = pgTable("returns", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  runId: varchar("run_id").references(() => dispatchRuns.id).notNull(),
+  runId: varchar("run_id").references(() => dispatchRuns.id),
+  orderId: varchar("order_id").references(() => orders.id),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
