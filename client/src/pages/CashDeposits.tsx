@@ -201,11 +201,14 @@ export default function CashDepositsPage() {
     const totalSamples = freeSamples.reduce((sum, t) => sum + (t.quantity || 0), 0);
     const totalFree = freeDistribution.reduce((sum, t) => sum + (t.quantity || 0), 0);
     const totalAmount = [...cashSales, ...creditSales].reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
-    const cashAmount = cashSales.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+    const cashSalesAmount = cashSales.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
     const creditAmount = creditSales.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
     
+    const collectedDebts = settlementDebts.reduce((sum, d) => sum + parseFloat(d.paidAmount || '0'), 0);
     const totalDebt = settlementDebts.reduce((sum, d) => 
       sum + (parseFloat(d.amount || '0') - parseFloat(d.paidAmount || '0')), 0);
+    
+    const cashAmount = cashSalesAmount + collectedDebts;
 
     return {
       productStats,
@@ -215,6 +218,8 @@ export default function CashDepositsPage() {
       totalFree,
       totalAmount,
       cashAmount,
+      cashSalesAmount,
+      collectedDebts,
       creditAmount,
       totalDebt,
     };
@@ -460,6 +465,10 @@ export default function CashDepositsPage() {
                           <DollarSign className="h-8 w-8 text-blue-600 mx-auto mb-2" />
                           <p className="text-sm text-blue-600 font-medium">النقدي المحصل</p>
                           <p className="text-3xl font-bold text-blue-700">{stats?.cashAmount.toFixed(2) || '0.00'} ر.س</p>
+                          <div className="text-xs text-blue-600 mt-2 space-y-1">
+                            <p>مبيعات نقدية: {stats?.cashSalesAmount.toFixed(2) || '0.00'} ر.س</p>
+                            <p>ديون محصلة: {stats?.collectedDebts.toFixed(2) || '0.00'} ر.س</p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
