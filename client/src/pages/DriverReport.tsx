@@ -200,9 +200,17 @@ export default function DriverReportPage() {
     return isDateInRange(o.date);
   });
   
-  // العهدة المستلمة من المخبز - من مخزون السائق الفعلي
+  // العهدة المستلمة من المخبز - من الطلبات المفلترة حسب التاريخ
   type ReceivedItem = { productId: string; quantity: number; bakeryPrice: number };
-  const aggregatedReceived = inventory.reduce((acc: ReceivedItem[], item) => {
+  const receivedFromOrders = driverOrders.flatMap(order => 
+    order.items?.map(item => ({
+      productId: item.productId,
+      quantity: item.receivedQuantity || item.quantity,
+      bakeryPrice: getProductPrice(item.productId),
+    })) || []
+  );
+
+  const aggregatedReceived = receivedFromOrders.reduce((acc: ReceivedItem[], item) => {
     const existing = acc.find((a: ReceivedItem) => a.productId === item.productId);
     if (existing) {
       existing.quantity += item.quantity;
@@ -210,7 +218,7 @@ export default function DriverReportPage() {
       acc.push({ 
         productId: item.productId, 
         quantity: item.quantity, 
-        bakeryPrice: getProductPrice(item.productId) 
+        bakeryPrice: item.bakeryPrice 
       });
     }
     return acc;
