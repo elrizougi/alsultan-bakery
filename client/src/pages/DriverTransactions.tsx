@@ -478,7 +478,7 @@ export default function DriverTransactionsPage() {
   }
 
   const unpaidDebts = debts.filter(d => !d.isPaid);
-  const totalDebts = unpaidDebts.reduce((sum, d) => sum + parseFloat(d.amount), 0);
+  const totalDebts = unpaidDebts.reduce((sum, d) => sum + (parseFloat(d.amount) - parseFloat(d.paidAmount || "0")), 0);
 
   // حساب إجمالي الخبز المستلم من الطلبات المؤكدة
   const totalReceivedBread = assignedOrders.reduce((sum, order) => {
