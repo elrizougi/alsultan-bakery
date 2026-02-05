@@ -570,16 +570,16 @@ export default function DriverTransactionsPage() {
         </Card>
 
         {/* الصف الأول: إحصائيات المخزون والمبيعات */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <Card className="border-slate-100 bg-blue-50 hover:shadow-md transition-shadow">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500 rounded-lg">
-                  <Package className="h-5 w-5 text-white" />
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-500 rounded-xl">
+                  <Package className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-blue-600">المستلم</p>
-                  <p className="text-xl font-bold text-blue-700" data-testid="text-received-bread">{totalReceivedBread}</p>
+                  <p className="text-sm font-medium text-blue-600">المستلم</p>
+                  <p className="text-2xl font-bold text-blue-700" data-testid="text-received-bread">{totalReceivedBread}</p>
                   <p className="text-xs text-blue-600/70">من الطلبات المؤكدة</p>
                 </div>
               </div>
@@ -587,14 +587,14 @@ export default function DriverTransactionsPage() {
           </Card>
 
           <Card className="border-slate-100 bg-orange-50 hover:shadow-md transition-shadow">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500 rounded-lg">
-                  <Package className="h-5 w-5 text-white" />
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-orange-500 rounded-xl">
+                  <Package className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-orange-600">المخزون الحالي</p>
-                  <p className="text-xl font-bold text-orange-700" data-testid="text-current-inventory">{totalCurrentInventory}</p>
+                  <p className="text-sm font-medium text-orange-600">المخزون الحالي</p>
+                  <p className="text-2xl font-bold text-orange-700" data-testid="text-current-inventory">{totalCurrentInventory}</p>
                   <p className="text-xs text-orange-600/70">{totalCurrentInventoryValue.toFixed(2)} ر.س</p>
                 </div>
               </div>
@@ -602,14 +602,14 @@ export default function DriverTransactionsPage() {
           </Card>
 
           <Card className="border-slate-100 bg-green-50 hover:shadow-md transition-shadow">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500 rounded-lg">
-                  <ShoppingCart className="h-5 w-5 text-white" />
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-500 rounded-xl">
+                  <ShoppingCart className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-green-600">الخبز المباع</p>
-                  <p className="text-xl font-bold text-green-700" data-testid="text-sold-bread">{totalSoldBread}</p>
+                  <p className="text-sm font-medium text-green-600">الخبز المباع</p>
+                  <p className="text-2xl font-bold text-green-700" data-testid="text-sold-bread">{totalSoldBread}</p>
                   <p className="text-xs text-green-600/70">{totalSoldValue.toFixed(2)} ر.س</p>
                 </div>
               </div>
@@ -617,14 +617,14 @@ export default function DriverTransactionsPage() {
           </Card>
 
           <Card className="border-slate-100 bg-purple-50 hover:shadow-md transition-shadow">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500 rounded-lg">
-                  <FileText className="h-5 w-5 text-white" />
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-500 rounded-xl">
+                  <FileText className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-purple-600">عدد العملاء</p>
-                  <p className="text-xl font-bold text-purple-700" data-testid="text-customers-count">{uniqueCustomersCount}</p>
+                  <p className="text-sm font-medium text-purple-600">عدد العملاء</p>
+                  <p className="text-2xl font-bold text-purple-700" data-testid="text-customers-count">{uniqueCustomersCount}</p>
                 </div>
               </div>
             </CardContent>
