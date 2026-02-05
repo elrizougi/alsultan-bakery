@@ -483,13 +483,20 @@ export default function DriverTransactionsPage() {
     return sum + (order.items?.reduce((itemSum, item) => itemSum + (item.receivedQuantity || item.quantity), 0) || 0);
   }, 0);
 
-  // حساب المخزون الحالي
+  // حساب المخزون الحالي مع القيمة
   const totalCurrentInventory = inventory.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCurrentInventoryValue = inventory.reduce((sum, item) => {
+    const product = products.find(p => p.id === item.productId);
+    return sum + (item.quantity * parseFloat(product?.price || '0'));
+  }, 0);
 
-  // حساب الخبز المباع (بيع نقدي + بيع آجل)
+  // حساب الخبز المباع (بيع نقدي + بيع آجل) مع القيمة
   const totalSoldBread = transactions
     .filter(t => t.type === "CASH_SALE" || t.type === "CREDIT_SALE")
     .reduce((sum, t) => sum + t.quantity, 0);
+  const totalSoldValue = transactions
+    .filter(t => t.type === "CASH_SALE" || t.type === "CREDIT_SALE")
+    .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
 
   // حساب عدد العملاء الفريدين
   const uniqueCustomersSet = new Set(
@@ -571,6 +578,7 @@ export default function DriverTransactionsPage() {
                 <div>
                   <p className="text-xs font-medium text-orange-600">المخزون الحالي</p>
                   <p className="text-xl font-bold text-orange-700" data-testid="text-current-inventory">{totalCurrentInventory}</p>
+                  <p className="text-xs text-orange-600/70">{totalCurrentInventoryValue.toFixed(2)} ر.س</p>
                 </div>
               </div>
             </CardContent>
@@ -585,6 +593,7 @@ export default function DriverTransactionsPage() {
                 <div>
                   <p className="text-xs font-medium text-green-600">الخبز المباع</p>
                   <p className="text-xl font-bold text-green-700" data-testid="text-sold-bread">{totalSoldBread}</p>
+                  <p className="text-xs text-green-600/70">{totalSoldValue.toFixed(2)} ر.س</p>
                 </div>
               </div>
             </CardContent>
