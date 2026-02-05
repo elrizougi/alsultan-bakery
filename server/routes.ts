@@ -508,64 +508,8 @@ export async function registerRoutes(
         return res.status(404).json({ message: "الرحلة غير موجودة" });
       }
       
-      const previousStatus = run.status;
-      
       if (Object.keys(runData).length > 0) {
         run = await storage.updateDispatchRun(req.params.id, runData) || run;
-      }
-      
-      // When closing the run, register returns as driver transactions
-      if (runData.status === 'CLOSED' && previousStatus !== 'CLOSED') {
-        try {
-          const runReturns = await storage.getReturnsByRunId(run.id);
-          const products = await storage.getAllProducts();
-          const allUsers = await storage.getAllUsers();
-          
-          // Find driver by name from run
-          const driver = allUsers.find(u => u.name === run.driverName && u.role === 'DRIVER');
-          
-          for (const ret of runReturns) {
-            const returnItems = await storage.getReturnItems(ret.id);
-            // Use driver from return or from run
-            const driverId = ret.driverId || driver?.id;
-            const customerId = ret.customerId;
-            
-            // Skip if no driver found
-            if (!driverId) {
-              console.log(`Skipping return ${ret.id}: no driver found`);
-              continue;
-            }
-            
-            // Skip if no customer - these are run-level returns without customer
-            if (!customerId) {
-              console.log(`Skipping return ${ret.id}: no customer associated`);
-              continue;
-            }
-            
-            for (const item of returnItems) {
-              const product = products.find(p => p.id === item.productId);
-              const unitPrice = product?.price || "0";
-              const totalAmount = (parseFloat(unitPrice) * item.quantity).toFixed(2);
-              
-              // DAMAGED = تالف, GOOD or EXPIRED = مرتجع
-              const transactionType = item.reason === 'DAMAGED' ? 'DAMAGED' : 'RETURN';
-              
-              await storage.createTransaction({
-                driverId,
-                customerId,
-                productId: item.productId,
-                type: transactionType,
-                quantity: item.quantity,
-                unitPrice,
-                totalAmount,
-                notes: `من إغلاق الرحلة - ${item.reason === 'DAMAGED' ? 'خبز تالف' : item.reason === 'EXPIRED' ? 'منتهي الصلاحية' : 'مرتجع سليم'}`,
-              });
-            }
-          }
-        } catch (transactionError) {
-          console.error("Error creating transactions on run close:", transactionError);
-          // Continue with run close even if transactions fail
-        }
       }
       
       // Update orderIds if provided
@@ -637,22 +581,12 @@ export async function registerRoutes(
       console.log("Creating return with data:", JSON.stringify(req.body));
       const { items, ...returnData } = req.body;
       
-      // Get customerId from order if orderId is provided
-      let customerId = returnData.customerId;
-      if (!customerId && returnData.orderId) {
-        const order = await storage.getOrder(returnData.orderId);
-        if (order) {
-          customerId = order.customerId;
-        }
-      }
-      
-      const parsed = insertReturnSchema.parse({ ...returnData, customerId });
+      const parsed = insertReturnSchema.parse(returnData);
       console.log("Parsed return data:", JSON.stringify(parsed));
       const ret = await storage.createReturn(parsed);
       console.log("Created return:", JSON.stringify(ret));
       
-      // Create return items
-      const products = await storage.getAllProducts();
+      // Create return items and update inventory
       if (items && Array.isArray(items)) {
         for (const item of items) {
           await storage.createReturnItem({
@@ -662,23 +596,17 @@ export async function registerRoutes(
             reason: item.reason,
           });
           
-          // Create transaction for driver record
-          if (ret.driverId && customerId) {
-            const product = products.find(p => p.id === item.productId);
-            const unitPrice = product?.price || "0";
-            const totalAmount = (parseFloat(unitPrice) * item.quantity).toFixed(2);
-            const transactionType = item.reason === 'DAMAGED' ? 'DAMAGED' : 'RETURN';
-            
-            await storage.createTransaction({
-              driverId: ret.driverId,
-              customerId,
-              productId: item.productId,
-              type: transactionType,
-              quantity: item.quantity,
-              unitPrice,
-              totalAmount,
-              notes: item.reason === 'DAMAGED' ? 'خبز تالف' : item.reason === 'EXPIRED' ? 'منتهي الصلاحية' : 'مرتجع سليم',
-            });
+          // Deduct from driver inventory
+          if (ret.driverId) {
+            await storage.updateDriverInventory(ret.driverId, item.productId, -item.quantity);
+          }
+          
+          // Return GOOD items to bakery stock (not damaged or expired)
+          if (item.reason === 'GOOD') {
+            const product = await storage.getProduct(item.productId);
+            if (product) {
+              await storage.updateProductStock(item.productId, product.stock + item.quantity);
+            }
           }
         }
       }
