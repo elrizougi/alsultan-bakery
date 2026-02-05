@@ -80,14 +80,17 @@ export interface IStorage {
   getRunOrders(runId: string): Promise<RunOrder[]>;
   createRunOrder(runOrder: InsertRunOrder): Promise<RunOrder>;
   deleteRunOrders(runId: string): Promise<boolean>;
+  deleteRunOrdersByOrderId(orderId: string): Promise<boolean>;
 
   // Returns
   getAllReturns(): Promise<Return[]>;
   getReturn(id: string): Promise<Return | undefined>;
   getReturnsByRunId(runId: string): Promise<Return[]>;
+  getReturnsByOrderId(orderId: string): Promise<Return[]>;
   createReturn(ret: InsertReturn): Promise<Return>;
   deleteReturn(id: string): Promise<boolean>;
   deleteReturnsByRunId(runId: string): Promise<boolean>;
+  deleteReturnsByOrderId(orderId: string): Promise<boolean>;
 
   // Return Items
   getReturnItems(returnId: string): Promise<ReturnItem[]>;
@@ -404,6 +407,11 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
+  async deleteRunOrdersByOrderId(orderId: string): Promise<boolean> {
+    await db.delete(runOrders).where(eq(runOrders.orderId, orderId));
+    return true;
+  }
+
   // Returns
   async getAllReturns(): Promise<Return[]> {
     return db.select().from(returns);
@@ -416,6 +424,19 @@ export class DatabaseStorage implements IStorage {
 
   async getReturnsByRunId(runId: string): Promise<Return[]> {
     return db.select().from(returns).where(eq(returns.runId, runId));
+  }
+
+  async getReturnsByOrderId(orderId: string): Promise<Return[]> {
+    return db.select().from(returns).where(eq(returns.orderId, orderId));
+  }
+
+  async deleteReturnsByOrderId(orderId: string): Promise<boolean> {
+    const orderReturns = await this.getReturnsByOrderId(orderId);
+    for (const ret of orderReturns) {
+      await this.deleteReturnItems(ret.id);
+    }
+    await db.delete(returns).where(eq(returns.orderId, orderId));
+    return true;
   }
 
   async deleteReturnsByRunId(runId: string): Promise<boolean> {

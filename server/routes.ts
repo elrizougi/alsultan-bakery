@@ -436,10 +436,15 @@ export async function registerRoutes(
 
   app.delete("/api/orders/:id", async (req, res) => {
     try {
-      await storage.deleteOrderItems(req.params.id);
-      await storage.deleteOrder(req.params.id);
+      const orderId = req.params.id;
+      // Delete all related records first
+      await storage.deleteRunOrdersByOrderId(orderId);
+      await storage.deleteReturnsByOrderId(orderId);
+      await storage.deleteOrderItems(orderId);
+      await storage.deleteOrder(orderId);
       res.status(204).send();
     } catch (error) {
+      console.error("Error deleting order:", error);
       res.status(500).json({ message: "خطأ في الخادم" });
     }
   });
