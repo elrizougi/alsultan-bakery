@@ -266,7 +266,7 @@ export default function DriverTransactionsPage() {
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
-  const [newCustomerAddress, setNewCustomerAddress] = useState("");
+  const [newCustomerLocationUrl, setNewCustomerLocationUrl] = useState("");
   const [customPrice, setCustomPrice] = useState<string>("");
   const [expenseAmount, setExpenseAmount] = useState<string>("");
   const [expenseDescription, setExpenseDescription] = useState<string>("");
@@ -295,7 +295,7 @@ export default function DriverTransactionsPage() {
     setShowNewCustomerForm(false);
     setNewCustomerName("");
     setNewCustomerPhone("");
-    setNewCustomerAddress("");
+    setNewCustomerLocationUrl("");
   };
 
   const handleAddNewCustomer = async () => {
@@ -308,14 +308,16 @@ export default function DriverTransactionsPage() {
       const newCustomer = await createCustomer.mutateAsync({
         name: newCustomerName.trim(),
         phone: newCustomerPhone.trim() || "",
-        address: newCustomerAddress.trim() || "",
+        address: "",
+        locationUrl: newCustomerLocationUrl.trim() || "",
+        driverId: driverId,
       });
       
       setFormData({ ...formData, customerId: newCustomer.id });
       setShowNewCustomerForm(false);
       setNewCustomerName("");
       setNewCustomerPhone("");
-      setNewCustomerAddress("");
+      setNewCustomerLocationUrl("");
       toast({ title: "تم إضافة العميل بنجاح" });
     } catch (error) {
       toast({ title: "حدث خطأ في إضافة العميل", variant: "destructive" });
@@ -951,10 +953,10 @@ export default function DriverTransactionsPage() {
                         data-testid="input-new-customer-phone"
                       />
                       <Input
-                        placeholder="العنوان"
-                        value={newCustomerAddress}
-                        onChange={(e) => setNewCustomerAddress(e.target.value)}
-                        data-testid="input-new-customer-address"
+                        placeholder="رابط موقع الخريطة"
+                        value={newCustomerLocationUrl}
+                        onChange={(e) => setNewCustomerLocationUrl(e.target.value)}
+                        data-testid="input-new-customer-location"
                       />
                       <Button 
                         type="button" 
