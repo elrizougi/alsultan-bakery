@@ -77,13 +77,6 @@ export default function LoginPage() {
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "دخول"}
             </Button>
           </form>
-          
-          <div className="mt-8 p-4 bg-slate-50 rounded-2xl text-xs text-slate-500 text-right space-y-1">
-            <p className="font-black text-slate-600 mb-2">حسابات تجريبية:</p>
-            <p><span className="font-bold text-primary">admin</span> / admin123 - مدير النظام</p>
-            <p><span className="font-bold text-blue-500">driver1</span> / driver123 - مندوب توصيل</p>
-            <p><span className="font-bold text-amber-500">sales1</span> / sales123 - مبيعات</p>
-          </div>
         </CardContent>
       </Card>
     </div>
