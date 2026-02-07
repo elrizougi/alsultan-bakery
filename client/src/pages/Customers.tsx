@@ -95,28 +95,51 @@ export default function CustomersPage() {
     link.click();
   };
 
+  const parseCSVLine = (line: string, separator: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === separator && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsImporting(true);
     try {
-      const text = await file.text();
-      const lines = text.split("\n").filter(line => line.trim());
+      let text = await file.text();
+      text = text.replace(/^\uFEFF/, '');
+      
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
       
       if (lines.length < 2) {
         toast({ title: "الملف فارغ أو لا يحتوي على بيانات", variant: "destructive" });
         return;
       }
 
-      const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
-      const nameIdx = headers.findIndex(h => h === "name" || h === "اسم" || h === "الاسم");
+      const separator = lines[0].includes(';') ? ';' : (lines[0].includes('\t') ? '\t' : ',');
+      
+      const headers = parseCSVLine(lines[0], separator).map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+      const nameIdx = headers.findIndex(h => h === "name" || h === "اسم" || h === "الاسم" || h === "اسم العميل");
       const addressIdx = headers.findIndex(h => h === "address" || h === "عنوان" || h === "العنوان");
-      const phoneIdx = headers.findIndex(h => h === "phone" || h === "جوال" || h === "هاتف" || h === "رقم");
-      const locationIdx = headers.findIndex(h => h === "locationurl" || h === "location" || h === "رابط" || h === "موقع");
+      const phoneIdx = headers.findIndex(h => h === "phone" || h === "جوال" || h === "هاتف" || h === "رقم" || h === "رقم الجوال" || h === "الهاتف" || h === "الجوال");
+      const locationIdx = headers.findIndex(h => h === "locationurl" || h === "location" || h === "رابط" || h === "موقع" || h === "رابط الموقع");
 
-      if (nameIdx === -1 || addressIdx === -1 || phoneIdx === -1) {
-        toast({ title: "يجب أن يحتوي الملف على أعمدة: name, address, phone", variant: "destructive" });
+      if (nameIdx === -1 || phoneIdx === -1) {
+        toast({ title: "يجب أن يحتوي الملف على أعمدة: الاسم، رقم الجوال", variant: "destructive" });
         return;
       }
 
@@ -124,13 +147,13 @@ export default function CustomersPage() {
       let errorCount = 0;
 
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map(v => v.trim());
-        const name = values[nameIdx];
-        const address = values[addressIdx];
-        const phone = values[phoneIdx];
-        const locationUrl = locationIdx !== -1 ? values[locationIdx] : "";
+        const values = parseCSVLine(lines[i], separator);
+        const name = values[nameIdx]?.replace(/['"]/g, '');
+        const address = addressIdx !== -1 ? values[addressIdx]?.replace(/['"]/g, '') : "";
+        const phone = values[phoneIdx]?.replace(/['"]/g, '');
+        const locationUrl = locationIdx !== -1 ? values[locationIdx]?.replace(/['"]/g, '') : "";
 
-        if (!name || !address || !phone) {
+        if (!name || !phone) {
           errorCount++;
           continue;
         }
@@ -138,11 +161,11 @@ export default function CustomersPage() {
         try {
           await createCustomer.mutateAsync({
             name,
-            address,
+            address: address || "",
             phone,
             locationUrl: locationUrl || "",
-            routeId: undefined,
-            driverId: undefined,
+            routeId: undefined as any,
+            driverId: undefined as any,
           });
           successCount++;
         } catch {
