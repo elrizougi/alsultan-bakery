@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2, Upload, Download } from "lucide-react";
+import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2, Upload, Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useRef } from "react";
 import {
@@ -64,6 +64,7 @@ export default function CustomersPage() {
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [filterDriverId, setFilterDriverId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<CustomerFormData>({
     name: "",
@@ -76,9 +77,14 @@ export default function CustomersPage() {
 
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   
-  const filteredCustomers = filterDriverId && filterDriverId !== "all"
-    ? customers.filter(c => c.driverId === filterDriverId)
-    : customers;
+  const filteredCustomers = customers.filter(c => {
+    const matchesDriver = !filterDriverId || filterDriverId === "all" || c.driverId === filterDriverId;
+    const matchesSearch = !searchQuery || 
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.phone && c.phone.includes(searchQuery)) ||
+      (c.address && c.address.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesDriver && matchesSearch;
+  });
 
   const downloadTemplate = () => {
     const csvContent = "name,address,phone,locationUrl\nاسم العميل,العنوان,رقم الجوال,رابط الموقع\nمثال: محمد أحمد,حي الملك فهد - شارع العليا,0501234567,https://maps.google.com/...";
@@ -306,8 +312,17 @@ export default function CustomersPage() {
           </Card>
         </div>
 
-        {/* فلتر المناديب */}
-        <div className="flex items-center gap-4 bg-card p-4 rounded-lg border">
+        <div className="flex flex-wrap items-center gap-4 bg-card p-4 rounded-lg border">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="بحث بالاسم أو رقم الجوال أو العنوان..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pr-10"
+              data-testid="input-search-customers"
+            />
+          </div>
           <Label className="font-medium whitespace-nowrap">فلتر حسب المندوب:</Label>
           <Select value={filterDriverId} onValueChange={setFilterDriverId}>
             <SelectTrigger className="w-64" data-testid="select-filter-driver">
