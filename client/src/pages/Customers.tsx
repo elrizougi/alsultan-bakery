@@ -138,8 +138,8 @@ export default function CustomersPage() {
       const phoneIdx = headers.findIndex(h => h === "phone" || h === "جوال" || h === "هاتف" || h === "رقم" || h === "رقم الجوال" || h === "الهاتف" || h === "الجوال");
       const locationIdx = headers.findIndex(h => h === "locationurl" || h === "location" || h === "رابط" || h === "موقع" || h === "رابط الموقع");
 
-      if (nameIdx === -1 || phoneIdx === -1) {
-        toast({ title: "يجب أن يحتوي الملف على أعمدة: الاسم، رقم الجوال", variant: "destructive" });
+      if (nameIdx === -1) {
+        toast({ title: "يجب أن يحتوي الملف على عمود الاسم (name أو اسم)", variant: "destructive" });
         return;
       }
 
@@ -150,10 +150,10 @@ export default function CustomersPage() {
         const values = parseCSVLine(lines[i], separator);
         const name = values[nameIdx]?.replace(/['"]/g, '');
         const address = addressIdx !== -1 ? values[addressIdx]?.replace(/['"]/g, '') : "";
-        const phone = values[phoneIdx]?.replace(/['"]/g, '');
+        const phone = phoneIdx !== -1 ? values[phoneIdx]?.replace(/['"]/g, '') : "";
         const locationUrl = locationIdx !== -1 ? values[locationIdx]?.replace(/['"]/g, '') : "";
 
-        if (!name || !phone) {
+        if (!name) {
           errorCount++;
           continue;
         }
