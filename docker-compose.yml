@@ -1,9 +1,25 @@
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: alsultan-db
+    environment:
+      POSTGRES_USER: alsultan
+      POSTGRES_PASSWORD: strongpassword
+      POSTGRES_DB: alsultan
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   alsultan-bakery:
-    container_name: alsultan-bakery
     build: .
-    ports:
-      - "3020:3000"
+    container_name: alsultan-bakery
     env_file:
       - .env
+    ports:
+      - "3020:3000"
+    depends_on:
+      - db
     restart: unless-stopped
+
+volumes:
+  postgres_data:
