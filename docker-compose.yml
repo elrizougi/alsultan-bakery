@@ -4,7 +4,7 @@ services:
     container_name: alsultan-db
     environment:
       POSTGRES_USER: alsultan
-      POSTGRES_PASSWORD: strongpassword
+      POSTGRES_PASSWORD: Awe@93554
       POSTGRES_DB: alsultan
     volumes:
       - postgres_data:/var/lib/postgresql/data
