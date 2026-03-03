@@ -1,0 +1,9 @@
+services:
+  alsultan-bakery:
+    container_name: alsultan-bakery
+    build: .
+    ports:
+      - "3020:3000"
+    env_file:
+      - .env
+    restart: unless-stopped

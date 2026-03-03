@@ -69,3 +69,9 @@ Preferred communication style: Simple, everyday language.
 - **Cairo**: Primary Arabic font
 - **Inter**: Secondary Latin font
 - **JetBrains Mono**: Monospace font for code/data display
+
+### Docker Deployment
+- **Dockerfile**: node:20-alpine, builds frontend+backend, runs `npm start`
+- **docker-compose.yml**: Service `alsultan-bakery`, internal port 3000, external port 3020
+- **Environment**: `.env` file (not committed), `.env.example` as template
+- **Build command**: `docker compose up -d --build`
