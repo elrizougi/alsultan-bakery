@@ -18,6 +18,7 @@ import {
   orderModifications, type OrderModification, type InsertOrderModification,
   orderModificationItems, type OrderModificationItem, type InsertOrderModificationItem,
   cashDeposits, type CashDeposit, type InsertCashDeposit,
+  bakeryExpenses, type BakeryExpense, type InsertBakeryExpense,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -139,6 +140,12 @@ export interface IStorage {
   createCashDeposit(deposit: InsertCashDeposit): Promise<CashDeposit>;
   confirmCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
   rejectCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
+
+  // Bakery Expenses - مصروفات المخبز
+  getBakeryExpenses(): Promise<BakeryExpense[]>;
+  createBakeryExpense(expense: InsertBakeryExpense): Promise<BakeryExpense>;
+  updateBakeryExpense(id: string, expense: Partial<InsertBakeryExpense>): Promise<BakeryExpense | undefined>;
+  deleteBakeryExpense(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1037,6 +1044,25 @@ export class DatabaseStorage implements IStorage {
       .where(eq(cashDeposits.id, id))
       .returning();
     return updated;
+  }
+  // Bakery Expenses - مصروفات المخبز
+  async getBakeryExpenses(): Promise<BakeryExpense[]> {
+    return await db.select().from(bakeryExpenses);
+  }
+
+  async createBakeryExpense(expense: InsertBakeryExpense): Promise<BakeryExpense> {
+    const [created] = await db.insert(bakeryExpenses).values(expense).returning();
+    return created;
+  }
+
+  async updateBakeryExpense(id: string, expense: Partial<InsertBakeryExpense>): Promise<BakeryExpense | undefined> {
+    const [updated] = await db.update(bakeryExpenses).set(expense).where(eq(bakeryExpenses.id, id)).returning();
+    return updated;
+  }
+
+  async deleteBakeryExpense(id: string): Promise<boolean> {
+    const result = await db.delete(bakeryExpenses).where(eq(bakeryExpenses.id, id)).returning();
+    return result.length > 0;
   }
 }
 

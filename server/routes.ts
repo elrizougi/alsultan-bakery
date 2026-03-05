@@ -1174,5 +1174,52 @@ export async function registerRoutes(
     }
   });
 
+  // Bakery Expenses - مصروفات المخبز
+  app.get("/api/bakery-expenses", async (_req, res) => {
+    try {
+      const expenses = await storage.getBakeryExpenses();
+      res.json(expenses);
+    } catch (error) {
+      console.error("Get bakery expenses error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/bakery-expenses", async (req, res) => {
+    try {
+      const expense = await storage.createBakeryExpense(req.body);
+      res.json(expense);
+    } catch (error) {
+      console.error("Create bakery expense error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.put("/api/bakery-expenses/:id", async (req, res) => {
+    try {
+      const expense = await storage.updateBakeryExpense(req.params.id, req.body);
+      if (!expense) {
+        return res.status(404).json({ message: "المصروف غير موجود" });
+      }
+      res.json(expense);
+    } catch (error) {
+      console.error("Update bakery expense error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.delete("/api/bakery-expenses/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteBakeryExpense(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "المصروف غير موجود" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete bakery expense error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   return httpServer;
 }

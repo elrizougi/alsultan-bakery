@@ -12,7 +12,8 @@ import {
   MapPin,
   Wallet,
   Send,
-  UserCheck
+  UserCheck,
+  Receipt
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useStore } from "@/lib/store";
@@ -29,6 +30,7 @@ export function Sidebar({ className }: SidebarProps) {
     { icon: Wallet, label: "العمليات الميدانية", href: "/driver-transactions" },
     { icon: UserCheck, label: "عملائي", href: "/my-customers" },
     { icon: Send, label: "تسليم المبالغ", href: "/cash-deposits" },
+    { icon: Receipt, label: "مصروفات المخبز", href: "/bakery-expenses" },
     { icon: Package, label: "خبز في الصالة", href: "/inventory" },
     { icon: Users, label: "قائمة العملاء", href: "/customers" },
     { icon: MapPin, label: "خطوط التوزيع", href: "/routes" },

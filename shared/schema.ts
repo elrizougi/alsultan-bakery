@@ -248,3 +248,21 @@ export const insertCashDepositSchema = createInsertSchema(cashDeposits).omit({ i
 export type InsertCashDeposit = z.infer<typeof insertCashDepositSchema>;
 export type CashDeposit = typeof cashDeposits.$inferSelect;
 export type DepositStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
+
+// Bakery Expenses - مصروفات المخبز
+export const expenseCategoryEnum = pgEnum('expense_category', ['RENT', 'ELECTRICITY', 'WATER', 'GAS', 'SALARIES', 'MAINTENANCE', 'SUPPLIES', 'FUEL', 'INSURANCE', 'OTHER']);
+
+export const bakeryExpenses = pgTable("bakery_expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  category: expenseCategoryEnum("category").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description").notNull(),
+  expenseDate: text("expense_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+});
+
+export const insertBakeryExpenseSchema = createInsertSchema(bakeryExpenses).omit({ id: true, createdAt: true });
+export type InsertBakeryExpense = z.infer<typeof insertBakeryExpenseSchema>;
+export type BakeryExpense = typeof bakeryExpenses.$inferSelect;
+export type ExpenseCategory = 'RENT' | 'ELECTRICITY' | 'WATER' | 'GAS' | 'SALARIES' | 'MAINTENANCE' | 'SUPPLIES' | 'FUEL' | 'INSURANCE' | 'OTHER';
