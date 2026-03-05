@@ -116,6 +116,9 @@ export default function DriverDailyReportPage() {
     const expensesAmount = dayTx.filter(t => (t.type as string) === 'EXPENSE')
       .reduce((s, t) => s + parseFloat(t.totalAmount || "0"), 0);
 
+    const driverDebtAmount = dayTx.filter(t => (t.type as string) === 'DRIVER_DEBT')
+      .reduce((s, t) => s + parseFloat(t.totalAmount || "0"), 0);
+
     const servedCustomerIds = new Set(
       dayTx.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
         .map(t => t.customerId).filter(Boolean)
@@ -132,6 +135,7 @@ export default function DriverDailyReportPage() {
       creditAmount,
       totalSalesAmount,
       expensesAmount,
+      driverDebtAmount,
       servedCount: servedCustomerIds.size,
       dayTx,
     };
@@ -274,7 +278,7 @@ export default function DriverDailyReportPage() {
     const headers = ['التاريخ'];
     if (showDriverColumn) headers.push('المندوب');
     productColumns.forEach(p => headers.push(p.name));
-    headers.push('المجموع', 'المرتجع', 'التالف', 'النقدي', 'الآجل', 'الإجمالي', 'المصروفات', 'الصافي', 'العملاء');
+    headers.push('المجموع', 'المرتجع', 'التالف', 'النقدي', 'الآجل', 'الإجمالي', 'المصروفات', 'المديونية', 'الصافي', 'العملاء');
 
     const esc = (v: string) => v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
     const csvRows = [headers.map(esc).join(',')];
@@ -295,6 +299,7 @@ export default function DriverDailyReportPage() {
         d.creditAmount.toFixed(2),
         d.totalSalesAmount.toFixed(2),
         d.expensesAmount.toFixed(2),
+        d.driverDebtAmount.toFixed(2),
         (d.totalSalesAmount - d.expensesAmount).toFixed(2),
         String(d.servedCount)
       );
@@ -318,7 +323,7 @@ export default function DriverDailyReportPage() {
     rows: { date: string; driverId?: string; driverName?: string; data: ReturnType<typeof getDayDataForDriver> }[],
     showDriverColumn: boolean
   ) => {
-    const colCount = 10 + productColumns.length + (showDriverColumn ? 1 : 0);
+    const colCount = 11 + productColumns.length + (showDriverColumn ? 1 : 0);
 
     return (
       <Table>
@@ -336,6 +341,7 @@ export default function DriverDailyReportPage() {
             <TableHead className="text-right font-bold">الآجل</TableHead>
             <TableHead className="text-right font-bold">الإجمالي</TableHead>
             <TableHead className="text-right font-bold">المصروفات</TableHead>
+            <TableHead className="text-right font-bold">المديونية</TableHead>
             <TableHead className="text-right font-bold">الصافي</TableHead>
             <TableHead className="text-right font-bold">العملاء</TableHead>
             <TableHead className="text-right font-bold">تفاصيل</TableHead>
@@ -374,6 +380,7 @@ export default function DriverDailyReportPage() {
                   <TableCell className="text-yellow-600 text-sm">{d.creditAmount > 0 ? d.creditAmount.toFixed(2) : '-'}</TableCell>
                   <TableCell className="text-blue-600 font-bold text-sm">{d.totalSalesAmount.toFixed(2)}</TableCell>
                   <TableCell className="text-red-600 text-sm">{d.expensesAmount > 0 ? d.expensesAmount.toFixed(2) : '-'}</TableCell>
+                  <TableCell className="text-rose-600 text-sm">{d.driverDebtAmount > 0 ? d.driverDebtAmount.toFixed(2) : '-'}</TableCell>
                   <TableCell className="text-teal-700 font-bold text-sm">{(d.totalSalesAmount - d.expensesAmount).toFixed(2)}</TableCell>
                   <TableCell className="text-purple-600 font-medium">{d.servedCount}</TableCell>
                   <TableCell>
