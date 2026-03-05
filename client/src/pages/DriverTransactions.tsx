@@ -365,22 +365,6 @@ export default function DriverTransactionsPage() {
 
     const requestedQuantity = formData.quantity || 1;
 
-    // التحقق من توفر الكمية في المخزون للعمليات التي تستهلك المخزون
-    const consumingTypes: TransactionType[] = ["CASH_SALE", "CREDIT_SALE", "FREE_DISTRIBUTION", "FREE_SAMPLE", "DAMAGED"];
-    if (consumingTypes.includes(formData.type as TransactionType)) {
-      const productInventory = inventory.find(inv => inv.productId === formData.productId);
-      const availableQuantity = productInventory?.quantity || 0;
-
-      if (requestedQuantity > availableQuantity) {
-        toast({ 
-          title: "الكمية غير متوفرة", 
-          description: `الكمية المتاحة من "${product.name}" هي ${availableQuantity} فقط`,
-          variant: "destructive" 
-        });
-        return;
-      }
-    }
-
     const unitPrice = customPrice ? customPrice : product.price;
     const totalAmount = (parseFloat(unitPrice) * requestedQuantity).toFixed(2);
 
