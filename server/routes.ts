@@ -856,9 +856,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "لا توجد بيانات للاستيراد" });
       }
 
-      const allUsers = await storage.getUsers();
-      const allProducts = await storage.getProducts();
-      const allCustomers = await storage.getCustomers();
+      const allUsers = await storage.getAllUsers();
+      const allProducts = await storage.getAllProducts();
+      const allCustomers = await storage.getAllCustomers();
 
       const results: { row: number; status: string; error?: string }[] = [];
 
