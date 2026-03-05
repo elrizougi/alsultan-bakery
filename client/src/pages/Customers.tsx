@@ -100,7 +100,16 @@ export default function CustomersPage() {
   });
 
   const downloadTemplate = () => {
-    const csvContent = "name,address,phone,locationUrl\nاسم العميل,العنوان,رقم الجوال,رابط الموقع\nمثال: محمد أحمد,حي الملك فهد - شارع العليا,0501234567,https://maps.google.com/...";
+    const routeNames = routes.map(r => r.name).join(" / ");
+    const driverNames = drivers.map(d => d.name).join(" / ");
+    const csvLines = [
+      "الاسم,العنوان,رقم الجوال,خط التوزيع,المندوب,رابط الموقع",
+      `محمد أحمد,حي الملك فهد - شارع العليا,0501234567,${routes[0]?.name || "اسم الخط"},${drivers[0]?.name || "اسم المندوب"},https://maps.google.com/...`,
+      "",
+      `# خطوط التوزيع المتاحة: ${routeNames}`,
+      `# المناديب المتاحين: ${driverNames}`,
+    ];
+    const csvContent = csvLines.join("\n");
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -150,26 +159,36 @@ export default function CustomersPage() {
       const addressIdx = headers.findIndex(h => h === "address" || h === "عنوان" || h === "العنوان");
       const phoneIdx = headers.findIndex(h => h === "phone" || h === "جوال" || h === "هاتف" || h === "رقم" || h === "رقم الجوال" || h === "الهاتف" || h === "الجوال");
       const locationIdx = headers.findIndex(h => h === "locationurl" || h === "location" || h === "رابط" || h === "موقع" || h === "رابط الموقع");
+      const routeIdx = headers.findIndex(h => h === "route" || h === "خط" || h === "الخط" || h === "خط التوزيع");
+      const driverIdx = headers.findIndex(h => h === "driver" || h === "مندوب" || h === "المندوب");
 
       if (nameIdx === -1) {
         toast({ title: "يجب أن يحتوي الملف على عمود الاسم (name أو اسم)", variant: "destructive" });
         return;
       }
 
+      const normalizeForMatch = (s: string) => normalizeArabic(s.trim().replace(/['"]/g, ''));
+
       let successCount = 0;
       let errorCount = 0;
 
       for (let i = 1; i < lines.length; i++) {
+        if (lines[i].startsWith('#')) continue;
         const values = parseCSVLine(lines[i], separator);
         const name = values[nameIdx]?.replace(/['"]/g, '');
         const address = addressIdx !== -1 ? values[addressIdx]?.replace(/['"]/g, '') : "";
         const phone = phoneIdx !== -1 ? values[phoneIdx]?.replace(/['"]/g, '') : "";
         const locationUrl = locationIdx !== -1 ? values[locationIdx]?.replace(/['"]/g, '') : "";
+        const routeName = routeIdx !== -1 ? values[routeIdx]?.replace(/['"]/g, '').trim() : "";
+        const driverName = driverIdx !== -1 ? values[driverIdx]?.replace(/['"]/g, '').trim() : "";
 
         if (!name) {
           errorCount++;
           continue;
         }
+
+        const matchedRoute = routeName ? routes.find(r => normalizeForMatch(r.name) === normalizeForMatch(routeName)) : undefined;
+        const matchedDriver = driverName ? drivers.find(d => normalizeForMatch(d.name) === normalizeForMatch(driverName)) : undefined;
 
         try {
           await createCustomer.mutateAsync({
@@ -177,8 +196,8 @@ export default function CustomersPage() {
             address: address || "",
             phone,
             locationUrl: locationUrl || "",
-            routeId: undefined as any,
-            driverId: undefined as any,
+            routeId: matchedRoute?.id || (undefined as any),
+            driverId: matchedDriver?.id || (undefined as any),
           });
           successCount++;
         } catch {
