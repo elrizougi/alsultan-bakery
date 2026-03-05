@@ -420,6 +420,7 @@ export default function Dashboard() {
                         <TableHead className="text-right font-bold">الخبز المباع</TableHead>
                         <TableHead className="text-right font-bold">الراجع</TableHead>
                         <TableHead className="text-right font-bold">التالف</TableHead>
+                        <TableHead className="text-right font-bold">متوسط سعر البيع</TableHead>
                         <TableHead className="text-right font-bold">المحصل نقداً</TableHead>
                         <TableHead className="text-right font-bold">الآجل غير المدفوع</TableHead>
                         <TableHead className="text-right font-bold">المصروفات</TableHead>
@@ -451,6 +452,12 @@ export default function Dashboard() {
                         const damagedBread = dayTx
                           .filter(t => (t.type as string) === 'DAMAGED')
                           .reduce((sum, t) => sum + (t.quantity || 0), 0);
+                        const mughalafId = products.find(p => p.name === 'مغلف')?.id;
+                        const salesForAvg = dayTx
+                          .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string) && t.productId !== mughalafId);
+                        const avgSalesAmount = salesForAvg.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+                        const avgSalesQty = salesForAvg.reduce((sum, t) => sum + (t.quantity || 0), 0);
+                        const avgPrice = avgSalesQty > 0 ? avgSalesAmount / avgSalesQty : 0;
                         const expenses = dayTx
                           .filter(t => (t.type as string) === 'EXPENSE')
                           .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
@@ -472,6 +479,7 @@ export default function Dashboard() {
                             <TableCell>{soldBread}</TableCell>
                             <TableCell className="text-blue-600 font-semibold">{returnedBread}</TableCell>
                             <TableCell className="text-gray-600 font-semibold">{damagedBread}</TableCell>
+                            <TableCell className="text-purple-700 font-semibold">{avgPrice > 0 ? `${avgPrice.toFixed(2)} ر.س` : '-'}</TableCell>
                             <TableCell className="text-emerald-700 font-semibold">{cashCollected.toFixed(2)} ر.س</TableCell>
                             <TableCell className="text-yellow-700 font-semibold">{creditUnpaid.toFixed(2)} ر.س</TableCell>
                             <TableCell className="text-red-600 font-semibold">{expenses.toFixed(2)} ر.س</TableCell>
