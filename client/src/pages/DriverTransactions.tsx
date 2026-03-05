@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -141,18 +141,6 @@ export default function DriverTransactionsPage() {
     },
   });
 
-  const createOrderMutation = useMutation({
-    mutationFn: api.createOrder,
-    onSuccess: () => {
-      toast({ title: "تم إنشاء طلب الخبز بنجاح" });
-      setOrderItems([]);
-      setIsOrderDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-    },
-    onError: () => {
-      toast({ title: "خطأ", description: "فشل في إنشاء الطلب", variant: "destructive" });
-    },
-  });
 
   const [paymentDialogDebt, setPaymentDialogDebt] = useState<typeof debts[0] | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -227,7 +215,6 @@ export default function DriverTransactionsPage() {
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
-  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   
   // حالة إغلاق الرحلة
   const [closingOrder, setClosingOrder] = useState<Order | null>(null);
@@ -266,7 +253,6 @@ export default function DriverTransactionsPage() {
   };
   const [depositAmount, setDepositAmount] = useState<string>("");
   const [depositNotes, setDepositNotes] = useState<string>("");
-  const [orderItems, setOrderItems] = useState<{ productId: string; quantity: number }[]>([]);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
@@ -425,43 +411,6 @@ export default function DriverTransactionsPage() {
     });
   };
 
-  const handleSubmitOrder = () => {
-    if (orderItems.length === 0) {
-      toast({ title: "يرجى إضافة منتج واحد على الأقل", variant: "destructive" });
-      return;
-    }
-
-    const totalAmount = orderItems.reduce((sum, item) => {
-      const product = products.find(p => p.id === item.productId);
-      return sum + (parseFloat(product?.price || "0") * item.quantity);
-    }, 0);
-
-    createOrderMutation.mutate({
-      customerId: driverId,
-      date: new Date().toISOString().split('T')[0],
-      status: "DRAFT" as any,
-      totalAmount: totalAmount.toFixed(2),
-      items: orderItems.map(item => ({
-        productId: item.productId,
-        quantity: item.quantity,
-      })) as any,
-    });
-  };
-
-  const addOrderItem = () => {
-    setOrderItems([...orderItems, { productId: "", quantity: 1 }]);
-  };
-
-  const updateOrderItem = (index: number, field: "productId" | "quantity", value: string | number) => {
-    const newItems = [...orderItems];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setOrderItems(newItems);
-  };
-
-  const removeOrderItem = (index: number) => {
-    setOrderItems(orderItems.filter((_, i) => i !== index));
-  };
-
   const getProductName = (productId: string) => {
     return products.find(p => p.id === productId)?.name || "غير معروف";
   };
@@ -527,15 +476,6 @@ export default function DriverTransactionsPage() {
             <p className="text-sm text-muted-foreground">إدارة عمليات البيع والتوزيع والمرتجعات</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button 
-              onClick={() => setIsOrderDialogOpen(true)} 
-              variant="outline"
-              className="w-full sm:w-auto flex-row gap-2 rounded-xl h-11 px-6 font-bold border-amber-500 text-amber-700 hover:bg-amber-50"
-              data-testid="button-new-order"
-              disabled={isAdmin && !driverId}
-            >
-              <ShoppingCart className="h-4 w-4" /> طلب خبز
-            </Button>
             <Button 
               onClick={() => setIsCreateOpen(true)} 
               className="w-full sm:w-auto flex-row gap-2 bg-primary hover:bg-primary/90 rounded-xl h-11 px-6 shadow-lg shadow-primary/20 font-bold"
@@ -1248,83 +1188,6 @@ export default function DriverTransactionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* حوار إنشاء طلب خبز */}
-      <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
-        <DialogContent className="sm:max-w-lg" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>طلب خبز جديد</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-3">
-              {orderItems.map((item, index) => (
-                <div key={index} className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Label className="text-xs">المنتج</Label>
-                    <Select
-                      value={item.productId}
-                      onValueChange={(value) => updateOrderItem(index, "productId", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر المنتج" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} - {product.price} ر.س
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="w-24">
-                    <Label className="text-xs">الكمية</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateOrderItem(index, "quantity", parseInt(e.target.value) || 1)}
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-500 hover:text-red-700"
-                    onClick={() => removeOrderItem(index)}
-                  >
-                    ×
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button variant="outline" className="w-full" onClick={addOrderItem}>
-              <Plus className="h-4 w-4 ml-2" />
-              إضافة منتج
-            </Button>
-            {orderItems.length > 0 && (
-              <div className="bg-slate-50 p-3 rounded-lg">
-                <div className="text-sm font-bold">
-                  الإجمالي: {orderItems.reduce((sum, item) => {
-                    const product = products.find(p => p.id === item.productId);
-                    return sum + (parseFloat(product?.price || "0") * item.quantity);
-                  }, 0).toFixed(2)} ر.س
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => { setIsOrderDialogOpen(false); setOrderItems([]); }}>
-              إلغاء
-            </Button>
-            <Button 
-              onClick={handleSubmitOrder}
-              disabled={createOrderMutation.isPending || orderItems.length === 0 || orderItems.some(item => !item.productId)}
-              data-testid="button-submit-order"
-            >
-              {createOrderMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إرسال الطلب"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* حوار إغلاق الرحلة */}
       <Dialog open={!!closingOrder} onOpenChange={(open) => !open && setClosingOrder(null)}>
