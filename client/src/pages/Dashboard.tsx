@@ -418,6 +418,8 @@ export default function Dashboard() {
                         <TableHead className="text-right font-bold">عدد المناديب</TableHead>
                         <TableHead className="text-right font-bold">الخبز الكلي</TableHead>
                         <TableHead className="text-right font-bold">الخبز المباع</TableHead>
+                        <TableHead className="text-right font-bold">الراجع</TableHead>
+                        <TableHead className="text-right font-bold">التالف</TableHead>
                         <TableHead className="text-right font-bold">المحصل نقداً</TableHead>
                         <TableHead className="text-right font-bold">الآجل غير المدفوع</TableHead>
                         <TableHead className="text-right font-bold">المصروفات</TableHead>
@@ -443,6 +445,12 @@ export default function Dashboard() {
                         });
                         const creditUnpaid = dayCreditDebts
                           .reduce((sum: number, d: any) => sum + parseFloat(d.remainingAmount || d.amount || '0'), 0);
+                        const returnedBread = dayTx
+                          .filter(t => (t.type as string) === 'RETURN')
+                          .reduce((sum, t) => sum + (t.quantity || 0), 0);
+                        const damagedBread = dayTx
+                          .filter(t => (t.type as string) === 'DAMAGED')
+                          .reduce((sum, t) => sum + (t.quantity || 0), 0);
                         const expenses = dayTx
                           .filter(t => (t.type as string) === 'EXPENSE')
                           .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
@@ -462,6 +470,8 @@ export default function Dashboard() {
                             <TableCell>{activeDrivers}</TableCell>
                             <TableCell>{totalBread}</TableCell>
                             <TableCell>{soldBread}</TableCell>
+                            <TableCell className="text-blue-600 font-semibold">{returnedBread}</TableCell>
+                            <TableCell className="text-gray-600 font-semibold">{damagedBread}</TableCell>
                             <TableCell className="text-emerald-700 font-semibold">{cashCollected.toFixed(2)} ر.س</TableCell>
                             <TableCell className="text-yellow-700 font-semibold">{creditUnpaid.toFixed(2)} ر.س</TableCell>
                             <TableCell className="text-red-600 font-semibold">{expenses.toFixed(2)} ر.س</TableCell>
