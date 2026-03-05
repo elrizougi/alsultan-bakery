@@ -28,17 +28,26 @@ export default function DriverDailyReportPage() {
   const { data: users = [] } = useUsers();
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
-  const driverId = isAdmin ? selectedDriverId : (currentUser?.id || "");
+  const driverId = isAdmin ? (selectedDriverId === "all" ? "" : selectedDriverId) : (currentUser?.id || "");
   const [detailDate, setDetailDate] = useState<string | null>(null);
+  const [detailDriverId, setDetailDriverId] = useState<string>("");
 
   const { data: products = [] } = useProducts();
   const { data: customers = [] } = useCustomers();
 
-  const { data: transactions = [] } = useQuery({
+  const { data: allTransactions = [] } = useQuery({
+    queryKey: ["all-transactions"],
+    queryFn: () => api.getAllTransactions(),
+    enabled: isAdmin && !selectedDriverId,
+  });
+
+  const { data: driverTransactions = [] } = useQuery({
     queryKey: ["driver-transactions", driverId],
     queryFn: () => api.getDriverTransactions(driverId),
     enabled: !!driverId,
   });
+
+  const transactions = driverId ? driverTransactions : allTransactions;
 
   const { data: cashDeposits = [] } = useQuery({
     queryKey: ["driver-cash-deposits", driverId],
@@ -53,22 +62,17 @@ export default function DriverDailyReportPage() {
     return products.find(p => p.id === productId)?.name || "غير معروف";
   };
 
+  const getDriverName = (dId: string) => {
+    return users.find(u => u.id === dId)?.name || "غير معروف";
+  };
+
   const getCustomerName = (customerId?: string) => {
     if (!customerId) return "عميل نقدي";
     return customers.find(c => c.id === customerId)?.name || "غير معروف";
   };
 
-  const allDates = new Set<string>();
-  transactions.forEach(t => {
-    if (t.createdAt) allDates.add(format(new Date(t.createdAt), 'yyyy-MM-dd'));
-  });
-  cashDeposits.forEach(d => {
-    if (d.createdAt) allDates.add(format(new Date(d.createdAt), 'yyyy-MM-dd'));
-  });
-  const sortedDates = Array.from(allDates).sort((a, b) => b.localeCompare(a));
-
-  const getDayData = (date: string) => {
-    const dayTx = transactions.filter(t =>
+  const getDayDataForDriver = (txList: typeof transactions, date: string) => {
+    const dayTx = txList.filter(t =>
       t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === date
     );
 
@@ -104,11 +108,6 @@ export default function DriverDailyReportPage() {
         .map(t => t.customerId).filter(Boolean)
     );
 
-    const dayDeposits = cashDeposits.filter(d =>
-      d.createdAt && format(new Date(d.createdAt), 'yyyy-MM-dd') === date && d.status === 'CONFIRMED'
-    );
-    const deposited = dayDeposits.reduce((s, d) => s + parseFloat(d.amount), 0);
-
     return {
       soldByProduct: Array.from(soldByProduct.values()),
       totalSoldQty,
@@ -120,15 +119,51 @@ export default function DriverDailyReportPage() {
       creditAmount,
       totalSalesAmount,
       expensesAmount,
-      servedCustomerIds,
       servedCount: servedCustomerIds.size,
-      deposited,
       dayTx,
     };
   };
 
-  const getDetailedCustomerData = (date: string) => {
-    const dayTx = transactions.filter(t =>
+  const getAllDriversDayRows = () => {
+    const rows: { date: string; driverId: string; driverName: string; data: ReturnType<typeof getDayDataForDriver> }[] = [];
+    const dateDriverMap = new Map<string, Set<string>>();
+
+    allTransactions.forEach(t => {
+      if (!t.createdAt) return;
+      const date = format(new Date(t.createdAt), 'yyyy-MM-dd');
+      if (!dateDriverMap.has(date)) dateDriverMap.set(date, new Set());
+      dateDriverMap.get(date)!.add(t.driverId);
+    });
+
+    const sortedDates = Array.from(dateDriverMap.keys()).sort((a, b) => b.localeCompare(a));
+
+    sortedDates.forEach(date => {
+      const driverIds = Array.from(dateDriverMap.get(date)!);
+      driverIds.forEach(did => {
+        const driverTx = allTransactions.filter(t => t.driverId === did);
+        const data = getDayDataForDriver(driverTx, date);
+        if (data.dayTx.length > 0) {
+          rows.push({ date, driverId: did, driverName: getDriverName(did), data });
+        }
+      });
+    });
+
+    return rows;
+  };
+
+  const singleDriverDates = () => {
+    const dates = new Set<string>();
+    transactions.forEach(t => {
+      if (t.createdAt) dates.add(format(new Date(t.createdAt), 'yyyy-MM-dd'));
+    });
+    cashDeposits.forEach(d => {
+      if (d.createdAt) dates.add(format(new Date(d.createdAt), 'yyyy-MM-dd'));
+    });
+    return Array.from(dates).sort((a, b) => b.localeCompare(a));
+  };
+
+  const getDetailedCustomerData = (txList: typeof transactions, date: string) => {
+    const dayTx = txList.filter(t =>
       t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === date
     );
 
@@ -184,13 +219,103 @@ export default function DriverDailyReportPage() {
       amount: parseFloat(t.totalAmount || "0"),
     }));
 
-    return {
-      customers: Array.from(customerMap.values()),
-      returnData,
-      damagedData,
-      expenseData,
-    };
+    return { customers: Array.from(customerMap.values()), returnData, damagedData, expenseData };
   };
+
+  const productColumns = products.filter(p => {
+    if (isAdmin && !driverId) {
+      return allTransactions.some(t => t.productId === p.id && (t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE'));
+    }
+    return transactions.some(t => t.productId === p.id && (t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE'));
+  });
+
+  const renderSummaryTable = (
+    rows: { date: string; driverId?: string; driverName?: string; data: ReturnType<typeof getDayDataForDriver> }[],
+    showDriverColumn: boolean
+  ) => {
+    const colCount = 9 + productColumns.length + (showDriverColumn ? 1 : 0);
+
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-slate-50">
+            <TableHead className="text-right font-bold">التاريخ</TableHead>
+            {showDriverColumn && <TableHead className="text-right font-bold">المندوب</TableHead>}
+            {productColumns.map(p => (
+              <TableHead key={p.id} className="text-right font-bold text-xs">{p.name}</TableHead>
+            ))}
+            <TableHead className="text-right font-bold">المجموع</TableHead>
+            <TableHead className="text-right font-bold">المرتجع</TableHead>
+            <TableHead className="text-right font-bold">التالف</TableHead>
+            <TableHead className="text-right font-bold">النقدي</TableHead>
+            <TableHead className="text-right font-bold">الإجمالي</TableHead>
+            <TableHead className="text-right font-bold">المصروفات</TableHead>
+            <TableHead className="text-right font-bold">الصافي</TableHead>
+            <TableHead className="text-right font-bold">العملاء</TableHead>
+            <TableHead className="text-right font-bold">تفاصيل</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={colCount + 3} className="text-center py-8 text-muted-foreground">
+                لا توجد بيانات للعرض
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((row, idx) => {
+              const d = row.data;
+              return (
+                <TableRow key={`${row.date}-${row.driverId || idx}`} data-testid={`report-row-${row.date}-${row.driverId || idx}`}>
+                  <TableCell className="font-medium whitespace-nowrap text-sm">
+                    {format(new Date(row.date), 'EEEE dd/MM', { locale: ar })}
+                  </TableCell>
+                  {showDriverColumn && (
+                    <TableCell className="font-medium text-sm whitespace-nowrap">{row.driverName}</TableCell>
+                  )}
+                  {productColumns.map(p => {
+                    const sold = d.soldByProduct.find(s => s.name === p.name);
+                    return (
+                      <TableCell key={p.id} className="text-center text-sm">
+                        {sold ? sold.qty : '-'}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="text-blue-700 font-bold">{d.totalSoldQty}</TableCell>
+                  <TableCell className="text-orange-600">{d.returnedQty || '-'}</TableCell>
+                  <TableCell className="text-gray-600">{d.damagedQty || '-'}</TableCell>
+                  <TableCell className="text-emerald-600 text-sm">{d.cashAmount.toFixed(2)}</TableCell>
+                  <TableCell className="text-blue-600 font-bold text-sm">{d.totalSalesAmount.toFixed(2)}</TableCell>
+                  <TableCell className="text-red-600 text-sm">{d.expensesAmount > 0 ? d.expensesAmount.toFixed(2) : '-'}</TableCell>
+                  <TableCell className="text-teal-700 font-bold text-sm">{(d.totalSalesAmount - d.expensesAmount).toFixed(2)}</TableCell>
+                  <TableCell className="text-purple-600 font-medium">{d.servedCount}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 gap-1 px-2"
+                      onClick={() => {
+                        setDetailDate(row.date);
+                        setDetailDriverId(row.driverId || driverId);
+                      }}
+                      data-testid={`btn-details-${row.date}`}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+    );
+  };
+
+  const activeDetailDriverName = users.find(u => u.id === detailDriverId)?.name || driverName;
+  const activeDetailTx = detailDriverId
+    ? (driverId === detailDriverId ? transactions : allTransactions.filter(t => t.driverId === detailDriverId))
+    : transactions;
 
   return (
     <AdminLayout>
@@ -209,9 +334,10 @@ export default function DriverDailyReportPage() {
                 <Label className="font-bold text-lg whitespace-nowrap">اختر المندوب:</Label>
                 <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
                   <SelectTrigger className="max-w-xs bg-white" data-testid="select-driver-report">
-                    <SelectValue placeholder="اختر المندوب لعرض تقريره" />
+                    <SelectValue placeholder="جميع المناديب" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">جميع المناديب</SelectItem>
                     {drivers.map(driver => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.name}
@@ -219,16 +345,38 @@ export default function DriverDailyReportPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedDriverId && selectedDriverId !== "all" && (
+                  <Button variant="outline" size="sm" onClick={() => setSelectedDriverId("")}>
+                    عرض الكل
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
         )}
 
         {isAdmin && !driverId && (
-          <div className="text-center py-12 text-muted-foreground">
-            <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-            <p className="text-lg">يرجى اختيار المندوب أولاً لعرض التقرير اليومي</p>
-          </div>
+          <Card className="border-slate-100">
+            <CardHeader className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-t-lg">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <FileText className="h-6 w-6 text-blue-600" />
+                تقارير جميع المناديب
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                {renderSummaryTable(
+                  getAllDriversDayRows().map(r => ({
+                    date: r.date,
+                    driverId: r.driverId,
+                    driverName: r.driverName,
+                    data: r.data,
+                  })),
+                  true
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {(!isAdmin || driverId) && (
@@ -258,7 +406,7 @@ export default function DriverDailyReportPage() {
                     <div>
                       <p className="text-sm font-medium text-green-600">عملاء تم التوزيع لهم اليوم</p>
                       <p className="text-2xl font-bold text-green-700" data-testid="text-served-today">
-                        {sortedDates.length > 0 ? getDayData(sortedDates[0]).servedCount : 0}
+                        {singleDriverDates().length > 0 ? getDayDataForDriver(transactions, singleDriverDates()[0]).servedCount : 0}
                       </p>
                       <p className="text-xs text-green-600/70">
                         من أصل {driverCustomers.length} عميل
@@ -278,93 +426,33 @@ export default function DriverDailyReportPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50">
-                        <TableHead className="text-right font-bold">التاريخ</TableHead>
-                        <TableHead className="text-right font-bold">مجموع الخبز</TableHead>
-                        <TableHead className="text-right font-bold">المباع</TableHead>
-                        <TableHead className="text-right font-bold">المرتجع</TableHead>
-                        <TableHead className="text-right font-bold">التالف</TableHead>
-                        <TableHead className="text-right font-bold">النقدي</TableHead>
-                        <TableHead className="text-right font-bold">الآجل</TableHead>
-                        <TableHead className="text-right font-bold">الإجمالي</TableHead>
-                        <TableHead className="text-right font-bold">المصروفات</TableHead>
-                        <TableHead className="text-right font-bold">الصافي بعد الخصم</TableHead>
-                        <TableHead className="text-right font-bold">عملاء اليوم</TableHead>
-                        <TableHead className="text-right font-bold">تفاصيل</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedDates.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
-                            لا توجد بيانات للعرض
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        sortedDates.map(date => {
-                          const day = getDayData(date);
-                          return (
-                            <TableRow key={date} data-testid={`report-row-${date}`}>
-                              <TableCell className="font-medium whitespace-nowrap">
-                                {format(new Date(date), 'EEEE dd/MM/yyyy', { locale: ar })}
-                              </TableCell>
-                              <TableCell className="text-blue-700 font-bold">{day.totalBread}</TableCell>
-                              <TableCell className="text-green-600 font-bold">
-                                {day.totalSoldQty}
-                                {day.soldByProduct.length > 1 && (
-                                  <div className="text-xs text-green-500 mt-1">
-                                    {day.soldByProduct.map((p, i) => (
-                                      <span key={i} className="block">{p.name}: {p.qty}</span>
-                                    ))}
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-orange-600">{day.returnedQty}</TableCell>
-                              <TableCell className="text-gray-600">{day.damagedQty}</TableCell>
-                              <TableCell className="text-emerald-600">{day.cashAmount.toFixed(2)} ر.س</TableCell>
-                              <TableCell className="text-amber-600">{day.creditAmount.toFixed(2)} ر.س</TableCell>
-                              <TableCell className="text-blue-600 font-bold">{day.totalSalesAmount.toFixed(2)} ر.س</TableCell>
-                              <TableCell className="text-red-600">{day.expensesAmount > 0 ? `${day.expensesAmount.toFixed(2)} ر.س` : '-'}</TableCell>
-                              <TableCell className="text-teal-700 font-bold">{(day.totalSalesAmount - day.expensesAmount).toFixed(2)} ر.س</TableCell>
-                              <TableCell className="text-purple-600 font-medium">{day.servedCount}</TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 gap-1"
-                                  onClick={() => setDetailDate(date)}
-                                  data-testid={`btn-details-${date}`}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  تفاصيل
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
+                  {renderSummaryTable(
+                    singleDriverDates().map(date => ({
+                      date,
+                      driverId,
+                      driverName,
+                      data: getDayDataForDriver(transactions, date),
+                    })),
+                    false
+                  )}
                 </div>
               </CardContent>
             </Card>
           </>
         )}
 
-        <Dialog open={!!detailDate} onOpenChange={(open) => !open && setDetailDate(null)}>
+        <Dialog open={!!detailDate} onOpenChange={(open) => { if (!open) { setDetailDate(null); setDetailDriverId(""); } }}>
           <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" dir="rtl">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
                 <BarChart3 className="h-6 w-6 text-indigo-600" />
-                تقرير مفصل - {driverName} - {detailDate ? format(new Date(detailDate), 'EEEE dd/MM/yyyy', { locale: ar }) : ''}
+                تقرير مفصل - {activeDetailDriverName} - {detailDate ? format(new Date(detailDate), 'EEEE dd/MM/yyyy', { locale: ar }) : ''}
               </DialogTitle>
             </DialogHeader>
 
             {detailDate && (() => {
-              const detail = getDetailedCustomerData(detailDate);
-              const day = getDayData(detailDate);
+              const detail = getDetailedCustomerData(activeDetailTx, detailDate);
+              const day = getDayDataForDriver(activeDetailTx, detailDate);
 
               return (
                 <div className="space-y-6">
@@ -393,11 +481,11 @@ export default function DriverDailyReportPage() {
                     </Card>
                     <Card className="bg-emerald-50 border-emerald-200">
                       <CardContent className="pt-4 pb-4 text-center">
-                        <p className="text-xs text-emerald-600 font-medium">إجمالي المبيعات</p>
-                        <p className="text-xl font-bold text-emerald-700">{day.totalSalesAmount.toFixed(2)} ر.س</p>
+                        <p className="text-xs text-emerald-600 font-medium">الصافي بعد المصروفات</p>
+                        <p className="text-xl font-bold text-emerald-700">{(day.totalSalesAmount - day.expensesAmount).toFixed(2)} ر.س</p>
                         <div className="flex justify-center gap-2 text-xs text-emerald-500 mt-1">
                           <span>نقدي: {day.cashAmount.toFixed(2)}</span>
-                          <span>آجل: {day.creditAmount.toFixed(2)}</span>
+                          <span>مصروفات: {day.expensesAmount.toFixed(2)}</span>
                         </div>
                       </CardContent>
                     </Card>
