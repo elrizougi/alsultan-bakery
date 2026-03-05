@@ -40,10 +40,16 @@ Preferred communication style: Simple, everyday language.
 - **Customers**: Customer profiles with delivery addresses and route assignments
 - **Routes**: Delivery routes with assigned drivers
 - **Orders**: Customer orders with line items and status workflow (DRAFT → CONFIRMED → ASSIGNED → DELIVERED → CLOSED)
-- **Dispatch Runs**: Delivery runs grouping multiple orders with status tracking (DRAFT → LOADED → OUT → RETURNED → CLOSED)
-- **Returns**: Product return tracking with reason codes (GOOD, DAMAGED, EXPIRED)
+- **Transactions**: Field operations log (CASH_SALE, CREDIT_SALE, RETURN, FREE_DISTRIBUTION, FREE_SAMPLE, DAMAGED, EXPENSE)
+- **Driver Inventory**: Per-driver product stock tracking
+- **Driver Balance**: Per-driver cash balance tracking
+- **Customer Debts**: Credit sale debt tracking with partial payment support
+- **Cash Deposits**: Driver-to-bakery cash deposit tracking with confirmation workflow
 - **Expense Categories**: Dynamic bakery expense categories (user-managed, stored in `expense_categories` table)
 - **Bakery Expenses**: General bakery expenses (rent, salaries, etc.) linked to dynamic categories
+
+### Removed Tables (cleaned up)
+- dispatch_runs, run_orders, returns, return_items, order_modifications, order_modification_items (empty/unused legacy tables)
 
 ### Build System
 - **Development**: Vite dev server with HMR for frontend, tsx for backend

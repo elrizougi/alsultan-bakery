@@ -6,7 +6,6 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import OrdersPage from "@/pages/Orders";
 import InventoryPage from "@/pages/Inventory";
-import ReturnsPage from "@/pages/Returns";
 import CustomersPage from "@/pages/Customers";
 import SettingsPage from "@/pages/Settings";
 import LoginPage from "@/pages/Login";
@@ -25,7 +24,6 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/orders" component={OrdersPage} />
       <Route path="/inventory" component={InventoryPage} />
-      <Route path="/returns" component={ReturnsPage} />
       <Route path="/customers" component={CustomersPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/users" component={UsersManagementPage} />

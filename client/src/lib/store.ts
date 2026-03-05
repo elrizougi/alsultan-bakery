@@ -13,8 +13,6 @@ export interface User {
 }
 
 export type Status = 'DRAFT' | 'CONFIRMED' | 'ASSIGNED' | 'DELIVERED' | 'CLOSED' | 'CANCELED';
-export type RunStatus = 'DRAFT' | 'LOADED' | 'OUT' | 'RETURNED' | 'CLOSED';
-export type ReturnReason = 'GOOD' | 'DAMAGED' | 'EXPIRED';
 
 export interface Product {
   id: string;
@@ -52,28 +50,6 @@ export interface Order {
   status: Status;
   items: OrderItem[];
   totalAmount: string;
-}
-
-export interface DispatchRun {
-  id: string;
-  routeId: string;
-  date: string;
-  status: RunStatus;
-  driverName: string;
-  orderIds: string[];
-}
-
-export interface ReturnItem {
-  productId: string;
-  quantity: number;
-  reason: ReturnReason;
-}
-
-export interface ReturnRecord {
-  id: string;
-  runId: string;
-  customerId: string;
-  items: ReturnItem[];
 }
 
 // --- Store (Auth Only - Data from API) ---

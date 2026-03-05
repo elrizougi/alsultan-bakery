@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, Order, Product, Customer, DispatchRun, ReturnRecord, Route } from "@/lib/api";
+import { api, Order, Product, Customer, Route } from "@/lib/api";
 
 // Products
 export function useProducts() {
@@ -129,84 +129,6 @@ export function useDeleteOrder() {
     mutationFn: api.deleteOrder,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-    },
-  });
-}
-
-// Dispatch Runs
-export function useDispatchRuns() {
-  return useQuery({
-    queryKey: ["dispatch-runs"],
-    queryFn: api.getDispatchRuns,
-  });
-}
-
-export function useCreateDispatchRun() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: api.createDispatchRun,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dispatch-runs"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-    },
-  });
-}
-
-export function useUpdateDispatchRun() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...run }: Partial<DispatchRun> & { id: string }) => api.updateDispatchRun(id, run),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dispatch-runs"] });
-    },
-  });
-}
-
-export function useDeleteDispatchRun() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: api.deleteDispatchRun,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dispatch-runs"] });
-    },
-  });
-}
-
-export function useAssignOrderToRun() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ runId, orderId }: { runId: string; orderId: string }) => api.assignOrderToRun(runId, orderId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dispatch-runs"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-    },
-  });
-}
-
-// Returns
-export function useReturns() {
-  return useQuery({
-    queryKey: ["returns"],
-    queryFn: api.getReturns,
-  });
-}
-
-export function useCreateReturn() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: api.createReturn,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["returns"] });
-    },
-  });
-}
-
-export function useDeleteReturn() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: api.deleteReturn,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["returns"] });
     },
   });
 }

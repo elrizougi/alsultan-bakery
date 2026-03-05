@@ -7,16 +7,10 @@ import {
   customers, type Customer, type InsertCustomer,
   orders, type Order, type InsertOrder,
   orderItems, type OrderItem, type InsertOrderItem,
-  dispatchRuns, type DispatchRun, type InsertDispatchRun,
-  runOrders, type RunOrder, type InsertRunOrder,
-  returns, type Return, type InsertReturn,
-  returnItems, type ReturnItem, type InsertReturnItem,
   driverInventory, type DriverInventory, type InsertDriverInventory,
   driverBalance, type DriverBalance, type InsertDriverBalance,
   customerDebts, type CustomerDebt, type InsertCustomerDebt,
   transactions, type Transaction, type InsertTransaction,
-  orderModifications, type OrderModification, type InsertOrderModification,
-  orderModificationItems, type OrderModificationItem, type InsertOrderModificationItem,
   cashDeposits, type CashDeposit, type InsertCashDeposit,
   bakeryExpenses, type BakeryExpense, type InsertBakeryExpense,
   expenseCategories, type ExpenseCategoryRecord, type InsertExpenseCategory,
@@ -71,34 +65,6 @@ export interface IStorage {
   updateOrderItemReceived(id: string, receivedQuantity: number): Promise<OrderItem | undefined>;
   confirmOrderReceiptAtomic(orderId: string, receivedItems: { id: string; receivedQuantity: number }[]): Promise<Order | undefined>;
 
-  // Dispatch Runs
-  getAllDispatchRuns(): Promise<DispatchRun[]>;
-  getDispatchRun(id: string): Promise<DispatchRun | undefined>;
-  createDispatchRun(run: InsertDispatchRun): Promise<DispatchRun>;
-  updateDispatchRun(id: string, run: Partial<InsertDispatchRun>): Promise<DispatchRun | undefined>;
-  deleteDispatchRun(id: string): Promise<boolean>;
-
-  // Run Orders
-  getRunOrders(runId: string): Promise<RunOrder[]>;
-  createRunOrder(runOrder: InsertRunOrder): Promise<RunOrder>;
-  deleteRunOrders(runId: string): Promise<boolean>;
-  deleteRunOrdersByOrderId(orderId: string): Promise<boolean>;
-
-  // Returns
-  getAllReturns(): Promise<Return[]>;
-  getReturn(id: string): Promise<Return | undefined>;
-  getReturnsByRunId(runId: string): Promise<Return[]>;
-  getReturnsByOrderId(orderId: string): Promise<Return[]>;
-  createReturn(ret: InsertReturn): Promise<Return>;
-  deleteReturn(id: string): Promise<boolean>;
-  deleteReturnsByRunId(runId: string): Promise<boolean>;
-  deleteReturnsByOrderId(orderId: string): Promise<boolean>;
-
-  // Return Items
-  getReturnItems(returnId: string): Promise<ReturnItem[]>;
-  createReturnItem(item: InsertReturnItem): Promise<ReturnItem>;
-  deleteReturnItems(returnId: string): Promise<void>;
-
   // Driver Inventory
   getDriverInventory(driverId: string): Promise<DriverInventory[]>;
   getDriverInventoryItem(driverId: string, productId: string): Promise<DriverInventory | undefined>;
@@ -124,15 +90,6 @@ export interface IStorage {
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   deleteTransactionWithUpdates(id: string): Promise<boolean>;
   updateTransactionWithUpdates(id: string, updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction | undefined>;
-
-  // Order Modifications
-  getAllOrderModifications(): Promise<OrderModification[]>;
-  getPendingOrderModifications(): Promise<OrderModification[]>;
-  getOrderModification(id: string): Promise<OrderModification | undefined>;
-  getOrderModificationItems(modificationId: string): Promise<OrderModificationItem[]>;
-  createOrderModification(modification: InsertOrderModification, items: InsertOrderModificationItem[]): Promise<OrderModification>;
-  approveOrderModification(id: string): Promise<OrderModification | undefined>;
-  rejectOrderModification(id: string): Promise<OrderModification | undefined>;
 
   // Cash Deposits - تسليم المبالغ
   getAllCashDeposits(): Promise<CashDeposit[]>;
@@ -382,112 +339,6 @@ export class DatabaseStorage implements IStorage {
 
       return updated;
     });
-  }
-
-  // Dispatch Runs
-  async getAllDispatchRuns(): Promise<DispatchRun[]> {
-    return db.select().from(dispatchRuns);
-  }
-
-  async getDispatchRun(id: string): Promise<DispatchRun | undefined> {
-    const [run] = await db.select().from(dispatchRuns).where(eq(dispatchRuns.id, id));
-    return run;
-  }
-
-  async createDispatchRun(run: InsertDispatchRun): Promise<DispatchRun> {
-    const [newRun] = await db.insert(dispatchRuns).values(run).returning();
-    return newRun;
-  }
-
-  async updateDispatchRun(id: string, run: Partial<InsertDispatchRun>): Promise<DispatchRun | undefined> {
-    const [updated] = await db.update(dispatchRuns).set(run).where(eq(dispatchRuns.id, id)).returning();
-    return updated;
-  }
-
-  async deleteDispatchRun(id: string): Promise<boolean> {
-    await db.delete(dispatchRuns).where(eq(dispatchRuns.id, id));
-    return true;
-  }
-
-  // Run Orders
-  async getRunOrders(runId: string): Promise<RunOrder[]> {
-    return db.select().from(runOrders).where(eq(runOrders.runId, runId));
-  }
-
-  async createRunOrder(runOrder: InsertRunOrder): Promise<RunOrder> {
-    const [newRunOrder] = await db.insert(runOrders).values(runOrder).returning();
-    return newRunOrder;
-  }
-
-  async deleteRunOrders(runId: string): Promise<boolean> {
-    await db.delete(runOrders).where(eq(runOrders.runId, runId));
-    return true;
-  }
-
-  async deleteRunOrdersByOrderId(orderId: string): Promise<boolean> {
-    await db.delete(runOrders).where(eq(runOrders.orderId, orderId));
-    return true;
-  }
-
-  // Returns
-  async getAllReturns(): Promise<Return[]> {
-    return db.select().from(returns);
-  }
-
-  async getReturn(id: string): Promise<Return | undefined> {
-    const [ret] = await db.select().from(returns).where(eq(returns.id, id));
-    return ret;
-  }
-
-  async getReturnsByRunId(runId: string): Promise<Return[]> {
-    return db.select().from(returns).where(eq(returns.runId, runId));
-  }
-
-  async getReturnsByOrderId(orderId: string): Promise<Return[]> {
-    return db.select().from(returns).where(eq(returns.orderId, orderId));
-  }
-
-  async deleteReturnsByOrderId(orderId: string): Promise<boolean> {
-    const orderReturns = await this.getReturnsByOrderId(orderId);
-    for (const ret of orderReturns) {
-      await this.deleteReturnItems(ret.id);
-    }
-    await db.delete(returns).where(eq(returns.orderId, orderId));
-    return true;
-  }
-
-  async deleteReturnsByRunId(runId: string): Promise<boolean> {
-    const runReturns = await this.getReturnsByRunId(runId);
-    for (const ret of runReturns) {
-      await this.deleteReturnItems(ret.id);
-    }
-    await db.delete(returns).where(eq(returns.runId, runId));
-    return true;
-  }
-
-  async createReturn(ret: InsertReturn): Promise<Return> {
-    const [newReturn] = await db.insert(returns).values(ret).returning();
-    return newReturn;
-  }
-
-  async deleteReturn(id: string): Promise<boolean> {
-    await this.deleteReturnItems(id);
-    const result = await db.delete(returns).where(eq(returns.id, id)).returning();
-    return result.length > 0;
-  }
-
-  // Return Items
-  async getReturnItems(returnId: string): Promise<ReturnItem[]> {
-    return db.select().from(returnItems).where(eq(returnItems.returnId, returnId));
-  }
-
-  async createReturnItem(item: InsertReturnItem): Promise<ReturnItem> {
-    const [newItem] = await db.insert(returnItems).values(item).returning();
-    return newItem;
-  }
-
-  async deleteReturnItems(returnId: string): Promise<void> {
-    await db.delete(returnItems).where(eq(returnItems.returnId, returnId));
   }
 
   // Driver Inventory
@@ -886,106 +737,6 @@ export class DatabaseStorage implements IStorage {
       
       return updated;
     });
-  }
-
-  // Order Modifications
-  async getAllOrderModifications(): Promise<OrderModification[]> {
-    return db.select().from(orderModifications);
-  }
-
-  async getPendingOrderModifications(): Promise<OrderModification[]> {
-    return db.select().from(orderModifications).where(eq(orderModifications.status, "PENDING"));
-  }
-
-  async getOrderModification(id: string): Promise<OrderModification | undefined> {
-    const [modification] = await db.select().from(orderModifications).where(eq(orderModifications.id, id));
-    return modification;
-  }
-
-  async getOrderModificationItems(modificationId: string): Promise<OrderModificationItem[]> {
-    return db.select().from(orderModificationItems).where(eq(orderModificationItems.modificationId, modificationId));
-  }
-
-  async createOrderModification(modification: InsertOrderModification, items: InsertOrderModificationItem[]): Promise<OrderModification> {
-    return await db.transaction(async (tx) => {
-      const [newModification] = await tx.insert(orderModifications).values(modification).returning();
-      
-      for (const item of items) {
-        await tx.insert(orderModificationItems).values({
-          ...item,
-          modificationId: newModification.id,
-        });
-      }
-      
-      return newModification;
-    });
-  }
-
-  async approveOrderModification(id: string): Promise<OrderModification | undefined> {
-    return await db.transaction(async (tx) => {
-      const [modification] = await tx.select().from(orderModifications).where(eq(orderModifications.id, id));
-      if (!modification || modification.status !== "PENDING") return undefined;
-
-      const items = await tx.select().from(orderModificationItems).where(eq(orderModificationItems.modificationId, id));
-      const driverId = modification.driverId;
-
-      // تطبيق التعديلات على مخزون السائق
-      for (const item of items) {
-        const diff = item.requestedQuantity - item.originalQuantity;
-        
-        if (diff !== 0) {
-          const [existing] = await tx.select().from(driverInventory)
-            .where(and(
-              eq(driverInventory.driverId, driverId),
-              eq(driverInventory.productId, item.productId)
-            ));
-
-          if (existing) {
-            const newQty = Math.max(0, existing.quantity + diff);
-            await tx.update(driverInventory)
-              .set({ quantity: newQty })
-              .where(eq(driverInventory.id, existing.id));
-          } else if (diff > 0) {
-            await tx.insert(driverInventory).values({
-              driverId,
-              productId: item.productId,
-              quantity: diff,
-            });
-          }
-        }
-      }
-
-      // تحديث كميات الاستلام في عناصر الطلب
-      for (const item of items) {
-        await tx.update(orderItems)
-          .set({ receivedQuantity: item.requestedQuantity })
-          .where(and(
-            eq(orderItems.orderId, modification.orderId),
-            eq(orderItems.productId, item.productId)
-          ));
-      }
-
-      // تحديث حالة التعديل
-      const [updated] = await tx.update(orderModifications)
-        .set({ status: "APPROVED", processedAt: new Date() })
-        .where(eq(orderModifications.id, id))
-        .returning();
-
-      // تحديث حالة الطلب إلى مستلم (ASSIGNED يعني أن السائق استلم الطلب)
-      await tx.update(orders)
-        .set({ status: "ASSIGNED" })
-        .where(eq(orders.id, modification.orderId));
-
-      return updated;
-    });
-  }
-
-  async rejectOrderModification(id: string): Promise<OrderModification | undefined> {
-    const [updated] = await db.update(orderModifications)
-      .set({ status: "REJECTED", processedAt: new Date() })
-      .where(eq(orderModifications.id, id))
-      .returning();
-    return updated;
   }
 
   // Cash Deposits - تسليم المبالغ

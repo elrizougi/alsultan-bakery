@@ -3,8 +3,6 @@ import { apiRequest } from "./queryClient";
 // Types from store (we'll use these for consistency)
 export type Role = 'ADMIN' | 'DRIVER' | 'SALES';
 export type Status = 'DRAFT' | 'CONFIRMED' | 'ASSIGNED' | 'DELIVERED' | 'CLOSED' | 'CANCELED';
-export type RunStatus = 'DRAFT' | 'LOADED' | 'OUT' | 'RETURNED' | 'CLOSED';
-export type ReturnReason = 'GOOD' | 'DAMAGED' | 'EXPIRED';
 
 export interface User {
   id: string;
@@ -54,30 +52,6 @@ export interface Order {
   status: Status;
   totalAmount: string;
   items: OrderItem[];
-}
-
-export interface DispatchRun {
-  id: string;
-  routeId: string;
-  date: string;
-  status: RunStatus;
-  driverName: string;
-  orderIds: string[];
-}
-
-export interface ReturnItemData {
-  productId: string;
-  quantity: number;
-  reason: ReturnReason;
-}
-
-export interface ReturnRecord {
-  id: string;
-  runId?: string;
-  orderId?: string;
-  customerId?: string;
-  driverId?: string;
-  items: ReturnItemData[];
 }
 
 // API Functions
@@ -162,46 +136,6 @@ export const api = {
   confirmOrderReceipt: async (id: string, receivedItems: { id: string; receivedQuantity: number }[]): Promise<Order> => {
     const res = await apiRequest("POST", `/api/orders/${id}/confirm-receipt`, { receivedItems });
     return res.json();
-  },
-
-  // Dispatch Runs
-  getDispatchRuns: async (): Promise<DispatchRun[]> => {
-    const res = await fetch("/api/dispatch-runs");
-    return res.json();
-  },
-
-  createDispatchRun: async (run: Omit<DispatchRun, "id">): Promise<DispatchRun> => {
-    const res = await apiRequest("POST", "/api/dispatch-runs", run);
-    return res.json();
-  },
-
-  updateDispatchRun: async (id: string, run: Partial<DispatchRun>): Promise<DispatchRun> => {
-    const res = await apiRequest("PATCH", `/api/dispatch-runs/${id}`, run);
-    return res.json();
-  },
-
-  deleteDispatchRun: async (id: string): Promise<void> => {
-    await apiRequest("DELETE", `/api/dispatch-runs/${id}`);
-  },
-
-  assignOrderToRun: async (runId: string, orderId: string): Promise<DispatchRun> => {
-    const res = await apiRequest("POST", `/api/dispatch-runs/${runId}/assign-order`, { orderId });
-    return res.json();
-  },
-
-  // Returns
-  getReturns: async (): Promise<ReturnRecord[]> => {
-    const res = await fetch("/api/returns");
-    return res.json();
-  },
-
-  createReturn: async (ret: { runId?: string; orderId?: string; customerId?: string; driverId?: string; items: ReturnItemData[] }): Promise<ReturnRecord> => {
-    const res = await apiRequest("POST", "/api/returns", ret);
-    return res.json();
-  },
-
-  deleteReturn: async (id: string): Promise<void> => {
-    await apiRequest("DELETE", `/api/returns/${id}`);
   },
 
   // Users
@@ -312,36 +246,6 @@ export const api = {
     return res.json();
   },
 
-  // Order Modifications
-  getPendingModifications: async (): Promise<OrderModification[]> => {
-    const res = await fetch("/api/order-modifications/pending");
-    return res.json();
-  },
-
-  getAllModifications: async (): Promise<OrderModification[]> => {
-    const res = await fetch("/api/order-modifications");
-    return res.json();
-  },
-
-  createOrderModification: async (data: {
-    orderId: string;
-    driverId: string;
-    items: { productId: string; originalQuantity: number; requestedQuantity: number }[];
-    notes?: string;
-  }): Promise<OrderModification> => {
-    const res = await apiRequest("POST", "/api/order-modifications", data);
-    return res.json();
-  },
-
-  approveOrderModification: async (id: string): Promise<OrderModification> => {
-    const res = await apiRequest("POST", `/api/order-modifications/${id}/approve`);
-    return res.json();
-  },
-
-  rejectOrderModification: async (id: string): Promise<OrderModification> => {
-    const res = await apiRequest("POST", `/api/order-modifications/${id}/reject`);
-    return res.json();
-  },
 
   // Cash Deposits - تسليم المبالغ
   getCashDeposits: async (): Promise<CashDeposit[]> => {
@@ -423,25 +327,6 @@ export interface CustomerDebt {
   paidAmount: string;
   isPaid: boolean;
   createdAt?: string;
-}
-
-export interface OrderModificationItem {
-  id: string;
-  modificationId: string;
-  productId: string;
-  originalQuantity: number;
-  requestedQuantity: number;
-}
-
-export interface OrderModification {
-  id: string;
-  orderId: string;
-  driverId: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  createdAt: string;
-  processedAt?: string;
-  notes?: string;
-  items?: OrderModificationItem[];
 }
 
 export interface CashDeposit {

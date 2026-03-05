@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
-import { Status, RunStatus } from "@/lib/store";
+import { Status } from "@/lib/store";
 
 interface StatusBadgeProps {
-  status: Status | RunStatus | string;
+  status: Status | string;
   className?: string;
 }
 
