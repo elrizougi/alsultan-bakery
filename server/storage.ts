@@ -119,6 +119,7 @@ export interface IStorage {
   getAllTransactions(): Promise<Transaction[]>;
   getDriverTransactions(driverId: string): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  deleteTransactionWithUpdates(id: string): Promise<boolean>;
 
   // Order Modifications
   getAllOrderModifications(): Promise<OrderModification[]>;
@@ -638,6 +639,70 @@ export class DatabaseStorage implements IStorage {
       }
       
       return newTransaction;
+    });
+  }
+
+  async deleteTransactionWithUpdates(id: string): Promise<boolean> {
+    return await db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(transactions).where(eq(transactions.id, id));
+      if (!existing) return false;
+
+      const { type, driverId, productId, quantity, totalAmount, customerId } = existing;
+
+      const updateInventoryInTx = async (qtyChange: number) => {
+        const [inv] = await tx.select().from(driverInventory)
+          .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)));
+        if (inv) {
+          await tx.update(driverInventory)
+            .set({ quantity: inv.quantity + qtyChange })
+            .where(eq(driverInventory.id, inv.id));
+        }
+      };
+
+      const updateBalanceInTx = async (amount: string) => {
+        const [bal] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, driverId));
+        if (bal) {
+          const newBalance = (parseFloat(bal.cashBalance) + parseFloat(amount)).toFixed(2);
+          await tx.update(driverBalance).set({ cashBalance: newBalance }).where(eq(driverBalance.driverId, driverId));
+        }
+      };
+
+      switch (type) {
+        case 'CASH_SALE':
+          await updateInventoryInTx(quantity);
+          await updateBalanceInTx((-parseFloat(totalAmount || "0")).toFixed(2));
+          break;
+        case 'CREDIT_SALE':
+          await updateInventoryInTx(quantity);
+          if (customerId) {
+            const allDebts = await tx.select().from(customerDebts)
+              .where(and(
+                eq(customerDebts.customerId, customerId),
+                eq(customerDebts.driverId, driverId),
+                eq(customerDebts.amount, totalAmount || "0"),
+                eq(customerDebts.isPaid, false)
+              ));
+            if (allDebts.length > 0) {
+              await tx.delete(customerDebts).where(eq(customerDebts.id, allDebts[0].id));
+            }
+          }
+          break;
+        case 'RETURN':
+          await updateInventoryInTx(-quantity);
+          break;
+        case 'FREE_DISTRIBUTION':
+        case 'FREE_SAMPLE':
+          await updateInventoryInTx(quantity);
+          break;
+        case 'EXPENSE':
+          await updateBalanceInTx(totalAmount || "0");
+          break;
+        case 'DAMAGED':
+          break;
+      }
+
+      await tx.delete(transactions).where(eq(transactions.id, id));
+      return true;
     });
   }
 

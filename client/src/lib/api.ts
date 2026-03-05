@@ -279,6 +279,10 @@ export const api = {
     return res.json();
   },
 
+  deleteTransaction: async (id: string): Promise<void> => {
+    await apiRequest("DELETE", `/api/transactions/${id}`);
+  },
+
   updateCustomerDebt: async (id: string, isPaid: boolean): Promise<CustomerDebt> => {
     const res = await apiRequest("PATCH", `/api/customer-debts/${id}`, { isPaid });
     return res.json();

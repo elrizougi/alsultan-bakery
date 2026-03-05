@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -102,6 +102,20 @@ export default function DriverTransactionsPage() {
     },
     onError: () => {
       toast({ title: "حدث خطأ في تسجيل العملية", variant: "destructive" });
+    },
+  });
+
+  const deleteTransaction = useMutation({
+    mutationFn: api.deleteTransaction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["driver-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-debts"] });
+      toast({ title: "تم حذف العملية بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ في حذف العملية", variant: "destructive" });
     },
   });
 
@@ -469,6 +483,16 @@ export default function DriverTransactionsPage() {
   );
   const uniqueCustomersCount = uniqueCustomersSet.size;
 
+  // حساب إجمالي المرتجع
+  const totalReturnBread = transactions
+    .filter(t => t.type === 'RETURN')
+    .reduce((sum, t) => sum + t.quantity, 0);
+
+  // عمليات السجل (بدون المرتجع)
+  const logTransactions = transactions.filter(t => t.type !== 'RETURN');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   // حساب إجمالي المصروفات
   const totalExpenses = transactions
     .filter(t => (t.type as string) === 'EXPENSE')
@@ -553,7 +577,7 @@ export default function DriverTransactionsPage() {
         </Card>
 
         {/* الصف الأول: إحصائيات المخزون والمبيعات */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
           <Card className="border-slate-100 bg-blue-50 hover:shadow-md transition-shadow">
             <CardContent className="pt-6 pb-6">
               <div className="flex items-center gap-4">
@@ -608,6 +632,20 @@ export default function DriverTransactionsPage() {
                 <div>
                   <p className="text-sm font-medium text-purple-600">عدد العملاء</p>
                   <p className="text-2xl font-bold text-purple-700" data-testid="text-customers-count">{uniqueCustomersCount}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-red-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-red-500 rounded-xl">
+                  <Undo2 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-red-600">المرتجع</p>
+                  <p className="text-2xl font-bold text-red-700" data-testid="text-return-bread">{totalReturnBread}</p>
                 </div>
               </div>
             </CardContent>
@@ -760,7 +798,7 @@ export default function DriverTransactionsPage() {
             <CardTitle className="text-lg font-bold">سجل العمليات</CardTitle>
           </CardHeader>
           <CardContent>
-            {transactions.length === 0 ? (
+            {logTransactions.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">لا توجد عمليات مسجلة</p>
             ) : (
               <Table>
@@ -772,12 +810,15 @@ export default function DriverTransactionsPage() {
                     <TableHead className="text-right">المبلغ</TableHead>
                     <TableHead className="text-right">العميل</TableHead>
                     <TableHead className="text-right">التاريخ</TableHead>
+                    <TableHead className="text-right">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map((tx) => {
+                  {logTransactions.map((tx) => {
                     const typeInfo = transactionTypeLabels[tx.type];
                     const isExpense = (tx.type as string) === 'EXPENSE';
+                    const txDate = tx.createdAt ? new Date(tx.createdAt) : null;
+                    const isToday = txDate ? txDate >= today : false;
                     return (
                       <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
                         <TableCell>
@@ -792,6 +833,24 @@ export default function DriverTransactionsPage() {
                         <TableCell>{isExpense ? '-' : getCustomerName(tx.customerId)}</TableCell>
                         <TableCell>
                           {tx.createdAt ? format(new Date(tx.createdAt), "dd/MM/yyyy HH:mm", { locale: ar }) : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {isToday && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => {
+                                if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
+                                  deleteTransaction.mutate(tx.id);
+                                }
+                              }}
+                              disabled={deleteTransaction.isPending}
+                              data-testid={`button-delete-transaction-${tx.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

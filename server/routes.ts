@@ -836,6 +836,19 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/transactions/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteTransactionWithUpdates(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "العملية غير موجودة" });
+      }
+      res.json({ message: "تم حذف العملية بنجاح" });
+    } catch (error) {
+      console.error("Delete transaction error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // ============ ORDER MODIFICATIONS ============
   app.get("/api/order-modifications", async (req, res) => {
     try {
