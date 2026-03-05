@@ -510,8 +510,15 @@ export class DatabaseStorage implements IStorage {
           break;
 
         case 'EXPENSE':
-        case 'DRIVER_DEBT':
           await updateBalanceInTx((-parseFloat(totalAmount)).toFixed(2));
+          break;
+
+        case 'DRIVER_DEBT':
+          if (quantity > 0) {
+            await updateInventoryInTx(-quantity);
+          } else {
+            await updateBalanceInTx((-parseFloat(totalAmount)).toFixed(2));
+          }
           break;
       }
       
@@ -586,8 +593,14 @@ export class DatabaseStorage implements IStorage {
           if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
           break;
         case 'EXPENSE':
-        case 'DRIVER_DEBT':
           if (amountDiff !== 0) await updateBalanceInTx((-amountDiff).toFixed(2));
+          break;
+        case 'DRIVER_DEBT':
+          if (existing.quantity > 0) {
+            if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
+          } else {
+            if (amountDiff !== 0) await updateBalanceInTx((-amountDiff).toFixed(2));
+          }
           break;
       }
 
@@ -660,8 +673,14 @@ export class DatabaseStorage implements IStorage {
           await updateInventoryInTx(quantity);
           break;
         case 'EXPENSE':
-        case 'DRIVER_DEBT':
           await updateBalanceInTx(totalAmount || "0");
+          break;
+        case 'DRIVER_DEBT':
+          if (quantity > 0) {
+            await updateInventoryInTx(quantity);
+          } else {
+            await updateBalanceInTx(totalAmount || "0");
+          }
           break;
       }
 

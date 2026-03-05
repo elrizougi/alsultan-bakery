@@ -324,6 +324,7 @@ export default function DriverTransactionsPage() {
   const [customPrice, setCustomPrice] = useState<string>("");
   const [expenseAmount, setExpenseAmount] = useState<string>("");
   const [expenseDescription, setExpenseDescription] = useState<string>("");
+  const [debtSubType, setDebtSubType] = useState<"cash" | "bread">("cash");
   
   const [formData, setFormData] = useState<Partial<InsertTransaction> & { customerId?: string }>({
     type: "CASH_SALE",
@@ -346,6 +347,7 @@ export default function DriverTransactionsPage() {
     setCustomPrice("");
     setExpenseAmount("");
     setExpenseDescription("");
+    setDebtSubType("cash");
     setShowNewCustomerForm(false);
     setNewCustomerName("");
     setNewCustomerPhone("");
@@ -381,34 +383,64 @@ export default function DriverTransactionsPage() {
   const handleSubmit = () => {
     // معالجة خاصة للمديونية على المندوب
     if ((formData.type as string) === 'DRIVER_DEBT') {
-      const amount = parseFloat(expenseAmount);
-      if (!amount || amount <= 0) {
-        toast({ title: "يرجى إدخال مبلغ المديونية", variant: "destructive" });
-        return;
-      }
       if (!expenseDescription.trim()) {
         toast({ title: "يرجى إدخال وصف المديونية", variant: "destructive" });
         return;
       }
 
-      const defaultProduct = products[0];
       const defaultCustomer = customers[0];
-      
-      if (!defaultProduct || !defaultCustomer) {
-        toast({ title: "يجب وجود منتج وعميل واحد على الأقل في النظام", variant: "destructive" });
+      if (!defaultCustomer) {
+        toast({ title: "يجب وجود عميل واحد على الأقل في النظام", variant: "destructive" });
         return;
       }
 
-      createTransaction.mutate({
-        type: 'DRIVER_DEBT' as TransactionType,
-        driverId: driverId,
-        productId: defaultProduct.id,
-        quantity: 0,
-        customerId: defaultCustomer.id,
-        unitPrice: "0",
-        totalAmount: amount.toFixed(2),
-        notes: `${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
-      });
+      if (debtSubType === 'bread') {
+        if (!formData.productId) {
+          toast({ title: "يرجى اختيار المنتج", variant: "destructive" });
+          return;
+        }
+        const qty = formData.quantity || 1;
+        if (qty <= 0) {
+          toast({ title: "يرجى إدخال كمية صحيحة", variant: "destructive" });
+          return;
+        }
+        const product = products.find(p => p.id === formData.productId);
+        const unitPrice = product?.price || "0";
+        const totalAmount = (parseFloat(unitPrice) * qty).toFixed(2);
+
+        createTransaction.mutate({
+          type: 'DRIVER_DEBT' as TransactionType,
+          driverId: driverId,
+          productId: formData.productId,
+          quantity: qty,
+          customerId: defaultCustomer.id,
+          unitPrice,
+          totalAmount,
+          notes: `فرق خبز: ${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
+        });
+      } else {
+        const amount = parseFloat(expenseAmount);
+        if (!amount || amount <= 0) {
+          toast({ title: "يرجى إدخال مبلغ المديونية", variant: "destructive" });
+          return;
+        }
+        const defaultProduct = products[0];
+        if (!defaultProduct) {
+          toast({ title: "يجب وجود منتج واحد على الأقل في النظام", variant: "destructive" });
+          return;
+        }
+
+        createTransaction.mutate({
+          type: 'DRIVER_DEBT' as TransactionType,
+          driverId: driverId,
+          productId: defaultProduct.id,
+          quantity: 0,
+          customerId: defaultCustomer.id,
+          unitPrice: "0",
+          totalAmount: amount.toFixed(2),
+          notes: `فرق نقدي: ${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
+        });
+      }
       return;
     }
 
@@ -939,7 +971,10 @@ export default function DriverTransactionsPage() {
                 <TableBody>
                   {logTransactions.map((tx) => {
                     const typeInfo = transactionTypeLabels[tx.type];
-                    const isExpense = (tx.type as string) === 'EXPENSE' || (tx.type as string) === 'DRIVER_DEBT';
+                    const isExpenseType = (tx.type as string) === 'EXPENSE';
+                    const isDriverDebt = (tx.type as string) === 'DRIVER_DEBT';
+                    const isBreadDebt = isDriverDebt && tx.quantity > 0;
+                    const isExpense = isExpenseType || (isDriverDebt && !isBreadDebt);
                     const txDate = tx.createdAt ? new Date(tx.createdAt) : null;
                     const isToday = txDate ? txDate >= today : false;
 
@@ -999,11 +1034,11 @@ export default function DriverTransactionsPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{isExpense ? (tx.notes || '-') : getProductName(tx.productId)}</TableCell>
+                        <TableCell>{isExpense ? (tx.notes || '-') : isBreadDebt ? `${getProductName(tx.productId)} (${tx.notes || ''})` : getProductName(tx.productId)}</TableCell>
                         <TableCell>{isExpense ? '-' : tx.quantity}</TableCell>
                         <TableCell>{isExpense ? '-' : (tx.unitPrice ? `${parseFloat(tx.unitPrice).toFixed(2)} ر.س` : "-")}</TableCell>
                         <TableCell>{tx.totalAmount ? `${parseFloat(tx.totalAmount).toFixed(2)} ر.س` : "-"}</TableCell>
-                        <TableCell>{isExpense ? '-' : getCustomerName(tx.customerId)}</TableCell>
+                        <TableCell>{(isExpense || isDriverDebt) ? '-' : getCustomerName(tx.customerId)}</TableCell>
                         <TableCell>
                           {tx.createdAt ? format(new Date(tx.createdAt), "dd/MM/yyyy HH:mm", { locale: ar }) : "-"}
                         </TableCell>
@@ -1083,8 +1118,8 @@ export default function DriverTransactionsPage() {
               </Select>
             </div>
 
-            {/* حقول خاصة بالمصروفات والمديونية */}
-            {((formData.type as string) === 'EXPENSE' || (formData.type as string) === 'DRIVER_DEBT') ? (
+            {/* حقول خاصة بالمصروفات */}
+            {(formData.type as string) === 'EXPENSE' ? (
               <>
                 <div className="grid gap-2">
                   <Label>المبلغ *</Label>
@@ -1094,7 +1129,7 @@ export default function DriverTransactionsPage() {
                     min={0}
                     value={expenseAmount}
                     onChange={(e) => setExpenseAmount(e.target.value)}
-                    placeholder={(formData.type as string) === 'DRIVER_DEBT' ? "أدخل مبلغ المديونية" : "أدخل مبلغ المصروفات"}
+                    placeholder="أدخل مبلغ المصروفات"
                     data-testid="input-expense-amount"
                   />
                 </div>
@@ -1104,16 +1139,112 @@ export default function DriverTransactionsPage() {
                   <Input
                     value={expenseDescription}
                     onChange={(e) => setExpenseDescription(e.target.value)}
-                    placeholder={(formData.type as string) === 'DRIVER_DEBT' ? "مثال: سلفة، عهدة، خصم..." : "مثال: وقود، صيانة، غداء..."}
+                    placeholder="مثال: وقود، صيانة، غداء..."
                     data-testid="input-expense-description"
                   />
                 </div>
 
                 {expenseAmount && (
-                  <div className={`p-3 rounded-lg ${(formData.type as string) === 'DRIVER_DEBT' ? 'bg-rose-50' : 'bg-orange-50'}`}>
+                  <div className="p-3 rounded-lg bg-orange-50">
                     <p className="text-sm text-muted-foreground">
                       المبلغ:{" "}
-                      <span className={`font-bold ${(formData.type as string) === 'DRIVER_DEBT' ? 'text-rose-600' : 'text-orange-600'}`}>
+                      <span className="font-bold text-orange-600">
+                        {parseFloat(expenseAmount || "0").toFixed(2)} ر.س
+                      </span>
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (formData.type as string) === 'DRIVER_DEBT' ? (
+              <>
+                <div className="grid gap-2">
+                  <Label>نوع المديونية *</Label>
+                  <Select value={debtSubType} onValueChange={(v) => setDebtSubType(v as "cash" | "bread")}>
+                    <SelectTrigger data-testid="select-debt-subtype">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">فرق نقدي (يُخصم من الرصيد)</SelectItem>
+                      <SelectItem value="bread">فرق خبز (يُخصم من المخزون)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {debtSubType === 'bread' && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label>المنتج *</Label>
+                      <Select
+                        value={formData.productId}
+                        onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                      >
+                        <SelectTrigger data-testid="select-debt-product">
+                          <SelectValue placeholder="اختر المنتج" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} - {product.price} ر.س
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>الكمية *</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={formData.quantity || 1}
+                        onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                        data-testid="input-debt-quantity"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {debtSubType === 'cash' && (
+                  <div className="grid gap-2">
+                    <Label>المبلغ *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={expenseAmount}
+                      onChange={(e) => setExpenseAmount(e.target.value)}
+                      placeholder="أدخل مبلغ المديونية"
+                      data-testid="input-debt-amount"
+                    />
+                  </div>
+                )}
+
+                <div className="grid gap-2">
+                  <Label>السبب / الوصف *</Label>
+                  <Input
+                    value={expenseDescription}
+                    onChange={(e) => setExpenseDescription(e.target.value)}
+                    placeholder="مثال: فرق جرد، نقص بضاعة، سلفة..."
+                    data-testid="input-debt-description"
+                  />
+                </div>
+
+                {debtSubType === 'bread' && formData.productId && (
+                  <div className="p-3 rounded-lg bg-rose-50">
+                    <p className="text-sm text-muted-foreground">
+                      المبلغ المحسوب:{" "}
+                      <span className="font-bold text-rose-600">
+                        {(parseFloat(products.find(p => p.id === formData.productId)?.price || "0") * (formData.quantity || 1)).toFixed(2)} ر.س
+                      </span>
+                      {" "}({formData.quantity || 1} × {products.find(p => p.id === formData.productId)?.price || "0"})
+                    </p>
+                  </div>
+                )}
+
+                {debtSubType === 'cash' && expenseAmount && (
+                  <div className="p-3 rounded-lg bg-rose-50">
+                    <p className="text-sm text-muted-foreground">
+                      المبلغ:{" "}
+                      <span className="font-bold text-rose-600">
                         {parseFloat(expenseAmount || "0").toFixed(2)} ر.س
                       </span>
                     </p>
