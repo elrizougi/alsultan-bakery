@@ -55,6 +55,12 @@ export default function DriverDailyReportPage() {
     enabled: !!driverId,
   });
 
+  const { data: driverDebts = [] } = useQuery({
+    queryKey: ["driver-debts", detailDriverId || driverId],
+    queryFn: () => api.getDriverCustomerDebts(detailDriverId || driverId),
+    enabled: !!(detailDriverId || driverId),
+  });
+
   const driverName = users.find(u => u.id === driverId)?.name || "";
   const driverCustomers = customers.filter(c => c.driverId === driverId);
 
@@ -162,14 +168,14 @@ export default function DriverDailyReportPage() {
     return Array.from(dates).sort((a, b) => b.localeCompare(a));
   };
 
-  const getDetailedCustomerData = (txList: typeof transactions, date: string) => {
+  const getDetailedCustomerData = (txList: typeof transactions, date: string, debts: typeof driverDebts = []) => {
     const dayTx = txList.filter(t =>
       t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === date
     );
 
     const customerMap = new Map<string, {
       name: string;
-      items: { productName: string; qty: number; unitPrice: number; total: number; type: string }[];
+      items: { productName: string; qty: number; unitPrice: number; total: number; type: string; paymentStatus?: 'unpaid' | 'partial' | 'paid' }[];
       totalQty: number;
       cashAmount: number;
       creditAmount: number;
@@ -192,6 +198,26 @@ export default function DriverDailyReportPage() {
       const amount = parseFloat(tx.totalAmount || "0");
       data.totalQty += tx.quantity;
       data.totalAmount += amount;
+
+      let paymentStatus: 'unpaid' | 'partial' | 'paid' | undefined;
+      if (tx.type === 'CREDIT_SALE' && tx.customerId) {
+        const matchingDebt = debts.find(d =>
+          d.customerId === tx.customerId &&
+          parseFloat(d.amount) === amount &&
+          d.createdAt && tx.createdAt &&
+          Math.abs(new Date(d.createdAt).getTime() - new Date(tx.createdAt).getTime()) < 60000
+        ) || debts.find(d => d.customerId === tx.customerId && parseFloat(d.amount) === amount);
+        if (matchingDebt) {
+          const paid = parseFloat(matchingDebt.paidAmount || "0");
+          const total = parseFloat(matchingDebt.amount);
+          if (matchingDebt.isPaid || paid >= total) paymentStatus = 'paid';
+          else if (paid > 0) paymentStatus = 'partial';
+          else paymentStatus = 'unpaid';
+        } else {
+          paymentStatus = 'unpaid';
+        }
+      }
+
       if (tx.type === 'CASH_SALE') data.cashAmount += amount;
       else data.creditAmount += amount;
       data.items.push({
@@ -200,6 +226,7 @@ export default function DriverDailyReportPage() {
         unitPrice: parseFloat(tx.unitPrice || "0"),
         total: amount,
         type: tx.type === 'CASH_SALE' ? 'نقدي' : 'آجل',
+        paymentStatus,
       });
     });
 
@@ -528,7 +555,7 @@ export default function DriverDailyReportPage() {
             </DialogHeader>
 
             {detailDate && (() => {
-              const detail = getDetailedCustomerData(activeDetailTx, detailDate);
+              const detail = getDetailedCustomerData(activeDetailTx, detailDate, driverDebts);
               const day = getDayDataForDriver(activeDetailTx, detailDate);
 
               return (
@@ -645,9 +672,20 @@ export default function DriverDailyReportPage() {
                                   <TableCell>{item.unitPrice.toFixed(2)} ر.س</TableCell>
                                   <TableCell>{item.total.toFixed(2)} ر.س</TableCell>
                                   <TableCell>
-                                    <Badge className={item.type === 'نقدي' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}>
-                                      {item.type}
-                                    </Badge>
+                                    <div className="flex flex-col gap-1">
+                                      <Badge className={item.type === 'نقدي' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}>
+                                        {item.type}
+                                      </Badge>
+                                      {item.paymentStatus === 'paid' && (
+                                        <Badge className="bg-emerald-100 text-emerald-700 text-xs">مدفوع كامل</Badge>
+                                      )}
+                                      {item.paymentStatus === 'partial' && (
+                                        <Badge className="bg-amber-100 text-amber-700 text-xs">مدفوع جزئي</Badge>
+                                      )}
+                                      {item.paymentStatus === 'unpaid' && (
+                                        <Badge className="bg-red-100 text-red-700 text-xs">غير مدفوع</Badge>
+                                      )}
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               ))

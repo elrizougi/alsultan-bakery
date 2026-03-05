@@ -901,13 +901,62 @@ export default function DriverTransactionsPage() {
                     const isExpense = (tx.type as string) === 'EXPENSE';
                     const txDate = tx.createdAt ? new Date(tx.createdAt) : null;
                     const isToday = txDate ? txDate >= today : false;
+
+                    let paymentStatus: 'unpaid' | 'partial' | 'paid' | null = null;
+                    if (tx.type === 'CREDIT_SALE' && tx.customerId) {
+                      const matchingDebt = debts.find(d =>
+                        d.customerId === tx.customerId &&
+                        d.driverId === tx.driverId &&
+                        parseFloat(d.amount) === parseFloat(tx.totalAmount || "0") &&
+                        d.createdAt && tx.createdAt &&
+                        Math.abs(new Date(d.createdAt).getTime() - new Date(tx.createdAt).getTime()) < 60000
+                      );
+                      if (matchingDebt) {
+                        const paid = parseFloat(matchingDebt.paidAmount || "0");
+                        const total = parseFloat(matchingDebt.amount);
+                        if (matchingDebt.isPaid || paid >= total) paymentStatus = 'paid';
+                        else if (paid > 0) paymentStatus = 'partial';
+                        else paymentStatus = 'unpaid';
+                      } else {
+                        const anyDebt = debts.find(d => d.customerId === tx.customerId && d.driverId === tx.driverId && parseFloat(d.amount) === parseFloat(tx.totalAmount || "0"));
+                        if (anyDebt) {
+                          const paid = parseFloat(anyDebt.paidAmount || "0");
+                          const total = parseFloat(anyDebt.amount);
+                          if (anyDebt.isPaid || paid >= total) paymentStatus = 'paid';
+                          else if (paid > 0) paymentStatus = 'partial';
+                          else paymentStatus = 'unpaid';
+                        } else {
+                          paymentStatus = 'unpaid';
+                        }
+                      }
+                    }
+
                     return (
                       <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
                         <TableCell>
-                          <Badge className={`${typeInfo?.color || 'bg-gray-500'} text-white gap-1`}>
-                            {typeInfo?.icon}
-                            {typeInfo?.label || tx.type}
-                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <Badge className={`${typeInfo?.color || 'bg-gray-500'} text-white gap-1`}>
+                              {typeInfo?.icon}
+                              {typeInfo?.label || tx.type}
+                            </Badge>
+                            {paymentStatus === 'paid' && (
+                              <Badge className="bg-emerald-100 text-emerald-700 text-xs gap-1">
+                                <CheckCircle className="h-3 w-3" />
+                                مدفوع كامل
+                              </Badge>
+                            )}
+                            {paymentStatus === 'partial' && (
+                              <Badge className="bg-amber-100 text-amber-700 text-xs gap-1">
+                                <DollarSign className="h-3 w-3" />
+                                مدفوع جزئي
+                              </Badge>
+                            )}
+                            {paymentStatus === 'unpaid' && (
+                              <Badge className="bg-red-100 text-red-700 text-xs gap-1">
+                                غير مدفوع
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{isExpense ? (tx.notes || '-') : getProductName(tx.productId)}</TableCell>
                         <TableCell>{isExpense ? '-' : tx.quantity}</TableCell>
