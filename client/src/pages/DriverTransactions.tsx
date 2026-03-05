@@ -356,9 +356,10 @@ export default function DriverTransactionsPage() {
       toast({ title: "يرجى تعبئة جميع الحقول المطلوبة", variant: "destructive" });
       return;
     }
+
+    const noCustomerTypes: string[] = ['RETURN', 'DAMAGED'];
     
-    // التحقق من اختيار عميل (إجباري لجميع أنواع العمليات)
-    if (!formData.customerId) {
+    if (!noCustomerTypes.includes(formData.type as string) && !formData.customerId) {
       toast({ title: "يرجى اختيار العميل أو إضافة عميل جديد", variant: "destructive" });
       return;
     }
@@ -371,12 +372,22 @@ export default function DriverTransactionsPage() {
     const unitPrice = customPrice ? customPrice : product.price;
     const totalAmount = (parseFloat(unitPrice) * requestedQuantity).toFixed(2);
 
+    let customerId = formData.customerId;
+    if (noCustomerTypes.includes(formData.type as string) && !customerId) {
+      const defaultCustomer = customers[0];
+      if (!defaultCustomer) {
+        toast({ title: "يجب وجود عميل واحد على الأقل في النظام", variant: "destructive" });
+        return;
+      }
+      customerId = defaultCustomer.id;
+    }
+
     createTransaction.mutate({
       type: formData.type as TransactionType,
       driverId: driverId,
       productId: formData.productId,
       quantity: requestedQuantity,
-      customerId: formData.customerId,
+      customerId: customerId!,
       unitPrice,
       totalAmount,
       notes: formData.notes,
@@ -896,6 +907,7 @@ export default function DriverTransactionsPage() {
                   )}
                 </div>
 
+                {(formData.type as string) !== 'RETURN' && (formData.type as string) !== 'DAMAGED' && (
                 <div className="grid gap-2">
                   <Label>العميل *</Label>
                   <div className="flex gap-2">
@@ -988,6 +1000,7 @@ export default function DriverTransactionsPage() {
                     </div>
                   )}
                 </div>
+                )}
               </>
             )}
 
