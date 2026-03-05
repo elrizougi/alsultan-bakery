@@ -630,7 +630,8 @@ export class DatabaseStorage implements IStorage {
           break;
           
         case 'RETURN':
-          await updateInventoryInTx(quantity);
+        case 'DAMAGED':
+          await updateInventoryInTx(-quantity);
           break;
           
         case 'FREE_DISTRIBUTION':
@@ -702,7 +703,8 @@ export class DatabaseStorage implements IStorage {
           }
           break;
         case 'RETURN':
-          if (quantityDiff !== 0) await updateInventoryInTx(quantityDiff);
+        case 'DAMAGED':
+          if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
           break;
         case 'FREE_DISTRIBUTION':
         case 'FREE_SAMPLE':
@@ -774,7 +776,8 @@ export class DatabaseStorage implements IStorage {
           }
           break;
         case 'RETURN':
-          await updateInventoryInTx(-quantity);
+        case 'DAMAGED':
+          await updateInventoryInTx(quantity);
           break;
         case 'FREE_DISTRIBUTION':
         case 'FREE_SAMPLE':
@@ -782,8 +785,6 @@ export class DatabaseStorage implements IStorage {
           break;
         case 'EXPENSE':
           await updateBalanceInTx(totalAmount || "0");
-          break;
-        case 'DAMAGED':
           break;
       }
 
