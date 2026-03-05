@@ -76,13 +76,24 @@ export default function CustomersPage() {
   });
 
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
+
+  const normalizeArabic = (text: string) => {
+    return text
+      .toLowerCase()
+      .replace(/[إأآا]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ؤ/g, 'و')
+      .replace(/ئ/g, 'ي')
+      .replace(/ى/g, 'ي');
+  };
   
   const filteredCustomers = customers.filter(c => {
     const matchesDriver = !filterDriverId || filterDriverId === "all" || c.driverId === filterDriverId;
+    const normalizedQuery = normalizeArabic(searchQuery);
     const matchesSearch = !searchQuery || 
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      normalizeArabic(c.name).includes(normalizedQuery) ||
       (c.phone && c.phone.includes(searchQuery)) ||
-      (c.address && c.address.toLowerCase().includes(searchQuery.toLowerCase()));
+      (c.address && normalizeArabic(c.address).includes(normalizedQuery));
     return matchesDriver && matchesSearch;
   });
 
