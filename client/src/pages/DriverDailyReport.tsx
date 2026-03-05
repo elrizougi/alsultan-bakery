@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { FileText, BarChart3, Users, Package, DollarSign, Undo2, AlertTriangle, ShoppingCart, Eye } from "lucide-react";
+import { FileText, BarChart3, Users, Package, DollarSign, Undo2, AlertTriangle, ShoppingCart, Eye, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useProducts, useCustomers, useUsers } from "@/hooks/useData";
@@ -229,6 +229,52 @@ export default function DriverDailyReportPage() {
     return transactions.some(t => t.productId === p.id && (t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE'));
   });
 
+  const exportToCSV = (
+    rows: { date: string; driverId?: string; driverName?: string; data: ReturnType<typeof getDayDataForDriver> }[],
+    showDriverColumn: boolean
+  ) => {
+    const headers = ['التاريخ'];
+    if (showDriverColumn) headers.push('المندوب');
+    productColumns.forEach(p => headers.push(p.name));
+    headers.push('المجموع', 'المرتجع', 'التالف', 'النقدي', 'الإجمالي', 'المصروفات', 'الصافي', 'العملاء');
+
+    const esc = (v: string) => v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
+    const csvRows = [headers.map(esc).join(',')];
+
+    rows.forEach(row => {
+      const d = row.data;
+      const cols: string[] = [format(new Date(row.date), 'yyyy-MM-dd')];
+      if (showDriverColumn) cols.push(esc(row.driverName || ''));
+      productColumns.forEach(p => {
+        const sold = d.soldByProduct.find(s => s.name === p.name);
+        cols.push(sold ? String(sold.qty) : '0');
+      });
+      cols.push(
+        String(d.totalSoldQty),
+        String(d.returnedQty),
+        String(d.damagedQty),
+        d.cashAmount.toFixed(2),
+        d.totalSalesAmount.toFixed(2),
+        d.expensesAmount.toFixed(2),
+        (d.totalSalesAmount - d.expensesAmount).toFixed(2),
+        String(d.servedCount)
+      );
+      csvRows.push(cols.join(','));
+    });
+
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const fileName = showDriverColumn ? 'تقرير_جميع_المناديب' : `تقرير_${driverName}`;
+    link.download = `${fileName}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const renderSummaryTable = (
     rows: { date: string; driverId?: string; driverName?: string; data: ReturnType<typeof getDayDataForDriver> }[],
     showDriverColumn: boolean
@@ -355,29 +401,45 @@ export default function DriverDailyReportPage() {
           </Card>
         )}
 
-        {isAdmin && !driverId && (
+        {isAdmin && !driverId && (() => {
+          const allRows = getAllDriversDayRows().map(r => ({
+            date: r.date,
+            driverId: r.driverId,
+            driverName: r.driverName,
+            data: r.data,
+          }));
+          return (
           <Card className="border-slate-100">
             <CardHeader className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-t-lg">
-              <CardTitle className="text-xl font-bold flex items-center gap-2">
-                <FileText className="h-6 w-6 text-blue-600" />
-                تقارير جميع المناديب
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <FileText className="h-6 w-6 text-blue-600" />
+                  تقارير جميع المناديب
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => exportToCSV(allRows, true)}
+                  disabled={allRows.length === 0}
+                  data-testid="btn-export-all-drivers"
+                >
+                  <Download className="h-4 w-4" />
+                  تصدير CSV
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 {renderSummaryTable(
-                  getAllDriversDayRows().map(r => ({
-                    date: r.date,
-                    driverId: r.driverId,
-                    driverName: r.driverName,
-                    data: r.data,
-                  })),
+                  allRows,
                   true
                 )}
               </div>
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
 
         {(!isAdmin || driverId) && (
           <>
@@ -417,27 +479,42 @@ export default function DriverDailyReportPage() {
               </Card>
             </div>
 
-            <Card className="border-slate-100">
-              <CardHeader className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-t-lg">
-                <CardTitle className="text-xl font-bold flex items-center gap-2">
-                  <FileText className="h-6 w-6 text-blue-600" />
-                  سجل العمليات اليومية - {driverName}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  {renderSummaryTable(
-                    singleDriverDates().map(date => ({
-                      date,
-                      driverId,
-                      driverName,
-                      data: getDayDataForDriver(transactions, date),
-                    })),
-                    false
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            {(() => {
+              const singleRows = singleDriverDates().map(date => ({
+                date,
+                driverId,
+                driverName,
+                data: getDayDataForDriver(transactions, date),
+              }));
+              return (
+                <Card className="border-slate-100">
+                  <CardHeader className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-t-lg">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xl font-bold flex items-center gap-2">
+                        <FileText className="h-6 w-6 text-blue-600" />
+                        سجل العمليات اليومية - {driverName}
+                      </CardTitle>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => exportToCSV(singleRows, false)}
+                        disabled={singleRows.length === 0}
+                        data-testid="btn-export-driver"
+                      >
+                        <Download className="h-4 w-4" />
+                        تصدير CSV
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      {renderSummaryTable(singleRows, false)}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </>
         )}
 
