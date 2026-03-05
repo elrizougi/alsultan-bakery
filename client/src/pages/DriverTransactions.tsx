@@ -493,11 +493,6 @@ export default function DriverTransactionsPage() {
   const unpaidDebts = debts.filter(d => !d.isPaid);
   const totalDebts = unpaidDebts.reduce((sum, d) => sum + (parseFloat(d.amount) - parseFloat(d.paidAmount || "0")), 0);
 
-  // حساب إجمالي الخبز المستلم من الطلبات المؤكدة
-  const totalReceivedBread = assignedOrders.reduce((sum, order) => {
-    return sum + (order.items?.reduce((itemSum, item) => itemSum + (item.receivedQuantity || item.quantity), 0) || 0);
-  }, 0);
-
   // حساب المخزون الحالي مع القيمة
   const totalCurrentInventory = inventory.reduce((sum, item) => sum + item.quantity, 0);
   const totalCurrentInventoryValue = inventory.reduce((sum, item) => {
@@ -624,22 +619,7 @@ export default function DriverTransactionsPage() {
         </Card>
 
         {/* الصف الأول: إحصائيات المخزون والمبيعات */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-          <Card className="border-slate-100 bg-blue-50 hover:shadow-md transition-shadow">
-            <CardContent className="pt-6 pb-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-500 rounded-xl">
-                  <Package className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-blue-600">المستلم</p>
-                  <p className="text-2xl font-bold text-blue-700" data-testid="text-received-bread">{totalReceivedBread}</p>
-                  <p className="text-xs text-blue-600/70">من الطلبات المؤكدة</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <Card className="border-slate-100 bg-orange-50 hover:shadow-md transition-shadow">
             <CardContent className="pt-6 pb-6">
               <div className="flex items-center gap-4">
