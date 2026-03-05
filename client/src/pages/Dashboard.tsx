@@ -2,6 +2,7 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStore } from "@/lib/store";
 import { useOrders, useDispatchRuns, useCustomers, useRoutes, useProducts, useUsers } from "@/hooks/useData";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DollarSign, Package, Truck, AlertCircle, Loader2, Users, UserCheck, MapPin, ShoppingBag, TrendingUp, ArrowUpRight, ArrowDownRight, ShoppingCart, FileText, Banknote, CreditCard, CircleDollarSign, Receipt } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { format } from "date-fns";
@@ -388,49 +389,95 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* سجل العمليات اليومية */}
+        {/* التقرير اليومي للمناديب */}
         <Card className="rounded-3xl border-0 shadow-sm">
           <CardHeader className="text-right px-8 py-6">
-            <CardTitle className="text-xl font-bold text-slate-800">سجل العمليات اليومية</CardTitle>
+            <CardTitle className="text-xl font-bold text-slate-800">التقرير اليومي للمناديب</CardTitle>
           </CardHeader>
           <CardContent className="px-8 pb-8">
-            <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {transactions.slice(0, 12).map(transaction => {
-                const driver = users.find(u => u.id === transaction.driverId);
-                const customer = customers.find(c => c.id === transaction.customerId);
-                const product = products.find(p => p.id === transaction.productId);
-                const isExpense = (transaction.type as string) === 'EXPENSE';
-                return (
-                  <div key={transaction.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 transition-colors flex-row-reverse gap-4 border border-slate-100/50" data-testid={`transaction-item-${transaction.id}`}>
-                    <div className="text-right flex-1 min-w-0">
-                      <div className="font-bold text-slate-800 truncate">
-                        {isExpense ? (transaction.notes || 'مصروفات') : (product?.name || 'منتج')}
-                      </div>
-                      <div className="text-xs font-medium text-slate-400 mt-0.5">
-                        {driver?.name || 'مندوب'} {!isExpense && `• ${transaction.quantity} قطعة`}
-                      </div>
-                      {!isExpense && customer && <div className="text-xs font-medium text-slate-500 mt-0.5">{customer.name}</div>}
-                    </div>
-                    <div className="flex flex-col items-start gap-1.5">
-                      <div className="font-black text-sm text-slate-700">{parseFloat(transaction.totalAmount || '0').toFixed(1)} <span className="text-[10px]">ر.س</span></div>
-                      <span className={`text-[10px] px-3 py-1 rounded-full font-bold ${
-                        (transaction.type as string) === 'CASH_SALE' ? 'bg-green-100 text-green-700' :
-                        (transaction.type as string) === 'CREDIT_SALE' ? 'bg-yellow-100 text-yellow-700' :
-                        (transaction.type as string) === 'RETURN' ? 'bg-blue-100 text-blue-700' :
-                        (transaction.type as string) === 'DAMAGED' ? 'bg-red-100 text-red-700' :
-                        (transaction.type as string) === 'EXPENSE' ? 'bg-orange-100 text-orange-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
-                        {transactionTypeLabels[transaction.type] || transaction.type}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-              {transactions.length === 0 && (
-                <div className="col-span-full text-center py-8 text-slate-400">لا توجد عمليات حتى الآن</div>
-              )}
-            </div>
+            {drivers.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">لا يوجد مناديب مسجلين</p>
+            ) : (
+              <div className="rounded-md border bg-card overflow-hidden">
+                <Table className="text-right">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-right font-bold">المندوب</TableHead>
+                      <TableHead className="text-right font-bold">الخبز الكلي</TableHead>
+                      <TableHead className="text-right font-bold">الخبز المباع</TableHead>
+                      <TableHead className="text-right font-bold">المحصل نقداً</TableHead>
+                      <TableHead className="text-right font-bold">الآجل غير المدفوع</TableHead>
+                      <TableHead className="text-right font-bold">المصروفات</TableHead>
+                      <TableHead className="text-right font-bold">عدد العملاء</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {drivers.map(driver => {
+                      const driverTx = todaysTransactions.filter(t => t.driverId === driver.id);
+                      const totalBread = driverTx
+                        .filter(t => !['EXPENSE'].includes(t.type as string))
+                        .reduce((sum, t) => sum + (t.quantity || 0), 0);
+                      const soldBread = driverTx
+                        .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string))
+                        .reduce((sum, t) => sum + (t.quantity || 0), 0);
+                      const cashCollected = driverTx
+                        .filter(t => (t.type as string) === 'CASH_SALE')
+                        .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+                      const driverCreditDebts = todaysCreditDebts.filter((d: any) => d.driverId === driver.id && !d.isPaid);
+                      const creditUnpaid = driverCreditDebts
+                        .reduce((sum: number, d: any) => sum + parseFloat(d.remainingAmount || d.amount || '0'), 0);
+                      const expenses = driverTx
+                        .filter(t => (t.type as string) === 'EXPENSE')
+                        .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+                      const uniqueCustomers = new Set(
+                        driverTx
+                          .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string) && t.customerId)
+                          .map(t => t.customerId)
+                      ).size;
+
+                      return (
+                        <TableRow key={driver.id} data-testid={`row-driver-summary-${driver.id}`}>
+                          <TableCell className="font-bold">{driver.name}</TableCell>
+                          <TableCell>{totalBread}</TableCell>
+                          <TableCell>{soldBread}</TableCell>
+                          <TableCell className="text-emerald-700 font-semibold">{cashCollected.toFixed(2)} ر.س</TableCell>
+                          <TableCell className="text-yellow-700 font-semibold">{creditUnpaid.toFixed(2)} ر.س</TableCell>
+                          <TableCell className="text-red-600 font-semibold">{expenses.toFixed(2)} ر.س</TableCell>
+                          <TableCell>{uniqueCustomers}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    <TableRow className="bg-slate-50 font-bold border-t-2">
+                      <TableCell className="font-black">الإجمالي</TableCell>
+                      <TableCell className="font-black">
+                        {drivers.reduce((total, driver) => {
+                          return total + todaysTransactions
+                            .filter(t => t.driverId === driver.id && !['EXPENSE'].includes(t.type as string))
+                            .reduce((sum, t) => sum + (t.quantity || 0), 0);
+                        }, 0)}
+                      </TableCell>
+                      <TableCell className="font-black">
+                        {drivers.reduce((total, driver) => {
+                          return total + todaysTransactions
+                            .filter(t => t.driverId === driver.id && ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string))
+                            .reduce((sum, t) => sum + (t.quantity || 0), 0);
+                        }, 0)}
+                      </TableCell>
+                      <TableCell className="font-black text-emerald-700">{totalCashCollected.toFixed(2)} ر.س</TableCell>
+                      <TableCell className="font-black text-yellow-700">{unpaidCreditValue.toFixed(2)} ر.س</TableCell>
+                      <TableCell className="font-black text-red-600">{totalExpenses.toFixed(2)} ر.س</TableCell>
+                      <TableCell className="font-black">
+                        {new Set(
+                          todaysTransactions
+                            .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string) && t.customerId)
+                            .map(t => t.customerId)
+                        ).size}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
