@@ -287,7 +287,7 @@ export default function BakeryExpensesPage() {
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `مصروفات_المخبز_${filterMonth}.csv`;
+    link.download = `مصروفات_التوزيع_${filterMonth}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -308,8 +308,8 @@ export default function BakeryExpensesPage() {
       <div className="flex flex-col gap-6" dir="rtl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="text-right">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800" data-testid="text-page-title">مصروفات المخبز</h1>
-            <p className="text-sm text-muted-foreground">إدارة وتتبع جميع مصروفات المخبز</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800" data-testid="text-page-title">مصروفات التوزيع</h1>
+            <p className="text-sm text-muted-foreground">إدارة وتتبع جميع مصروفات التوزيع</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button onClick={() => { resetExpenseForm(); setShowExpenseDialog(true); }} className="gap-2" data-testid="button-add-expense" disabled={categories.length === 0}>

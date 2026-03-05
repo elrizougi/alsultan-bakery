@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStore } from "@/lib/store";
 import { useCustomers, useProducts, useUsers } from "@/hooks/useData";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, Loader2, ShoppingCart, Banknote, CreditCard, Receipt } from "lucide-react";
-import { format } from "date-fns";
+import { Package, Loader2, ShoppingCart, Banknote, CreditCard, Receipt, Building2 } from "lucide-react";
+import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -21,6 +21,16 @@ export default function Dashboard() {
   const { data: allDebts = [] } = useQuery({
     queryKey: ['allCustomerDebts'],
     queryFn: api.getAllCustomerDebts
+  });
+
+  const { data: bakeryExpenses = [] } = useQuery<any[]>({
+    queryKey: ['bakery-expenses'],
+    queryFn: async () => {
+      const res = await fetch("/api/bakery-expenses");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -54,6 +64,16 @@ export default function Dashboard() {
   const totalExpenses = monthTransactions
     .filter(t => (t.type as string) === 'EXPENSE')
     .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+
+  const monthStart = startOfMonth(new Date());
+  const monthEnd = endOfMonth(new Date());
+  const totalBakeryExpenses = bakeryExpenses
+    .filter((e: any) => {
+      if (!e.expenseDate) return false;
+      const expDate = parseISO(e.expenseDate);
+      return isWithinInterval(expDate, { start: startOfDay(monthStart), end: endOfDay(monthEnd) });
+    })
+    .reduce((sum: number, e: any) => sum + parseFloat(e.amount || '0'), 0);
   
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
 
@@ -83,7 +103,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Stats */}
-        <div className="grid gap-6 grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-6 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-sales-count">
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
               <div className="h-10 w-10 rounded-2xl bg-blue-50 flex items-center justify-center">
@@ -140,7 +160,19 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
               <div className="text-3xl font-black text-red-600">{totalExpenses.toFixed(2)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
-              <p className="text-sm font-medium text-slate-500 mt-1">المصروفات</p>
+              <p className="text-sm font-medium text-slate-500 mt-1">مصروفات التوزيع</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-bakery-expenses">
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
+              <div className="h-10 w-10 rounded-2xl bg-orange-50 flex items-center justify-center">
+                <Building2 className="h-5 w-5 text-orange-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="text-right p-6 pt-0">
+              <div className="text-3xl font-black text-orange-600">{totalBakeryExpenses.toFixed(2)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <p className="text-sm font-medium text-slate-500 mt-1">مصروفات المخبز</p>
             </CardContent>
           </Card>
         </div>
@@ -179,7 +211,7 @@ export default function Dashboard() {
                         <TableHead className="text-right font-bold">متوسط سعر البيع</TableHead>
                         <TableHead className="text-right font-bold">المحصل نقداً</TableHead>
                         <TableHead className="text-right font-bold">الآجل غير المدفوع</TableHead>
-                        <TableHead className="text-right font-bold">المصروفات</TableHead>
+                        <TableHead className="text-right font-bold">مصروفات التوزيع</TableHead>
                         <TableHead className="text-right font-bold">عدد العملاء</TableHead>
                       </TableRow>
                     </TableHeader>
