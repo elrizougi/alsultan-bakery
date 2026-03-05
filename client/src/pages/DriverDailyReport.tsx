@@ -290,6 +290,7 @@ export default function DriverDailyReportPage() {
                         <TableHead className="text-right font-bold">الآجل</TableHead>
                         <TableHead className="text-right font-bold">الإجمالي</TableHead>
                         <TableHead className="text-right font-bold">المصروفات</TableHead>
+                        <TableHead className="text-right font-bold">الصافي بعد الخصم</TableHead>
                         <TableHead className="text-right font-bold">عملاء اليوم</TableHead>
                         <TableHead className="text-right font-bold">تفاصيل</TableHead>
                       </TableRow>
@@ -297,7 +298,7 @@ export default function DriverDailyReportPage() {
                     <TableBody>
                       {sortedDates.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                             لا توجد بيانات للعرض
                           </TableCell>
                         </TableRow>
@@ -326,6 +327,7 @@ export default function DriverDailyReportPage() {
                               <TableCell className="text-amber-600">{day.creditAmount.toFixed(2)} ر.س</TableCell>
                               <TableCell className="text-blue-600 font-bold">{day.totalSalesAmount.toFixed(2)} ر.س</TableCell>
                               <TableCell className="text-red-600">{day.expensesAmount > 0 ? `${day.expensesAmount.toFixed(2)} ر.س` : '-'}</TableCell>
+                              <TableCell className="text-teal-700 font-bold">{(day.totalSalesAmount - day.expensesAmount).toFixed(2)} ر.س</TableCell>
                               <TableCell className="text-purple-600 font-medium">{day.servedCount}</TableCell>
                               <TableCell>
                                 <Button
