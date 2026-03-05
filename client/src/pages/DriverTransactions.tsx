@@ -119,6 +119,22 @@ export default function DriverTransactionsPage() {
     },
   });
 
+  const updateTransaction = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string } }) =>
+      api.updateTransaction(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["driver-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-debts"] });
+      toast({ title: "تم تعديل العملية بنجاح" });
+      setEditingTransaction(null);
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ في تعديل العملية", variant: "destructive" });
+    },
+  });
+
   const updateDebt = useMutation({
     mutationFn: ({ id, isPaid }: { id: string; isPaid: boolean }) => api.updateCustomerDebt(id, isPaid),
     onSuccess: () => {
@@ -271,6 +287,9 @@ export default function DriverTransactionsPage() {
   const [depositNotes, setDepositNotes] = useState<string>("");
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editForm, setEditForm] = useState({ quantity: 1, unitPrice: "", customerId: "", notes: "" });
+  const [editCustomerSearchOpen, setEditCustomerSearchOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerLocationUrl, setNewCustomerLocationUrl] = useState("");
@@ -836,20 +855,39 @@ export default function DriverTransactionsPage() {
                         </TableCell>
                         <TableCell>
                           {isToday && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => {
-                                if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
-                                  deleteTransaction.mutate(tx.id);
-                                }
-                              }}
-                              disabled={deleteTransaction.isPending}
-                              data-testid={`button-delete-transaction-${tx.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => {
+                                  setEditingTransaction(tx);
+                                  setEditForm({
+                                    quantity: tx.quantity,
+                                    unitPrice: tx.unitPrice || "",
+                                    customerId: tx.customerId || "",
+                                    notes: tx.notes || "",
+                                  });
+                                }}
+                                data-testid={`button-edit-transaction-${tx.id}`}
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => {
+                                  if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
+                                    deleteTransaction.mutate(tx.id);
+                                  }
+                                }}
+                                disabled={deleteTransaction.isPending}
+                                data-testid={`button-delete-transaction-${tx.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
                       </TableRow>
@@ -1346,6 +1384,149 @@ export default function DriverTransactionsPage() {
               ) : (
                 "تأكيد الإغلاق"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingTransaction} onOpenChange={(open) => { if (!open) setEditingTransaction(null); }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">تعديل العملية</DialogTitle>
+          </DialogHeader>
+          {editingTransaction && (
+            <div className="grid gap-4 py-4">
+              <div className="p-3 bg-slate-50 rounded-lg space-y-1">
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <span>النوع:</span>
+                  <Badge className={`${transactionTypeLabels[editingTransaction.type]?.color} text-white`}>
+                    {transactionTypeLabels[editingTransaction.type]?.label}
+                  </Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  المنتج: <span className="font-bold">{getProductName(editingTransaction.productId)}</span>
+                </div>
+              </div>
+
+              {(editingTransaction.type as string) !== 'EXPENSE' && (
+                <div className="grid gap-2">
+                  <Label>الكمية</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) || 1 })}
+                    data-testid="input-edit-quantity"
+                  />
+                </div>
+              )}
+
+              {(editingTransaction.type as string) !== 'EXPENSE' && (
+                <div className="grid gap-2">
+                  <Label>سعر الوحدة</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={editForm.unitPrice}
+                    onChange={(e) => setEditForm({ ...editForm, unitPrice: e.target.value })}
+                    data-testid="input-edit-unit-price"
+                  />
+                </div>
+              )}
+
+              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'RETURN' && (
+                <div className="grid gap-2">
+                  <Label>العميل</Label>
+                  <Popover open={editCustomerSearchOpen} onOpenChange={setEditCustomerSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between font-normal"
+                        data-testid="select-edit-customer"
+                      >
+                        {editForm.customerId
+                          ? customers.find(c => c.id === editForm.customerId)?.name || "اختر العميل"
+                          : "اختر العميل"}
+                        <span className="mr-2 h-4 w-4 shrink-0 opacity-50">▼</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command filter={(value, search) => {
+                        const customer = customers.find(c => c.id === value);
+                        if (!customer) return 0;
+                        return normalizeArabic(customer.name).includes(normalizeArabic(search)) ? 1 : 0;
+                      }}>
+                        <CommandInput placeholder="ابحث عن العميل..." />
+                        <CommandList>
+                          <CommandEmpty>لا يوجد عميل بهذا الاسم</CommandEmpty>
+                          <CommandGroup>
+                            {customers.map((customer) => (
+                              <CommandItem
+                                key={customer.id}
+                                value={customer.id}
+                                onSelect={(value) => {
+                                  setEditForm({ ...editForm, customerId: value });
+                                  setEditCustomerSearchOpen(false);
+                                }}
+                              >
+                                <Check className={`ml-2 h-4 w-4 ${editForm.customerId === customer.id ? "opacity-100" : "opacity-0"}`} />
+                                {customer.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+
+              <div className="grid gap-2">
+                <Label>ملاحظات</Label>
+                <Input
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  data-testid="input-edit-notes"
+                />
+              </div>
+
+              {(editingTransaction.type as string) !== 'EXPENSE' && editForm.unitPrice && (
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    الإجمالي: <span className="font-bold text-blue-600">
+                      {(parseFloat(editForm.unitPrice || "0") * editForm.quantity).toFixed(2)} ر.س
+                    </span>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingTransaction(null)}
+            >
+              إلغاء
+            </Button>
+            <Button
+              onClick={() => {
+                if (!editingTransaction) return;
+                updateTransaction.mutate({
+                  id: editingTransaction.id,
+                  updates: {
+                    quantity: editForm.quantity,
+                    unitPrice: editForm.unitPrice,
+                    customerId: editForm.customerId || undefined,
+                    notes: editForm.notes,
+                  },
+                });
+              }}
+              disabled={updateTransaction.isPending}
+              data-testid="button-save-edit"
+            >
+              {updateTransaction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ التعديلات"}
             </Button>
           </DialogFooter>
         </DialogContent>

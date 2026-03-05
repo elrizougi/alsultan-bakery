@@ -283,6 +283,11 @@ export const api = {
     await apiRequest("DELETE", `/api/transactions/${id}`);
   },
 
+  updateTransaction: async (id: string, updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction> => {
+    const res = await apiRequest("PATCH", `/api/transactions/${id}`, updates);
+    return res.json();
+  },
+
   updateCustomerDebt: async (id: string, isPaid: boolean): Promise<CustomerDebt> => {
     const res = await apiRequest("PATCH", `/api/customer-debts/${id}`, { isPaid });
     return res.json();

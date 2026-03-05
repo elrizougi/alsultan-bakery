@@ -836,6 +836,25 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/transactions/:id", async (req, res) => {
+    try {
+      const { quantity, unitPrice, customerId, notes } = req.body;
+      const updated = await storage.updateTransactionWithUpdates(req.params.id, {
+        quantity,
+        unitPrice,
+        customerId,
+        notes,
+      });
+      if (!updated) {
+        return res.status(404).json({ message: "العملية غير موجودة" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Update transaction error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   app.delete("/api/transactions/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteTransactionWithUpdates(req.params.id);

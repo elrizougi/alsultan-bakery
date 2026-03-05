@@ -120,6 +120,7 @@ export interface IStorage {
   getDriverTransactions(driverId: string): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   deleteTransactionWithUpdates(id: string): Promise<boolean>;
+  updateTransactionWithUpdates(id: string, updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction | undefined>;
 
   // Order Modifications
   getAllOrderModifications(): Promise<OrderModification[]>;
@@ -639,6 +640,91 @@ export class DatabaseStorage implements IStorage {
       }
       
       return newTransaction;
+    });
+  }
+
+  async updateTransactionWithUpdates(id: string, updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction | undefined> {
+    return await db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(transactions).where(eq(transactions.id, id));
+      if (!existing) return undefined;
+
+      const { type, driverId, productId } = existing;
+      const oldQuantity = existing.quantity;
+      const oldTotalAmount = existing.totalAmount || "0";
+      const oldCustomerId = existing.customerId;
+
+      const newQuantity = updates.quantity ?? oldQuantity;
+      const newUnitPrice = updates.unitPrice ?? existing.unitPrice;
+      const newTotalAmount = (parseFloat(newUnitPrice || "0") * newQuantity).toFixed(2);
+      const newCustomerId = updates.customerId ?? oldCustomerId;
+
+      const updateInventoryInTx = async (qtyChange: number) => {
+        const [inv] = await tx.select().from(driverInventory)
+          .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)));
+        if (inv) {
+          await tx.update(driverInventory)
+            .set({ quantity: inv.quantity + qtyChange })
+            .where(eq(driverInventory.id, inv.id));
+        }
+      };
+
+      const updateBalanceInTx = async (amount: string) => {
+        const [bal] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, driverId));
+        if (bal) {
+          const newBalance = (parseFloat(bal.cashBalance) + parseFloat(amount)).toFixed(2);
+          await tx.update(driverBalance).set({ cashBalance: newBalance }).where(eq(driverBalance.driverId, driverId));
+        }
+      };
+
+      const quantityDiff = newQuantity - oldQuantity;
+      const amountDiff = parseFloat(newTotalAmount) - parseFloat(oldTotalAmount);
+
+      switch (type) {
+        case 'CASH_SALE':
+          if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
+          if (amountDiff !== 0) await updateBalanceInTx(amountDiff.toFixed(2));
+          break;
+        case 'CREDIT_SALE':
+          if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
+          if (amountDiff !== 0 || oldCustomerId !== newCustomerId) {
+            const allDebts = await tx.select().from(customerDebts)
+              .where(and(
+                eq(customerDebts.customerId, oldCustomerId!),
+                eq(customerDebts.driverId, driverId),
+                eq(customerDebts.amount, oldTotalAmount),
+                eq(customerDebts.isPaid, false)
+              ));
+            if (allDebts.length > 0) {
+              await tx.update(customerDebts)
+                .set({ amount: newTotalAmount, customerId: newCustomerId })
+                .where(eq(customerDebts.id, allDebts[0].id));
+            }
+          }
+          break;
+        case 'RETURN':
+          if (quantityDiff !== 0) await updateInventoryInTx(quantityDiff);
+          break;
+        case 'FREE_DISTRIBUTION':
+        case 'FREE_SAMPLE':
+          if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
+          break;
+        case 'EXPENSE':
+          if (amountDiff !== 0) await updateBalanceInTx((-amountDiff).toFixed(2));
+          break;
+      }
+
+      const [updated] = await tx.update(transactions)
+        .set({
+          quantity: newQuantity,
+          unitPrice: newUnitPrice,
+          totalAmount: newTotalAmount,
+          customerId: newCustomerId,
+          notes: updates.notes ?? existing.notes,
+        })
+        .where(eq(transactions.id, id))
+        .returning();
+
+      return updated;
     });
   }
 
