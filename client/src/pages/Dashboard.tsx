@@ -389,95 +389,91 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* التقرير اليومي للمناديب */}
+        {/* التقرير اليومي المجمع بالتاريخ */}
         <Card className="rounded-3xl border-0 shadow-sm">
           <CardHeader className="text-right px-8 py-6">
-            <CardTitle className="text-xl font-bold text-slate-800">التقرير اليومي للمناديب</CardTitle>
+            <CardTitle className="text-xl font-bold text-slate-800">التقرير اليومي المجمع</CardTitle>
           </CardHeader>
           <CardContent className="px-8 pb-8">
-            {drivers.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">لا يوجد مناديب مسجلين</p>
-            ) : (
-              <div className="rounded-md border bg-card overflow-hidden">
-                <Table className="text-right">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-right font-bold">المندوب</TableHead>
-                      <TableHead className="text-right font-bold">الخبز الكلي</TableHead>
-                      <TableHead className="text-right font-bold">الخبز المباع</TableHead>
-                      <TableHead className="text-right font-bold">المحصل نقداً</TableHead>
-                      <TableHead className="text-right font-bold">الآجل غير المدفوع</TableHead>
-                      <TableHead className="text-right font-bold">المصروفات</TableHead>
-                      <TableHead className="text-right font-bold">عدد العملاء</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {drivers.map(driver => {
-                      const driverTx = todaysTransactions.filter(t => t.driverId === driver.id);
-                      const totalBread = driverTx
-                        .filter(t => !['EXPENSE'].includes(t.type as string))
-                        .reduce((sum, t) => sum + (t.quantity || 0), 0);
-                      const soldBread = driverTx
-                        .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string))
-                        .reduce((sum, t) => sum + (t.quantity || 0), 0);
-                      const cashCollected = driverTx
-                        .filter(t => (t.type as string) === 'CASH_SALE')
-                        .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
-                      const driverCreditDebts = todaysCreditDebts.filter((d: any) => d.driverId === driver.id && !d.isPaid);
-                      const creditUnpaid = driverCreditDebts
-                        .reduce((sum: number, d: any) => sum + parseFloat(d.remainingAmount || d.amount || '0'), 0);
-                      const expenses = driverTx
-                        .filter(t => (t.type as string) === 'EXPENSE')
-                        .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
-                      const uniqueCustomers = new Set(
-                        driverTx
-                          .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string) && t.customerId)
-                          .map(t => t.customerId)
-                      ).size;
+            {(() => {
+              const dateMap: Record<string, typeof transactions> = {};
+              transactions.forEach(t => {
+                if (!t.createdAt) return;
+                const dateKey = format(new Date(t.createdAt), 'yyyy-MM-dd');
+                if (!dateMap[dateKey]) dateMap[dateKey] = [];
+                dateMap[dateKey].push(t);
+              });
+              const sortedDates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
 
-                      return (
-                        <TableRow key={driver.id} data-testid={`row-driver-summary-${driver.id}`}>
-                          <TableCell className="font-bold">{driver.name}</TableCell>
-                          <TableCell>{totalBread}</TableCell>
-                          <TableCell>{soldBread}</TableCell>
-                          <TableCell className="text-emerald-700 font-semibold">{cashCollected.toFixed(2)} ر.س</TableCell>
-                          <TableCell className="text-yellow-700 font-semibold">{creditUnpaid.toFixed(2)} ر.س</TableCell>
-                          <TableCell className="text-red-600 font-semibold">{expenses.toFixed(2)} ر.س</TableCell>
-                          <TableCell>{uniqueCustomers}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    <TableRow className="bg-slate-50 font-bold border-t-2">
-                      <TableCell className="font-black">الإجمالي</TableCell>
-                      <TableCell className="font-black">
-                        {drivers.reduce((total, driver) => {
-                          return total + todaysTransactions
-                            .filter(t => t.driverId === driver.id && !['EXPENSE'].includes(t.type as string))
-                            .reduce((sum, t) => sum + (t.quantity || 0), 0);
-                        }, 0)}
-                      </TableCell>
-                      <TableCell className="font-black">
-                        {drivers.reduce((total, driver) => {
-                          return total + todaysTransactions
-                            .filter(t => t.driverId === driver.id && ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string))
-                            .reduce((sum, t) => sum + (t.quantity || 0), 0);
-                        }, 0)}
-                      </TableCell>
-                      <TableCell className="font-black text-emerald-700">{totalCashCollected.toFixed(2)} ر.س</TableCell>
-                      <TableCell className="font-black text-yellow-700">{unpaidCreditValue.toFixed(2)} ر.س</TableCell>
-                      <TableCell className="font-black text-red-600">{totalExpenses.toFixed(2)} ر.س</TableCell>
-                      <TableCell className="font-black">
-                        {new Set(
-                          todaysTransactions
+              if (sortedDates.length === 0) {
+                return <p className="text-muted-foreground text-center py-8">لا توجد عمليات مسجلة</p>;
+              }
+
+              return (
+                <div className="rounded-md border bg-card overflow-hidden">
+                  <Table className="text-right">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right font-bold">التاريخ</TableHead>
+                        <TableHead className="text-right font-bold">عدد المناديب</TableHead>
+                        <TableHead className="text-right font-bold">الخبز الكلي</TableHead>
+                        <TableHead className="text-right font-bold">الخبز المباع</TableHead>
+                        <TableHead className="text-right font-bold">المحصل نقداً</TableHead>
+                        <TableHead className="text-right font-bold">الآجل غير المدفوع</TableHead>
+                        <TableHead className="text-right font-bold">المصروفات</TableHead>
+                        <TableHead className="text-right font-bold">عدد العملاء</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedDates.map(dateKey => {
+                        const dayTx = dateMap[dateKey];
+                        const activeDrivers = new Set(dayTx.map(t => t.driverId)).size;
+                        const totalBread = dayTx
+                          .filter(t => !['EXPENSE'].includes(t.type as string))
+                          .reduce((sum, t) => sum + (t.quantity || 0), 0);
+                        const soldBread = dayTx
+                          .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string))
+                          .reduce((sum, t) => sum + (t.quantity || 0), 0);
+                        const cashCollected = dayTx
+                          .filter(t => (t.type as string) === 'CASH_SALE')
+                          .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+                        const dayCreditDebts = allDebts.filter((d: any) => {
+                          if (!d.createdAt) return false;
+                          return format(new Date(d.createdAt), 'yyyy-MM-dd') === dateKey && !d.isPaid;
+                        });
+                        const creditUnpaid = dayCreditDebts
+                          .reduce((sum: number, d: any) => sum + parseFloat(d.remainingAmount || d.amount || '0'), 0);
+                        const expenses = dayTx
+                          .filter(t => (t.type as string) === 'EXPENSE')
+                          .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+                        const uniqueCustomers = new Set(
+                          dayTx
                             .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string) && t.customerId)
                             .map(t => t.customerId)
-                        ).size}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                        ).size;
+                        const isToday = dateKey === todayStr;
+
+                        return (
+                          <TableRow key={dateKey} className={isToday ? 'bg-blue-50/50' : ''} data-testid={`row-date-summary-${dateKey}`}>
+                            <TableCell className="font-bold">
+                              {format(new Date(dateKey), 'eeee d/MM/yyyy', { locale: ar })}
+                              {isToday && <span className="mr-2 text-xs text-blue-600 font-medium">(اليوم)</span>}
+                            </TableCell>
+                            <TableCell>{activeDrivers}</TableCell>
+                            <TableCell>{totalBread}</TableCell>
+                            <TableCell>{soldBread}</TableCell>
+                            <TableCell className="text-emerald-700 font-semibold">{cashCollected.toFixed(2)} ر.س</TableCell>
+                            <TableCell className="text-yellow-700 font-semibold">{creditUnpaid.toFixed(2)} ر.س</TableCell>
+                            <TableCell className="text-red-600 font-semibold">{expenses.toFixed(2)} ر.س</TableCell>
+                            <TableCell>{uniqueCustomers}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
