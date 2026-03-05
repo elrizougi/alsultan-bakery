@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useStore } from "@/lib/store";
 import {
@@ -16,10 +16,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileText, BarChart3, Users, Package, DollarSign, Undo2, AlertTriangle, ShoppingCart, Eye, Download } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { FileText, BarChart3, Users, Package, DollarSign, Undo2, AlertTriangle, ShoppingCart, Eye, Download, Upload, Loader2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useProducts, useCustomers, useUsers } from "@/hooks/useData";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -33,6 +34,10 @@ export default function DriverDailyReportPage() {
   const [filterDate, setFilterDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [detailDriverId, setDetailDriverId] = useState<string>("");
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: products = [] } = useProducts();
   const { data: customers = [] } = useCustomers();
@@ -391,6 +396,116 @@ export default function DriverDailyReportPage() {
     );
   };
 
+  const downloadImportTemplate = () => {
+    const driverNames = drivers.map(d => d.name).join(' / ');
+    const productNames = products.map(p => p.name).join(' / ');
+    const customerNames = customers.slice(0, 3).map(c => c.name).join(' / ');
+    const types = 'بيع نقدي / بيع آجل / مرتجع / توزيع مجاني / عينات / تالف / مصروفات';
+    
+    const headers = 'التاريخ,المندوب,النوع,المنتج,الكمية,سعر الوحدة,المبلغ,العميل,ملاحظات';
+    const instructions = [
+      `# التاريخ: بصيغة YYYY-MM-DD مثال: ${format(new Date(), 'yyyy-MM-dd')}`,
+      `# المناديب المتاحون: ${driverNames}`,
+      `# أنواع العمليات: ${types}`,
+      `# المنتجات المتاحة: ${productNames}`,
+      `# العملاء (أمثلة): ${customerNames || 'لا يوجد عملاء'}`,
+      `# الكمية: عدد صحيح (للمصروفات اتركه 0)`,
+      `# سعر الوحدة: سعر القطعة الواحدة`,
+      `# المبلغ: يُحسب تلقائياً (الكمية × السعر) - للمصروفات ضع المبلغ هنا`,
+      `# العميل: مطلوب للبيع الآجل والتالف - اختياري للبيع النقدي`,
+      `# ملاحظات: اختيارية (مطلوبة للمصروفات لكتابة وصف المصروف)`,
+    ];
+    const example1 = `${format(new Date(), 'yyyy-MM-dd')},${drivers[0]?.name || 'اسم المندوب'},بيع نقدي,${products[0]?.name || 'اسم المنتج'},100,0.50,,${customers[0]?.name || ''},`;
+    const example2 = `${format(new Date(), 'yyyy-MM-dd')},${drivers[0]?.name || 'اسم المندوب'},بيع آجل,${products[0]?.name || 'اسم المنتج'},50,0.50,,${customers[0]?.name || 'اسم العميل'},`;
+    const example3 = `${format(new Date(), 'yyyy-MM-dd')},${drivers[0]?.name || 'اسم المندوب'},مرتجع,${products[0]?.name || 'اسم المنتج'},20,0,,,`;
+    const example4 = `${format(new Date(), 'yyyy-MM-dd')},${drivers[0]?.name || 'اسم المندوب'},مصروفات,,0,0,50,,بنزين`;
+
+    const csvContent = instructions.join('\n') + '\n' + headers + '\n' + example1 + '\n' + example2 + '\n' + example3 + '\n' + example4;
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `نموذج_استيراد_عمليات.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
+
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.replace(/^\uFEFF/, '').split('\n').filter(l => l.trim() && !l.trim().startsWith('#'));
+      
+      if (lines.length < 2) {
+        toast({ title: "خطأ", description: "الملف فارغ أو لا يحتوي على بيانات", variant: "destructive" });
+        return;
+      }
+
+      const headerLine = lines[0];
+      const headers = headerLine.split(',').map(h => h.trim());
+      
+      const dateIdx = headers.indexOf('التاريخ');
+      const driverIdx = headers.indexOf('المندوب');
+      const typeIdx = headers.indexOf('النوع');
+      const productIdx = headers.indexOf('المنتج');
+      const qtyIdx = headers.indexOf('الكمية');
+      const priceIdx = headers.indexOf('سعر الوحدة');
+      const amountIdx = headers.indexOf('المبلغ');
+      const customerIdx = headers.indexOf('العميل');
+      const notesIdx = headers.indexOf('ملاحظات');
+
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.trim());
+        if (cols.every(c => !c)) continue;
+        rows.push({
+          date: dateIdx >= 0 ? cols[dateIdx] : '',
+          driverName: driverIdx >= 0 ? cols[driverIdx] : '',
+          type: typeIdx >= 0 ? cols[typeIdx] : '',
+          productName: productIdx >= 0 ? cols[productIdx] : '',
+          quantity: qtyIdx >= 0 ? cols[qtyIdx] : '0',
+          unitPrice: priceIdx >= 0 ? cols[priceIdx] : '0',
+          totalAmount: amountIdx >= 0 ? cols[amountIdx] : '0',
+          customerName: customerIdx >= 0 ? cols[customerIdx] : '',
+          notes: notesIdx >= 0 ? cols[notesIdx] : '',
+        });
+      }
+
+      if (rows.length === 0) {
+        toast({ title: "خطأ", description: "لا توجد بيانات صالحة في الملف", variant: "destructive" });
+        return;
+      }
+
+      const result = await api.bulkImportTransactions(rows);
+      const errors = result.results?.filter((r: any) => r.status === 'error') || [];
+      
+      if (errors.length > 0) {
+        const errorMessages = errors.slice(0, 5).map((e: any) => `سطر ${e.row}: ${e.error}`).join('\n');
+        toast({
+          title: result.message,
+          description: errorMessages + (errors.length > 5 ? `\n... و ${errors.length - 5} أخطاء أخرى` : ''),
+          variant: errors.length === rows.length ? "destructive" : "default",
+        });
+      } else {
+        toast({ title: "تم بنجاح", description: result.message });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["all-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["allCustomerDebts"] });
+    } catch (error: any) {
+      toast({ title: "خطأ في الاستيراد", description: error.message || "حدث خطأ أثناء استيراد البيانات", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const activeDetailDriverName = users.find(u => u.id === detailDriverId)?.name || driverName;
   const activeDetailTx = detailDriverId
     ? (driverId === detailDriverId ? transactions : allTransactions.filter(t => t.driverId === detailDriverId))
@@ -466,17 +581,48 @@ export default function DriverDailyReportPage() {
                   <FileText className="h-6 w-6 text-blue-600" />
                   تقارير جميع المناديب
                 </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => exportToCSV(allRows, true)}
-                  disabled={allRows.length === 0}
-                  data-testid="btn-export-all-drivers"
-                >
-                  <Download className="h-4 w-4" />
-                  تصدير CSV
-                </Button>
+                <div className="flex gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".csv"
+                    onChange={handleImportCSV}
+                    className="hidden"
+                    data-testid="input-import-csv"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={downloadImportTemplate}
+                    data-testid="btn-download-template"
+                  >
+                    <Download className="h-4 w-4" />
+                    تحميل النموذج
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isImporting}
+                    data-testid="btn-import-csv"
+                  >
+                    {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    استيراد CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => exportToCSV(allRows, true)}
+                    disabled={allRows.length === 0}
+                    data-testid="btn-export-all-drivers"
+                  >
+                    <Download className="h-4 w-4" />
+                    تصدير CSV
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">

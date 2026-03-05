@@ -849,6 +849,108 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/transactions/bulk-import", async (req, res) => {
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ message: "لا توجد بيانات للاستيراد" });
+      }
+
+      const allUsers = await storage.getUsers();
+      const allProducts = await storage.getProducts();
+      const allCustomers = await storage.getCustomers();
+
+      const results: { row: number; status: string; error?: string }[] = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+          const driver = allUsers.find(u => u.name === row.driverName?.trim());
+          if (!driver) {
+            results.push({ row: i + 1, status: 'error', error: `المندوب "${row.driverName}" غير موجود` });
+            continue;
+          }
+
+          const typeMap: Record<string, string> = {
+            'بيع نقدي': 'CASH_SALE',
+            'بيع آجل': 'CREDIT_SALE',
+            'مرتجع': 'RETURN',
+            'توزيع مجاني': 'FREE_DISTRIBUTION',
+            'عينات': 'FREE_SAMPLE',
+            'تالف': 'DAMAGED',
+            'مصروفات': 'EXPENSE',
+          };
+          const type = typeMap[row.type?.trim()] || row.type?.trim();
+          if (!type) {
+            results.push({ row: i + 1, status: 'error', error: 'نوع العملية مطلوب' });
+            continue;
+          }
+
+          const isExpense = type === 'EXPENSE';
+
+          let productId = '';
+          if (!isExpense) {
+            const product = allProducts.find(p => p.name === row.productName?.trim());
+            if (!product) {
+              results.push({ row: i + 1, status: 'error', error: `المنتج "${row.productName}" غير موجود` });
+              continue;
+            }
+            productId = product.id;
+          } else {
+            const defaultProduct = allProducts[0];
+            productId = defaultProduct?.id || '';
+          }
+
+          let customerId = '';
+          if (row.customerName?.trim()) {
+            const customer = allCustomers.find(c => c.name === row.customerName?.trim());
+            if (!customer) {
+              results.push({ row: i + 1, status: 'error', error: `العميل "${row.customerName}" غير موجود` });
+              continue;
+            }
+            customerId = customer.id;
+          }
+
+          if (type === 'CREDIT_SALE' && !customerId) {
+            results.push({ row: i + 1, status: 'error', error: 'البيع الآجل يتطلب تحديد العميل' });
+            continue;
+          }
+
+          const quantity = parseInt(row.quantity) || 0;
+          const unitPrice = parseFloat(row.unitPrice) || 0;
+          const totalAmount = isExpense ? (parseFloat(row.totalAmount) || 0) : (quantity * unitPrice);
+
+          const txData: any = {
+            driverId: driver.id,
+            customerId: customerId || driver.id,
+            productId,
+            type,
+            quantity: isExpense ? 0 : quantity,
+            unitPrice: String(unitPrice),
+            totalAmount: String(totalAmount),
+            notes: row.notes || '',
+          };
+
+          if (row.date) {
+            txData.createdAt = new Date(row.date);
+          }
+
+          await storage.createTransactionWithUpdates(txData);
+          results.push({ row: i + 1, status: 'success' });
+        } catch (err: any) {
+          results.push({ row: i + 1, status: 'error', error: err.message || 'خطأ غير معروف' });
+        }
+      }
+
+      const successCount = results.filter(r => r.status === 'success').length;
+      const errorCount = results.filter(r => r.status === 'error').length;
+      res.json({ message: `تم استيراد ${successCount} عملية بنجاح${errorCount > 0 ? `، ${errorCount} خطأ` : ''}`, results });
+    } catch (error) {
+      console.error("Bulk import error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   app.post("/api/driver-load-inventory", async (req, res) => {
     try {
       const { driverId, productId, quantity } = req.body;

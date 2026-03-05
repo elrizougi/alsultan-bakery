@@ -269,6 +269,11 @@ export const api = {
     return res.json();
   },
 
+  bulkImportTransactions: async (rows: any[]): Promise<{ message: string; results: any[] }> => {
+    const res = await apiRequest('POST', '/api/transactions/bulk-import', { rows });
+    return res.json();
+  },
+
   getAllCustomerDebts: async (): Promise<CustomerDebt[]> => {
     const res = await fetch('/api/customer-debts');
     return res.json();
