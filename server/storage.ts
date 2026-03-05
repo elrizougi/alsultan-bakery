@@ -19,6 +19,7 @@ import {
   orderModificationItems, type OrderModificationItem, type InsertOrderModificationItem,
   cashDeposits, type CashDeposit, type InsertCashDeposit,
   bakeryExpenses, type BakeryExpense, type InsertBakeryExpense,
+  expenseCategories, type ExpenseCategoryRecord, type InsertExpenseCategory,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -140,6 +141,12 @@ export interface IStorage {
   createCashDeposit(deposit: InsertCashDeposit): Promise<CashDeposit>;
   confirmCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
   rejectCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
+
+  // Expense Categories - بنود المصروفات
+  getExpenseCategories(): Promise<ExpenseCategoryRecord[]>;
+  createExpenseCategory(category: InsertExpenseCategory): Promise<ExpenseCategoryRecord>;
+  updateExpenseCategory(id: string, category: Partial<InsertExpenseCategory>): Promise<ExpenseCategoryRecord | undefined>;
+  deleteExpenseCategory(id: string): Promise<boolean>;
 
   // Bakery Expenses - مصروفات المخبز
   getBakeryExpenses(): Promise<BakeryExpense[]>;
@@ -1045,6 +1052,26 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
+  // Expense Categories - بنود المصروفات
+  async getExpenseCategories(): Promise<ExpenseCategoryRecord[]> {
+    return await db.select().from(expenseCategories);
+  }
+
+  async createExpenseCategory(category: InsertExpenseCategory): Promise<ExpenseCategoryRecord> {
+    const [created] = await db.insert(expenseCategories).values(category).returning();
+    return created;
+  }
+
+  async updateExpenseCategory(id: string, category: Partial<InsertExpenseCategory>): Promise<ExpenseCategoryRecord | undefined> {
+    const [updated] = await db.update(expenseCategories).set(category).where(eq(expenseCategories.id, id)).returning();
+    return updated;
+  }
+
+  async deleteExpenseCategory(id: string): Promise<boolean> {
+    const result = await db.delete(expenseCategories).where(eq(expenseCategories.id, id)).returning();
+    return result.length > 0;
+  }
+
   // Bakery Expenses - مصروفات المخبز
   async getBakeryExpenses(): Promise<BakeryExpense[]> {
     return await db.select().from(bakeryExpenses);

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrderSchema, insertOrderItemSchema, insertDispatchRunSchema, insertReturnSchema, insertReturnItemSchema, insertRouteSchema, insertRunOrderSchema, insertTransactionSchema } from "@shared/schema";
+import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrderSchema, insertOrderItemSchema, insertDispatchRunSchema, insertReturnSchema, insertReturnItemSchema, insertRouteSchema, insertRunOrderSchema, insertTransactionSchema, insertExpenseCategorySchema, insertBakeryExpenseSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -1174,6 +1174,70 @@ export async function registerRoutes(
     }
   });
 
+  // Expense Categories - بنود المصروفات
+  app.get("/api/expense-categories", async (_req, res) => {
+    try {
+      const categories = await storage.getExpenseCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Get expense categories error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/expense-categories", async (req, res) => {
+    try {
+      const validated = insertExpenseCategorySchema.parse(req.body);
+      const category = await storage.createExpenseCategory(validated);
+      res.json(category);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "بيانات غير صالحة", errors: error.errors });
+      }
+      if (error.code === '23505') {
+        return res.status(400).json({ message: "اسم البند موجود مسبقاً" });
+      }
+      console.error("Create expense category error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.put("/api/expense-categories/:id", async (req, res) => {
+    try {
+      const validated = insertExpenseCategorySchema.partial().parse(req.body);
+      const category = await storage.updateExpenseCategory(req.params.id, validated);
+      if (!category) {
+        return res.status(404).json({ message: "البند غير موجود" });
+      }
+      res.json(category);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "بيانات غير صالحة", errors: error.errors });
+      }
+      if (error.code === '23505') {
+        return res.status(400).json({ message: "اسم البند موجود مسبقاً" });
+      }
+      console.error("Update expense category error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.delete("/api/expense-categories/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteExpenseCategory(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "البند غير موجود" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      if (error.code === '23503') {
+        return res.status(400).json({ message: "لا يمكن حذف البند لوجود مصروفات مرتبطة به" });
+      }
+      console.error("Delete expense category error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // Bakery Expenses - مصروفات المخبز
   app.get("/api/bakery-expenses", async (_req, res) => {
     try {
@@ -1187,9 +1251,13 @@ export async function registerRoutes(
 
   app.post("/api/bakery-expenses", async (req, res) => {
     try {
-      const expense = await storage.createBakeryExpense(req.body);
+      const validated = insertBakeryExpenseSchema.parse(req.body);
+      const expense = await storage.createBakeryExpense(validated);
       res.json(expense);
-    } catch (error) {
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "بيانات غير صالحة", errors: error.errors });
+      }
       console.error("Create bakery expense error:", error);
       res.status(500).json({ message: "خطأ في الخادم" });
     }
@@ -1197,12 +1265,16 @@ export async function registerRoutes(
 
   app.put("/api/bakery-expenses/:id", async (req, res) => {
     try {
-      const expense = await storage.updateBakeryExpense(req.params.id, req.body);
+      const validated = insertBakeryExpenseSchema.partial().parse(req.body);
+      const expense = await storage.updateBakeryExpense(req.params.id, validated);
       if (!expense) {
         return res.status(404).json({ message: "المصروف غير موجود" });
       }
       res.json(expense);
-    } catch (error) {
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "بيانات غير صالحة", errors: error.errors });
+      }
       console.error("Update bakery expense error:", error);
       res.status(500).json({ message: "خطأ في الخادم" });
     }

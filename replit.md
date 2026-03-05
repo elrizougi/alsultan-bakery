@@ -42,6 +42,8 @@ Preferred communication style: Simple, everyday language.
 - **Orders**: Customer orders with line items and status workflow (DRAFT → CONFIRMED → ASSIGNED → DELIVERED → CLOSED)
 - **Dispatch Runs**: Delivery runs grouping multiple orders with status tracking (DRAFT → LOADED → OUT → RETURNED → CLOSED)
 - **Returns**: Product return tracking with reason codes (GOOD, DAMAGED, EXPIRED)
+- **Expense Categories**: Dynamic bakery expense categories (user-managed, stored in `expense_categories` table)
+- **Bakery Expenses**: General bakery expenses (rent, salaries, etc.) linked to dynamic categories
 
 ### Build System
 - **Development**: Vite dev server with HMR for frontend, tsx for backend

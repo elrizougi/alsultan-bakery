@@ -249,12 +249,21 @@ export type InsertCashDeposit = z.infer<typeof insertCashDepositSchema>;
 export type CashDeposit = typeof cashDeposits.$inferSelect;
 export type DepositStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
 
-// Bakery Expenses - مصروفات المخبز
-export const expenseCategoryEnum = pgEnum('expense_category', ['RENT', 'ELECTRICITY', 'WATER', 'GAS', 'SALARIES', 'MAINTENANCE', 'SUPPLIES', 'FUEL', 'INSURANCE', 'OTHER']);
+// Expense Categories - بنود المصروفات
+export const expenseCategories = pgTable("expense_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull().default("bg-gray-100 text-gray-800"),
+});
 
+export const insertExpenseCategorySchema = createInsertSchema(expenseCategories).omit({ id: true });
+export type InsertExpenseCategory = z.infer<typeof insertExpenseCategorySchema>;
+export type ExpenseCategoryRecord = typeof expenseCategories.$inferSelect;
+
+// Bakery Expenses - مصروفات المخبز
 export const bakeryExpenses = pgTable("bakery_expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  category: expenseCategoryEnum("category").notNull(),
+  categoryId: varchar("category_id").references(() => expenseCategories.id).notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description").notNull(),
   expenseDate: text("expense_date").notNull(),
@@ -265,4 +274,3 @@ export const bakeryExpenses = pgTable("bakery_expenses", {
 export const insertBakeryExpenseSchema = createInsertSchema(bakeryExpenses).omit({ id: true, createdAt: true });
 export type InsertBakeryExpense = z.infer<typeof insertBakeryExpenseSchema>;
 export type BakeryExpense = typeof bakeryExpenses.$inferSelect;
-export type ExpenseCategory = 'RENT' | 'ELECTRICITY' | 'WATER' | 'GAS' | 'SALARIES' | 'MAINTENANCE' | 'SUPPLIES' | 'FUEL' | 'INSURANCE' | 'OTHER';
