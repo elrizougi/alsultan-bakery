@@ -309,7 +309,7 @@ export default function BakeryExpensesPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="text-right">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800" data-testid="text-page-title">مصروفات التوزيع</h1>
-            <p className="text-sm text-muted-foreground">إدارة وتتبع جميع مصروفات التوزيع</p>
+            <p className="text-sm text-muted-foreground">إدارة وتتبع جميع مصروفات المخبز </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button onClick={() => { resetExpenseForm(); setShowExpenseDialog(true); }} className="gap-2" data-testid="button-add-expense" disabled={categories.length === 0}>
