@@ -638,6 +638,10 @@ export class DatabaseStorage implements IStorage {
         case 'FREE_SAMPLE':
           await updateInventoryInTx(-quantity);
           break;
+
+        case 'EXPENSE':
+          await updateBalanceInTx((-parseFloat(totalAmount)).toFixed(2));
+          break;
       }
       
       return newTransaction;
