@@ -527,6 +527,12 @@ export default function DriverTransactionsPage() {
 
   const totalReturnAndDamaged = totalReturnBread + totalDamagedBread;
 
+  const totalFreeDistribution = transactions
+    .filter(t => t.type === 'FREE_DISTRIBUTION' || t.type === 'FREE_SAMPLE')
+    .reduce((sum, t) => sum + t.quantity, 0);
+
+  const totalLoadedBread = totalSoldBread + totalReturnAndDamaged + totalFreeDistribution + totalCurrentInventory;
+
   // عمليات السجل (بدون المرتجع)
   const logTransactions = transactions.filter(t => t.type !== 'RETURN');
   const today = new Date();
@@ -624,7 +630,21 @@ export default function DriverTransactionsPage() {
         </Card>
 
         {/* الصف الأول: إحصائيات المخزون والمبيعات */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+          <Card className="border-slate-100 bg-blue-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-500 rounded-xl">
+                  <Truck className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-blue-600">الخبز المستلم</p>
+                  <p className="text-2xl font-bold text-blue-700" data-testid="text-loaded-bread">{totalLoadedBread}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-slate-100 bg-orange-50 hover:shadow-md transition-shadow">
             <CardContent className="pt-6 pb-6">
               <div className="flex items-center gap-4">
