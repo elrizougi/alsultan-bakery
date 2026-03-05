@@ -357,7 +357,7 @@ export default function DriverTransactionsPage() {
       return;
     }
 
-    const noCustomerTypes: string[] = ['RETURN', 'DAMAGED'];
+    const noCustomerTypes: string[] = ['RETURN'];
     
     if (!noCustomerTypes.includes(formData.type as string) && !formData.customerId) {
       toast({ title: "يرجى اختيار العميل أو إضافة عميل جديد", variant: "destructive" });
@@ -907,7 +907,7 @@ export default function DriverTransactionsPage() {
                   )}
                 </div>
 
-                {(formData.type as string) !== 'RETURN' && (formData.type as string) !== 'DAMAGED' && (
+                {(formData.type as string) !== 'RETURN' && (
                 <div className="grid gap-2">
                   <Label>العميل *</Label>
                   <div className="flex gap-2">
