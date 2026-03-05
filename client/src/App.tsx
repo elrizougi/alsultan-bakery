@@ -13,7 +13,6 @@ import LoginPage from "@/pages/Login";
 import UsersManagementPage from "@/pages/UsersManagement";
 import RoutesManagementPage from "@/pages/RoutesManagement";
 import DriverTransactionsPage from "@/pages/DriverTransactions";
-import DriverReportPage from "@/pages/DriverReport";
 import CashDepositsPage from "@/pages/CashDeposits";
 import DriverDailyReportPage from "@/pages/DriverDailyReport";
 import MyCustomersPage from "@/pages/MyCustomers";
@@ -32,7 +31,6 @@ function Router() {
       <Route path="/routes" component={RoutesManagementPage} />
       <Route path="/driver-transactions" component={DriverTransactionsPage} />
       <Route path="/driver" component={DriverTransactionsPage} />
-      <Route path="/driver-report" component={DriverReportPage} />
       <Route path="/cash-deposits" component={CashDepositsPage} />
       <Route path="/driver-daily-report" component={DriverDailyReportPage} />
       <Route path="/my-customers" component={MyCustomersPage} />

@@ -30,7 +30,6 @@ export function Sidebar({ className }: SidebarProps) {
     { icon: Package, label: "خبز في الصالة", href: "/inventory", roles: ['ADMIN'] },
     { icon: Users, label: "قائمة العملاء", href: "/customers", roles: ['ADMIN', 'SALES'] },
     { icon: MapPin, label: "خطوط التوزيع", href: "/routes", roles: ['ADMIN'] },
-    { icon: FileText, label: "تقرير المناديب", href: "/driver-report", roles: ['ADMIN'] },
     { icon: Shield, label: "الموظفين والصلاحيات", href: "/users", roles: ['ADMIN'] },
   ].filter(item => !item.roles || (user && item.roles.includes(user.role)));
 
