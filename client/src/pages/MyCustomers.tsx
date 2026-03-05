@@ -6,15 +6,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Loader2, Phone, MapPin, Download, Calendar } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useProducts, useCustomers } from "@/hooks/useData";
+import { useProducts, useCustomers, useUsers } from "@/hooks/useData";
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
 export default function MyCustomersPage() {
   const currentUser = useStore(state => state.user);
-  const driverId = currentUser?.id || "";
+  const isAdmin = currentUser?.role === 'ADMIN';
+  const { data: allUsers = [] } = useUsers();
+  const driversList = allUsers.filter(u => u.role === 'DRIVER' && u.isActive !== false);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const driverId = isAdmin ? selectedDriverId : (currentUser?.id || "");
 
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -153,20 +158,51 @@ export default function MyCustomersPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="text-right">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800">عملائي</h1>
-            <p className="text-sm text-muted-foreground">قائمة العملاء المسجلين لك مع تفاصيل المبيعات</p>
+            <p className="text-sm text-muted-foreground">قائمة العملاء المسجلين مع تفاصيل المبيعات</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-lg">
               <Users className="h-5 w-5 text-primary" />
               <span className="font-bold text-primary">{myCustomers.length} عميل</span>
             </div>
-            <Button onClick={handleExportCSV} variant="outline" className="gap-2" data-testid="button-export-csv">
+            <Button onClick={handleExportCSV} variant="outline" className="gap-2" data-testid="button-export-csv" disabled={isAdmin && !driverId}>
               <Download className="h-4 w-4" />
               تحميل CSV
             </Button>
           </div>
         </div>
 
+        {isAdmin && (
+          <Card className="border-2 border-primary/20 bg-primary/5">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-4">
+                <Label className="font-bold text-lg whitespace-nowrap">اختر المندوب:</Label>
+                <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                  <SelectTrigger className="max-w-xs bg-white" data-testid="select-driver-customers">
+                    <SelectValue placeholder="اختر المندوب لعرض عملائه" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {driversList.map(driver => (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        {driver.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isAdmin && !driverId && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+            <p className="text-lg">يرجى اختيار المندوب أولاً لعرض عملائه</p>
+          </div>
+        )}
+
+        {(!isAdmin || driverId) && (
+        <>
         <Card className="border-slate-100">
           <CardContent className="p-4">
             <div className="flex flex-wrap items-end gap-4">
@@ -299,6 +335,8 @@ export default function MyCustomersPage() {
             )}
           </CardContent>
         </Card>
+        </>
+        )}
       </div>
     </AdminLayout>
   );

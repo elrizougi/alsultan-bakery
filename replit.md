@@ -4,7 +4,7 @@
 
 This is a comprehensive bakery distribution and logistics management system built with a React frontend and Express backend. The application is designed for Arabic-speaking users (RTL layout) and provides functionality for managing bakery orders, dispatch runs, delivery tracking, inventory management, customer relationships, and returns processing.
 
-The system supports three user roles: Admin (full access), Driver (dispatch operations), and Sales (order management), with role-based access control throughout the application.
+The system supports three user roles: Admin (full access), Driver (dispatch operations), and Sales (order management), with role-based access control throughout the application. Admin can access all driver pages (Field Operations, Daily Report, My Customers) with a driver selector dropdown to operate on behalf of any driver.
 
 ## User Preferences
 

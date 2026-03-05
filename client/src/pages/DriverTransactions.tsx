@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type TransactionType, type InsertTransaction, type Transaction, type DriverInventory, type DriverBalance, type CustomerDebt, type Order, type CashDeposit } from "@/lib/api";
-import { useProducts, useCustomers, useCreateCustomer, useOrders } from "@/hooks/useData";
+import { useProducts, useCustomers, useCreateCustomer, useOrders, useUsers } from "@/hooks/useData";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -38,7 +38,11 @@ export default function DriverTransactionsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const currentUser = useStore(state => state.user);
-  const driverId = currentUser?.id || "";
+  const isAdmin = currentUser?.role === 'ADMIN';
+  const { data: users = [] } = useUsers();
+  const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const driverId = isAdmin ? selectedDriverId : (currentUser?.id || "");
 
   const { data: products = [] } = useProducts();
   const { data: customers = [] } = useCustomers();
@@ -528,6 +532,7 @@ export default function DriverTransactionsPage() {
               variant="outline"
               className="w-full sm:w-auto flex-row gap-2 rounded-xl h-11 px-6 font-bold border-amber-500 text-amber-700 hover:bg-amber-50"
               data-testid="button-new-order"
+              disabled={isAdmin && !driverId}
             >
               <ShoppingCart className="h-4 w-4" /> طلب خبز
             </Button>
@@ -535,12 +540,43 @@ export default function DriverTransactionsPage() {
               onClick={() => setIsCreateOpen(true)} 
               className="w-full sm:w-auto flex-row gap-2 bg-primary hover:bg-primary/90 rounded-xl h-11 px-6 shadow-lg shadow-primary/20 font-bold"
               data-testid="button-new-transaction"
+              disabled={isAdmin && !driverId}
             >
               <Plus className="h-4 w-4" /> عملية جديدة
             </Button>
           </div>
         </div>
 
+        {isAdmin && (
+          <Card className="border-2 border-primary/20 bg-primary/5">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-4">
+                <Label className="font-bold text-lg whitespace-nowrap">اختر المندوب:</Label>
+                <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                  <SelectTrigger className="max-w-xs bg-white" data-testid="select-driver">
+                    <SelectValue placeholder="اختر المندوب لعرض عملياته" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {drivers.map(driver => (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        {driver.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isAdmin && !driverId && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+            <p className="text-lg">يرجى اختيار المندوب أولاً لعرض العمليات الميدانية</p>
+          </div>
+        )}
+
+        {(!isAdmin || driverId) && (<>
         {/* بطاقة الرصيد النقدي الكبيرة */}
         <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg mb-6">
           <CardContent className="pt-6">
@@ -818,6 +854,7 @@ export default function DriverTransactionsPage() {
             )}
           </CardContent>
         </Card>
+        </>)}
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

@@ -12,16 +12,22 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { FileText, BarChart3, Users, Package } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useOrders, useProducts, useCustomers } from "@/hooks/useData";
+import { useOrders, useProducts, useCustomers, useUsers } from "@/hooks/useData";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
 export default function DriverDailyReportPage() {
   const currentUser = useStore(state => state.user);
-  const driverId = currentUser?.id || "";
+  const isAdmin = currentUser?.role === 'ADMIN';
+  const { data: users = [] } = useUsers();
+  const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const driverId = isAdmin ? selectedDriverId : (currentUser?.id || "");
   const [isDetailedReportOpen, setIsDetailedReportOpen] = useState(false);
 
   const { data: orders = [] } = useOrders();
@@ -181,7 +187,7 @@ export default function DriverDailyReportPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-6" dir="rtl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FileText className="h-8 w-8 text-blue-600" />
@@ -191,12 +197,43 @@ export default function DriverDailyReportPage() {
             onClick={() => setIsDetailedReportOpen(true)}
             className="bg-indigo-600 hover:bg-indigo-700 gap-2"
             data-testid="btn-detailed-report"
+            disabled={isAdmin && !driverId}
           >
             <BarChart3 className="h-5 w-5" />
             تقرير مفصل
           </Button>
         </div>
 
+        {isAdmin && (
+          <Card className="border-2 border-primary/20 bg-primary/5">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-4">
+                <Label className="font-bold text-lg whitespace-nowrap">اختر المندوب:</Label>
+                <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                  <SelectTrigger className="max-w-xs bg-white" data-testid="select-driver-report">
+                    <SelectValue placeholder="اختر المندوب لعرض تقريره" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {drivers.map(driver => (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        {driver.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isAdmin && !driverId && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+            <p className="text-lg">يرجى اختيار المندوب أولاً لعرض التقرير اليومي</p>
+          </div>
+        )}
+
+        {(!isAdmin || driverId) && (
         <Card className="border-slate-100">
           <CardHeader className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-t-lg">
             <CardTitle className="text-xl font-bold flex items-center gap-2">
@@ -298,6 +335,7 @@ export default function DriverDailyReportPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Dialog open={isDetailedReportOpen} onOpenChange={setIsDetailedReportOpen}>
           <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
