@@ -34,6 +34,7 @@ const transactionTypeLabels: Record<string, { label: string; icon: React.ReactNo
   FREE_SAMPLE: { label: "عينات", icon: <Package className="h-4 w-4" />, color: "bg-blue-500" },
   DAMAGED: { label: "خبز تالف", icon: <AlertTriangle className="h-4 w-4" />, color: "bg-gray-500" },
   EXPENSE: { label: "مصروفات", icon: <DollarSign className="h-4 w-4" />, color: "bg-orange-500" },
+  DRIVER_DEBT: { label: "مديونية على المندوب", icon: <Banknote className="h-4 w-4" />, color: "bg-rose-600" },
 };
 
 export default function DriverTransactionsPage() {
@@ -378,6 +379,39 @@ export default function DriverTransactionsPage() {
   };
 
   const handleSubmit = () => {
+    // معالجة خاصة للمديونية على المندوب
+    if ((formData.type as string) === 'DRIVER_DEBT') {
+      const amount = parseFloat(expenseAmount);
+      if (!amount || amount <= 0) {
+        toast({ title: "يرجى إدخال مبلغ المديونية", variant: "destructive" });
+        return;
+      }
+      if (!expenseDescription.trim()) {
+        toast({ title: "يرجى إدخال وصف المديونية", variant: "destructive" });
+        return;
+      }
+
+      const defaultProduct = products[0];
+      const defaultCustomer = customers[0];
+      
+      if (!defaultProduct || !defaultCustomer) {
+        toast({ title: "يجب وجود منتج وعميل واحد على الأقل في النظام", variant: "destructive" });
+        return;
+      }
+
+      createTransaction.mutate({
+        type: 'DRIVER_DEBT' as TransactionType,
+        driverId: driverId,
+        productId: defaultProduct.id,
+        quantity: 0,
+        customerId: defaultCustomer.id,
+        unitPrice: "0",
+        totalAmount: amount.toFixed(2),
+        notes: `${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
+      });
+      return;
+    }
+
     // معالجة خاصة للمصروفات
     if ((formData.type as string) === 'EXPENSE') {
       const amount = parseFloat(expenseAmount);
@@ -905,7 +939,7 @@ export default function DriverTransactionsPage() {
                 <TableBody>
                   {logTransactions.map((tx) => {
                     const typeInfo = transactionTypeLabels[tx.type];
-                    const isExpense = (tx.type as string) === 'EXPENSE';
+                    const isExpense = (tx.type as string) === 'EXPENSE' || (tx.type as string) === 'DRIVER_DEBT';
                     const txDate = tx.createdAt ? new Date(tx.createdAt) : null;
                     const isToday = txDate ? txDate >= today : false;
 
@@ -1049,8 +1083,8 @@ export default function DriverTransactionsPage() {
               </Select>
             </div>
 
-            {/* حقول خاصة بالمصروفات */}
-            {(formData.type as string) === 'EXPENSE' ? (
+            {/* حقول خاصة بالمصروفات والمديونية */}
+            {((formData.type as string) === 'EXPENSE' || (formData.type as string) === 'DRIVER_DEBT') ? (
               <>
                 <div className="grid gap-2">
                   <Label>المبلغ *</Label>
@@ -1060,7 +1094,7 @@ export default function DriverTransactionsPage() {
                     min={0}
                     value={expenseAmount}
                     onChange={(e) => setExpenseAmount(e.target.value)}
-                    placeholder="أدخل مبلغ المصروفات"
+                    placeholder={(formData.type as string) === 'DRIVER_DEBT' ? "أدخل مبلغ المديونية" : "أدخل مبلغ المصروفات"}
                     data-testid="input-expense-amount"
                   />
                 </div>
@@ -1070,16 +1104,16 @@ export default function DriverTransactionsPage() {
                   <Input
                     value={expenseDescription}
                     onChange={(e) => setExpenseDescription(e.target.value)}
-                    placeholder="مثال: وقود، صيانة، غداء..."
+                    placeholder={(formData.type as string) === 'DRIVER_DEBT' ? "مثال: سلفة، عهدة، خصم..." : "مثال: وقود، صيانة، غداء..."}
                     data-testid="input-expense-description"
                   />
                 </div>
 
                 {expenseAmount && (
-                  <div className="p-3 bg-orange-50 rounded-lg">
+                  <div className={`p-3 rounded-lg ${(formData.type as string) === 'DRIVER_DEBT' ? 'bg-rose-50' : 'bg-orange-50'}`}>
                     <p className="text-sm text-muted-foreground">
                       المبلغ:{" "}
-                      <span className="font-bold text-orange-600">
+                      <span className={`font-bold ${(formData.type as string) === 'DRIVER_DEBT' ? 'text-rose-600' : 'text-orange-600'}`}>
                         {parseFloat(expenseAmount || "0").toFixed(2)} ر.س
                       </span>
                     </p>
@@ -1215,7 +1249,7 @@ export default function DriverTransactionsPage() {
               </>
             )}
 
-            {(formData.type as string) !== 'EXPENSE' && (
+            {(formData.type as string) !== 'EXPENSE' && (formData.type as string) !== 'DRIVER_DEBT' && (
               <div className="grid gap-2">
                 <Label>السعر المخصص (اتركه فارغاً لاستخدام سعر المنتج)</Label>
                 <Input
@@ -1240,7 +1274,7 @@ export default function DriverTransactionsPage() {
               />
             </div>
 
-            {(formData.type as string) !== 'EXPENSE' && formData.productId && (
+            {(formData.type as string) !== 'EXPENSE' && (formData.type as string) !== 'DRIVER_DEBT' && formData.productId && (
               <div className="p-3 bg-slate-50 rounded-lg">
                 <p className="text-sm text-muted-foreground">
                   المبلغ الإجمالي:{" "}
@@ -1522,7 +1556,7 @@ export default function DriverTransactionsPage() {
                 </div>
               </div>
 
-              {(editingTransaction.type as string) !== 'EXPENSE' && (
+              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'DRIVER_DEBT' && (
                 <div className="grid gap-2">
                   <Label>الكمية</Label>
                   <Input
@@ -1535,7 +1569,7 @@ export default function DriverTransactionsPage() {
                 </div>
               )}
 
-              {(editingTransaction.type as string) !== 'EXPENSE' && (
+              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'DRIVER_DEBT' && (
                 <div className="grid gap-2">
                   <Label>سعر الوحدة</Label>
                   <Input
@@ -1549,7 +1583,7 @@ export default function DriverTransactionsPage() {
                 </div>
               )}
 
-              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'RETURN' && (
+              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'DRIVER_DEBT' && (editingTransaction.type as string) !== 'RETURN' && (
                 <div className="grid gap-2">
                   <Label>العميل</Label>
                   <Popover open={editCustomerSearchOpen} onOpenChange={setEditCustomerSearchOpen}>
@@ -1606,7 +1640,7 @@ export default function DriverTransactionsPage() {
                 />
               </div>
 
-              {(editingTransaction.type as string) !== 'EXPENSE' && editForm.unitPrice && (
+              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'DRIVER_DEBT' && editForm.unitPrice && (
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-muted-foreground">
                     الإجمالي: <span className="font-bold text-blue-600">

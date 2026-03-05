@@ -280,7 +280,7 @@ export const api = {
 };
 
 // Types for transactions
-export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE' | 'DAMAGED';
+export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE' | 'DAMAGED' | 'EXPENSE' | 'DRIVER_DEBT';
 
 export interface Transaction {
   id: string;

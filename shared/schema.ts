@@ -6,7 +6,7 @@ import { z } from "zod";
 // Enums
 export const roleEnum = pgEnum('role', ['ADMIN', 'DRIVER', 'SALES']);
 export const orderStatusEnum = pgEnum('order_status', ['DRAFT', 'CONFIRMED', 'ASSIGNED', 'DELIVERED', 'CLOSED', 'CANCELED']);
-export const transactionTypeEnum = pgEnum('transaction_type', ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE', 'DAMAGED', 'EXPENSE']);
+export const transactionTypeEnum = pgEnum('transaction_type', ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE', 'DAMAGED', 'EXPENSE', 'DRIVER_DEBT']);
 
 // Users table
 export const users = pgTable("users", {
@@ -145,7 +145,7 @@ export const transactions = pgTable("transactions", {
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
-export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE' | 'DAMAGED' | 'EXPENSE';
+export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE' | 'DAMAGED' | 'EXPENSE' | 'DRIVER_DEBT';
 
 // Cash Deposits - تسليم المبالغ المحصلة للمخبز
 export const depositStatusEnum = pgEnum("deposit_status", ["PENDING", "CONFIRMED", "REJECTED"]);

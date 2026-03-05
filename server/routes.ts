@@ -686,6 +686,8 @@ export async function registerRoutes(
             'عينات': 'FREE_SAMPLE',
             'تالف': 'DAMAGED',
             'مصروفات': 'EXPENSE',
+            'مديونية': 'DRIVER_DEBT',
+            'مديونية على المندوب': 'DRIVER_DEBT',
           };
           const type = typeMap[row.type?.trim()] || row.type?.trim();
           if (!type) {
@@ -693,7 +695,7 @@ export async function registerRoutes(
             continue;
           }
 
-          const isExpense = type === 'EXPENSE';
+          const isExpense = type === 'EXPENSE' || type === 'DRIVER_DEBT';
 
           let productId = '';
           if (!isExpense) {
