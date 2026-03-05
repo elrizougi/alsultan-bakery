@@ -179,11 +179,12 @@ export default function DriverTransactionsPage() {
   const createDepositMutation = useMutation({
     mutationFn: api.createCashDeposit,
     onSuccess: () => {
-      toast({ title: "تم تقديم طلب التسليم", description: "سيتم خصم المبلغ بعد تأكيد المخبز" });
+      toast({ title: "تم استلام المبلغ", description: isAdmin ? "تم التأكيد تلقائياً" : "سيتم خصم المبلغ بعد تأكيد المخبز" });
       setDepositAmount("");
       setDepositNotes("");
       setIsDepositDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["driver-cash-deposits"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
     },
     onError: () => {
       toast({ title: "خطأ", description: "فشل في تقديم طلب التسليم", variant: "destructive" });
@@ -459,6 +460,7 @@ export default function DriverTransactionsPage() {
       amount: amount,
       depositDate: new Date().toISOString().split('T')[0],
       notes: depositNotes || undefined,
+      ...(isAdmin && currentUser ? { confirmedBy: currentUser.id } : {}),
     });
   };
 

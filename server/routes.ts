@@ -1004,7 +1004,7 @@ export async function registerRoutes(
 
   app.post("/api/cash-deposits", async (req, res) => {
     try {
-      const { driverId, amount, depositDate, notes } = req.body;
+      const { driverId, amount, depositDate, notes, confirmedBy } = req.body;
       if (!driverId || !amount || !depositDate) {
         return res.status(400).json({ message: "البيانات المطلوبة غير مكتملة" });
       }
@@ -1014,6 +1014,10 @@ export async function registerRoutes(
         depositDate,
         notes,
       });
+      if (confirmedBy && deposit) {
+        const confirmed = await storage.confirmCashDeposit(deposit.id, confirmedBy);
+        return res.json(confirmed || deposit);
+      }
       res.json(deposit);
     } catch (error) {
       console.error("Create deposit error:", error);

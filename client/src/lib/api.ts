@@ -349,7 +349,7 @@ export const api = {
     return res.json();
   },
 
-  createCashDeposit: async (data: { driverId: string; amount: number; depositDate: string; notes?: string }): Promise<CashDeposit> => {
+  createCashDeposit: async (data: { driverId: string; amount: number; depositDate: string; notes?: string; confirmedBy?: string }): Promise<CashDeposit> => {
     const res = await apiRequest("POST", "/api/cash-deposits", data);
     return res.json();
   },
