@@ -475,6 +475,8 @@ export default function DriverTransactionsPage() {
     return products.find(p => p.id === productId)?.name || "غير معروف";
   };
 
+  const driverCustomers = customers.filter(c => c.driverId === driverId);
+
   const getCustomerName = (customerId?: string) => {
     if (!customerId) return "-";
     return customers.find(c => c.id === customerId)?.name || "غير معروف";
@@ -1049,14 +1051,14 @@ export default function DriverTransactionsPage() {
                           data-testid="select-customer"
                         >
                           {formData.customerId
-                            ? customers.find(c => c.id === formData.customerId)?.name || "اختر العميل"
+                            ? driverCustomers.find(c => c.id === formData.customerId)?.name || "اختر العميل"
                             : "اختر العميل"}
                           <span className="mr-2 h-4 w-4 shrink-0 opacity-50">▼</span>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[300px] p-0" align="start">
                         <Command filter={(value, search) => {
-                          const customer = customers.find(c => c.id === value);
+                          const customer = driverCustomers.find(c => c.id === value);
                           if (!customer) return 0;
                           const normalizedSearch = normalizeArabic(search);
                           const normalizedName = normalizeArabic(customer.name);
@@ -1066,7 +1068,7 @@ export default function DriverTransactionsPage() {
                           <CommandList>
                             <CommandEmpty>لا يوجد عميل بهذا الاسم</CommandEmpty>
                             <CommandGroup>
-                              {customers.map((customer) => (
+                              {driverCustomers.map((customer) => (
                                 <CommandItem
                                   key={customer.id}
                                   value={customer.id}
@@ -1478,14 +1480,14 @@ export default function DriverTransactionsPage() {
                         data-testid="select-edit-customer"
                       >
                         {editForm.customerId
-                          ? customers.find(c => c.id === editForm.customerId)?.name || "اختر العميل"
+                          ? driverCustomers.find(c => c.id === editForm.customerId)?.name || "اختر العميل"
                           : "اختر العميل"}
                         <span className="mr-2 h-4 w-4 shrink-0 opacity-50">▼</span>
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0" align="start">
                       <Command filter={(value, search) => {
-                        const customer = customers.find(c => c.id === value);
+                        const customer = driverCustomers.find(c => c.id === value);
                         if (!customer) return 0;
                         return normalizeArabic(customer.name).includes(normalizeArabic(search)) ? 1 : 0;
                       }}>
@@ -1493,7 +1495,7 @@ export default function DriverTransactionsPage() {
                         <CommandList>
                           <CommandEmpty>لا يوجد عميل بهذا الاسم</CommandEmpty>
                           <CommandGroup>
-                            {customers.map((customer) => (
+                            {driverCustomers.map((customer) => (
                               <CommandItem
                                 key={customer.id}
                                 value={customer.id}
