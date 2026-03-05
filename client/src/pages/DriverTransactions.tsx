@@ -16,6 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -254,6 +256,7 @@ export default function DriverTransactionsPage() {
   const [depositAmount, setDepositAmount] = useState<string>("");
   const [depositNotes, setDepositNotes] = useState<string>("");
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerLocationUrl, setNewCustomerLocationUrl] = useState("");
@@ -393,6 +396,15 @@ export default function DriverTransactionsPage() {
       depositDate: new Date().toISOString().split('T')[0],
       notes: depositNotes || undefined,
     });
+  };
+
+  const normalizeArabic = (text: string) => {
+    return text
+      .replace(/[إأآا]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ؤ/g, 'و')
+      .replace(/ئ/g, 'ي')
+      .replace(/ى/g, 'ي');
   };
 
   const getProductName = (productId: string) => {
@@ -887,21 +899,51 @@ export default function DriverTransactionsPage() {
                 <div className="grid gap-2">
                   <Label>العميل *</Label>
                   <div className="flex gap-2">
-                    <Select
-                      value={formData.customerId || ""}
-                      onValueChange={(value) => setFormData({ ...formData, customerId: value })}
-                    >
-                      <SelectTrigger data-testid="select-customer" className="flex-1">
-                        <SelectValue placeholder="اختر العميل" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={customerSearchOpen}
+                          className="flex-1 justify-between font-normal"
+                          data-testid="select-customer"
+                        >
+                          {formData.customerId
+                            ? customers.find(c => c.id === formData.customerId)?.name || "اختر العميل"
+                            : "اختر العميل"}
+                          <span className="mr-2 h-4 w-4 shrink-0 opacity-50">▼</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0" align="start">
+                        <Command filter={(value, search) => {
+                          const customer = customers.find(c => c.id === value);
+                          if (!customer) return 0;
+                          const normalizedSearch = normalizeArabic(search);
+                          const normalizedName = normalizeArabic(customer.name);
+                          return normalizedName.includes(normalizedSearch) ? 1 : 0;
+                        }}>
+                          <CommandInput placeholder="ابحث عن العميل..." data-testid="input-search-customer" />
+                          <CommandList>
+                            <CommandEmpty>لا يوجد عميل بهذا الاسم</CommandEmpty>
+                            <CommandGroup>
+                              {customers.map((customer) => (
+                                <CommandItem
+                                  key={customer.id}
+                                  value={customer.id}
+                                  onSelect={(value) => {
+                                    setFormData({ ...formData, customerId: value });
+                                    setCustomerSearchOpen(false);
+                                  }}
+                                >
+                                  <Check className={`ml-2 h-4 w-4 ${formData.customerId === customer.id ? "opacity-100" : "opacity-0"}`} />
+                                  {customer.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <Button 
                       type="button" 
                       variant="outline" 
