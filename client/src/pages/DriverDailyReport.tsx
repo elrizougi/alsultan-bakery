@@ -297,10 +297,10 @@ export default function DriverDailyReportPage() {
         String(d.damagedQty),
         d.cashAmount.toFixed(2),
         d.creditAmount.toFixed(2),
-        d.totalSalesAmount.toFixed(2),
+        (d.cashAmount + d.creditAmount + d.expensesAmount + d.driverDebtAmount).toFixed(2),
         d.expensesAmount.toFixed(2),
         d.driverDebtAmount.toFixed(2),
-        (d.totalSalesAmount - d.expensesAmount).toFixed(2),
+        (d.cashAmount - d.expensesAmount - d.driverDebtAmount).toFixed(2),
         String(d.servedCount)
       );
       csvRows.push(cols.join(','));
@@ -378,10 +378,10 @@ export default function DriverDailyReportPage() {
                   <TableCell className="text-gray-600">{d.damagedQty || '-'}</TableCell>
                   <TableCell className="text-emerald-600 text-sm">{d.cashAmount.toFixed(2)}</TableCell>
                   <TableCell className="text-yellow-600 text-sm">{d.creditAmount > 0 ? d.creditAmount.toFixed(2) : '-'}</TableCell>
-                  <TableCell className="text-blue-600 font-bold text-sm">{d.totalSalesAmount.toFixed(2)}</TableCell>
+                  <TableCell className="text-blue-600 font-bold text-sm">{(d.cashAmount + d.creditAmount + d.expensesAmount + d.driverDebtAmount).toFixed(2)}</TableCell>
                   <TableCell className="text-red-600 text-sm">{d.expensesAmount > 0 ? d.expensesAmount.toFixed(2) : '-'}</TableCell>
                   <TableCell className="text-rose-600 text-sm">{d.driverDebtAmount > 0 ? d.driverDebtAmount.toFixed(2) : '-'}</TableCell>
-                  <TableCell className="text-teal-700 font-bold text-sm">{(d.totalSalesAmount - d.expensesAmount).toFixed(2)}</TableCell>
+                  <TableCell className="text-teal-700 font-bold text-sm">{(d.cashAmount - d.expensesAmount - d.driverDebtAmount).toFixed(2)}</TableCell>
                   <TableCell className="text-purple-600 font-medium">{d.servedCount}</TableCell>
                   <TableCell>
                     <Button
