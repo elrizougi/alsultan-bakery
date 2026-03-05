@@ -895,6 +895,7 @@ export default function DriverTransactionsPage() {
                     <TableHead className="text-right">النوع</TableHead>
                     <TableHead className="text-right">المنتج</TableHead>
                     <TableHead className="text-right">الكمية</TableHead>
+                    <TableHead className="text-right">سعر البيع</TableHead>
                     <TableHead className="text-right">المبلغ</TableHead>
                     <TableHead className="text-right">العميل</TableHead>
                     <TableHead className="text-right">التاريخ</TableHead>
@@ -966,6 +967,7 @@ export default function DriverTransactionsPage() {
                         </TableCell>
                         <TableCell>{isExpense ? (tx.notes || '-') : getProductName(tx.productId)}</TableCell>
                         <TableCell>{isExpense ? '-' : tx.quantity}</TableCell>
+                        <TableCell>{isExpense ? '-' : (tx.unitPrice ? `${parseFloat(tx.unitPrice).toFixed(2)} ر.س` : "-")}</TableCell>
                         <TableCell>{tx.totalAmount ? `${parseFloat(tx.totalAmount).toFixed(2)} ر.س` : "-"}</TableCell>
                         <TableCell>{isExpense ? '-' : getCustomerName(tx.customerId)}</TableCell>
                         <TableCell>
