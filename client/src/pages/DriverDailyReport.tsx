@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileText, BarChart3, Users, Package, DollarSign, Undo2, AlertTriangle, ShoppingCart, Eye, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -29,6 +30,7 @@ export default function DriverDailyReportPage() {
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const driverId = isAdmin ? (selectedDriverId === "all" ? "" : selectedDriverId) : (currentUser?.id || "");
+  const [filterDate, setFilterDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [detailDriverId, setDetailDriverId] = useState<string>("");
 
@@ -400,41 +402,58 @@ export default function DriverDailyReportPage() {
           </div>
         </div>
 
-        {isAdmin && (
-          <Card className="border-2 border-primary/20 bg-primary/5">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-4">
-                <Label className="font-bold text-lg whitespace-nowrap">اختر المندوب:</Label>
-                <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-                  <SelectTrigger className="max-w-xs bg-white" data-testid="select-driver-report">
-                    <SelectValue placeholder="جميع المناديب" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">جميع المناديب</SelectItem>
-                    {drivers.map(driver => (
-                      <SelectItem key={driver.id} value={driver.id}>
-                        {driver.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedDriverId && selectedDriverId !== "all" && (
-                  <Button variant="outline" size="sm" onClick={() => setSelectedDriverId("")}>
-                    عرض الكل
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card className="border-2 border-primary/20 bg-primary/5">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex flex-wrap items-center gap-4">
+              {isAdmin && (
+                <>
+                  <Label className="font-bold text-lg whitespace-nowrap">اختر المندوب:</Label>
+                  <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                    <SelectTrigger className="max-w-xs bg-white" data-testid="select-driver-report">
+                      <SelectValue placeholder="جميع المناديب" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع المناديب</SelectItem>
+                      {drivers.map(driver => (
+                        <SelectItem key={driver.id} value={driver.id}>
+                          {driver.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedDriverId && selectedDriverId !== "all" && (
+                    <Button variant="outline" size="sm" onClick={() => setSelectedDriverId("")}>
+                      عرض الكل
+                    </Button>
+                  )}
+                </>
+              )}
+              <Label className="font-bold text-lg whitespace-nowrap">التاريخ:</Label>
+              <Input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="max-w-[200px] bg-white"
+                data-testid="input-filter-date"
+              />
+              {filterDate !== format(new Date(), 'yyyy-MM-dd') && (
+                <Button variant="outline" size="sm" onClick={() => setFilterDate(format(new Date(), 'yyyy-MM-dd'))}>
+                  اليوم
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {isAdmin && !driverId && (() => {
-          const allRows = getAllDriversDayRows().map(r => ({
-            date: r.date,
-            driverId: r.driverId,
-            driverName: r.driverName,
-            data: r.data,
-          }));
+          const allRows = getAllDriversDayRows()
+            .filter(r => r.date === filterDate)
+            .map(r => ({
+              date: r.date,
+              driverId: r.driverId,
+              driverName: r.driverName,
+              data: r.data,
+            }));
           return (
           <Card className="border-slate-100">
             <CardHeader className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-t-lg">
@@ -493,9 +512,9 @@ export default function DriverDailyReportPage() {
                       <ShoppingCart className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-green-600">عملاء تم التوزيع لهم اليوم</p>
+                      <p className="text-sm font-medium text-green-600">عملاء تم التوزيع لهم</p>
                       <p className="text-2xl font-bold text-green-700" data-testid="text-served-today">
-                        {singleDriverDates().length > 0 ? getDayDataForDriver(transactions, singleDriverDates()[0]).servedCount : 0}
+                        {getDayDataForDriver(transactions, filterDate).servedCount}
                       </p>
                       <p className="text-xs text-green-600/70">
                         من أصل {driverCustomers.length} عميل
@@ -507,12 +526,14 @@ export default function DriverDailyReportPage() {
             </div>
 
             {(() => {
-              const singleRows = singleDriverDates().map(date => ({
-                date,
-                driverId,
-                driverName,
-                data: getDayDataForDriver(transactions, date),
-              }));
+              const singleRows = singleDriverDates()
+                .filter(date => date === filterDate)
+                .map(date => ({
+                  date,
+                  driverId,
+                  driverName,
+                  data: getDayDataForDriver(transactions, date),
+                }));
               return (
                 <Card className="border-slate-100">
                   <CardHeader className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-t-lg">

@@ -59,11 +59,17 @@ export default function DriverTransactionsPage() {
   // طلبات تم تسليمها للعملاء
   const deliveredOrders = orders.filter(o => o.customerId === driverId && o.status === 'DELIVERED');
   
-  const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  const { data: allDriverTransactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ["driver-transactions", driverId],
     queryFn: () => api.getDriverTransactions(driverId),
     enabled: !!driverId,
   });
+
+  const transactions = allDriverTransactions.filter(t =>
+    t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === todayStr
+  );
 
   const { data: inventory = [] } = useQuery({
     queryKey: ["driver-inventory", driverId],
