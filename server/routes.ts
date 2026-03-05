@@ -836,6 +836,32 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/driver-load-inventory", async (req, res) => {
+    try {
+      const { driverId, productId, quantity } = req.body;
+      if (!driverId || !productId || !quantity || quantity <= 0) {
+        return res.status(400).json({ message: "بيانات غير صالحة" });
+      }
+
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "المنتج غير موجود" });
+      }
+
+      if (product.stock < quantity) {
+        return res.status(400).json({ message: `الكمية المتوفرة في المخزون (${product.stock}) أقل من المطلوب (${quantity})` });
+      }
+
+      await storage.updateProductStock(productId, product.stock - quantity);
+      await storage.updateDriverInventory(driverId, productId, quantity);
+
+      res.json({ message: "تم تحميل الخبز بنجاح" });
+    } catch (error) {
+      console.error("Load inventory error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   app.patch("/api/transactions/:id", async (req, res) => {
     try {
       const { quantity, unitPrice, customerId, notes } = req.body;

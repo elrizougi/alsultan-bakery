@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2 } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -132,6 +132,23 @@ export default function DriverTransactionsPage() {
     },
     onError: () => {
       toast({ title: "حدث خطأ في تعديل العملية", variant: "destructive" });
+    },
+  });
+
+  const loadInventory = useMutation({
+    mutationFn: ({ productId, quantity }: { productId: string; quantity: number }) =>
+      api.loadDriverInventory(driverId, productId, quantity),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast({ title: "تم تحميل الخبز للمندوب بنجاح" });
+      setIsLoadDialogOpen(false);
+      setLoadProductId("");
+      setLoadQuantity("");
+    },
+    onError: (error: any) => {
+      const message = error?.message || "حدث خطأ في تحميل الخبز";
+      toast({ title: message, variant: "destructive" });
     },
   });
 
@@ -290,6 +307,9 @@ export default function DriverTransactionsPage() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [editForm, setEditForm] = useState({ quantity: 1, unitPrice: "", customerId: "", notes: "" });
   const [editCustomerSearchOpen, setEditCustomerSearchOpen] = useState(false);
+  const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  const [loadProductId, setLoadProductId] = useState("");
+  const [loadQuantity, setLoadQuantity] = useState<string>("");
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerLocationUrl, setNewCustomerLocationUrl] = useState("");
@@ -533,6 +553,14 @@ export default function DriverTransactionsPage() {
               disabled={isAdmin && !driverId}
             >
               <Plus className="h-4 w-4" /> عملية جديدة
+            </Button>
+            <Button 
+              onClick={() => setIsLoadDialogOpen(true)} 
+              className="w-full sm:w-auto flex-row gap-2 bg-blue-600 hover:bg-blue-700 rounded-xl h-11 px-6 shadow-lg shadow-blue-600/20 font-bold"
+              data-testid="button-load-bread"
+              disabled={isAdmin && !driverId}
+            >
+              <Truck className="h-4 w-4" /> تحميل خبز
             </Button>
           </div>
         </div>
@@ -1527,6 +1555,68 @@ export default function DriverTransactionsPage() {
               data-testid="button-save-edit"
             >
               {updateTransaction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ التعديلات"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">تحميل خبز للمندوب</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>المنتج *</Label>
+              <Select value={loadProductId} onValueChange={setLoadProductId}>
+                <SelectTrigger data-testid="select-load-product">
+                  <SelectValue placeholder="اختر المنتج" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} (المتوفر: {product.stock})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>الكمية *</Label>
+              <Input
+                type="number"
+                min={1}
+                max={loadProductId ? (products.find(p => p.id === loadProductId)?.stock || 0) : undefined}
+                value={loadQuantity}
+                onChange={(e) => setLoadQuantity(e.target.value)}
+                placeholder="أدخل الكمية"
+                data-testid="input-load-quantity"
+              />
+              {loadProductId && (
+                <span className="text-xs text-muted-foreground">
+                  المتوفر في المخزون: <span className="font-bold text-primary">{products.find(p => p.id === loadProductId)?.stock || 0}</span>
+                </span>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsLoadDialogOpen(false); setLoadProductId(""); setLoadQuantity(""); }}>
+              إلغاء
+            </Button>
+            <Button
+              onClick={() => {
+                const qty = parseInt(loadQuantity);
+                if (!loadProductId || !qty || qty <= 0) {
+                  toast({ title: "يرجى اختيار المنتج وإدخال الكمية", variant: "destructive" });
+                  return;
+                }
+                loadInventory.mutate({ productId: loadProductId, quantity: qty });
+              }}
+              disabled={loadInventory.isPending}
+              data-testid="button-confirm-load"
+            >
+              {loadInventory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "تحميل"}
             </Button>
           </DialogFooter>
         </DialogContent>
