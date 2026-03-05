@@ -199,6 +199,33 @@ export default function CustomersPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    const headers = ["اسم العميل", "رقم الهاتف", "العنوان", "المندوب", "خط التوزيع", "رابط الموقع"];
+    const esc = (v: string) => v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
+
+    const rows = filteredCustomers.map(customer => {
+      const driver = drivers.find(d => d.id === customer.driverId);
+      const route = routes.find(r => r.id === customer.routeId);
+      return [
+        esc(customer.name),
+        esc(customer.phone || "-"),
+        esc(customer.address || "-"),
+        esc(driver?.name || "-"),
+        esc(route?.name || "-"),
+        esc(customer.locationUrl || "-"),
+      ].join(',');
+    });
+
+    const csvContent = "\uFEFF" + [headers.map(esc).join(','), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `قائمة_العملاء_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const openAddForm = () => {
     setEditingCustomer(null);
     setFormData({
@@ -299,6 +326,14 @@ export default function CustomersPage() {
             >
               {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               استيراد CSV
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex flex-row-reverse gap-2" 
+              onClick={handleExportCSV}
+              data-testid="button-export-customers"
+            >
+              <Download className="h-4 w-4" /> تحميل البيانات
             </Button>
             <Button 
               variant="ghost" 
