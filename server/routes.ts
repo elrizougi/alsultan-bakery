@@ -843,16 +843,6 @@ export async function registerRoutes(
         return res.status(400).json({ message: "بيانات غير صالحة" });
       }
 
-      const product = await storage.getProduct(productId);
-      if (!product) {
-        return res.status(404).json({ message: "المنتج غير موجود" });
-      }
-
-      if (product.stock < quantity) {
-        return res.status(400).json({ message: `الكمية المتوفرة في المخزون (${product.stock}) أقل من المطلوب (${quantity})` });
-      }
-
-      await storage.updateProductStock(productId, product.stock - quantity);
       await storage.updateDriverInventory(driverId, productId, quantity);
 
       res.json({ message: "تم تحميل الخبز بنجاح" });

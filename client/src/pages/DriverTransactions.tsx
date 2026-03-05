@@ -1020,16 +1020,10 @@ export default function DriverTransactionsPage() {
                   <Input
                     type="number"
                     min={1}
-                    max={formData.productId ? (inventory.find(inv => inv.productId === formData.productId)?.quantity || 0) : undefined}
                     value={formData.quantity}
                     onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
                     data-testid="input-quantity"
                   />
-                  {formData.productId && (
-                    <p className="text-xs text-muted-foreground">
-                      الكمية المتاحة: <span className="font-bold text-primary">{inventory.find(inv => inv.productId === formData.productId)?.quantity || 0}</span>
-                    </p>
-                  )}
                 </div>
 
                 {(formData.type as string) !== 'RETURN' && (
@@ -1575,7 +1569,7 @@ export default function DriverTransactionsPage() {
                 <SelectContent>
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.name} (المتوفر: {product.stock})
+                      {product.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1587,17 +1581,11 @@ export default function DriverTransactionsPage() {
               <Input
                 type="number"
                 min={1}
-                max={loadProductId ? (products.find(p => p.id === loadProductId)?.stock || 0) : undefined}
                 value={loadQuantity}
                 onChange={(e) => setLoadQuantity(e.target.value)}
                 placeholder="أدخل الكمية"
                 data-testid="input-load-quantity"
               />
-              {loadProductId && (
-                <span className="text-xs text-muted-foreground">
-                  المتوفر في المخزون: <span className="font-bold text-primary">{products.find(p => p.id === loadProductId)?.stock || 0}</span>
-                </span>
-              )}
             </div>
           </div>
           <DialogFooter>
