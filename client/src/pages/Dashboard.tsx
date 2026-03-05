@@ -65,35 +65,35 @@ export default function Dashboard() {
   };
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const todaysOrders = orders.filter(o => o.date === todayStr);
+  const currentMonth = format(new Date(), 'yyyy-MM');
   const activeRuns = dispatchRuns.filter(r => r.status !== 'CLOSED');
   
-  const todaysTransactions = transactions.filter(t => {
+  const monthTransactions = transactions.filter(t => {
     if (!t.createdAt) return false;
-    const txDate = format(new Date(t.createdAt), 'yyyy-MM-dd');
-    return txDate === todayStr;
+    const txDate = format(new Date(t.createdAt), 'yyyy-MM');
+    return txDate === currentMonth;
   });
 
-  const todaysSales = todaysTransactions.filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string));
-  const totalSalesCount = todaysSales.reduce((sum, t) => sum + (t.quantity || 0), 0);
+  const monthSales = monthTransactions.filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string));
+  const totalSalesCount = monthSales.reduce((sum, t) => sum + (t.quantity || 0), 0);
 
-  const totalBreadSold = todaysSales.reduce((sum, t) => sum + (t.quantity || 0), 0);
+  const totalBreadSold = monthSales.reduce((sum, t) => sum + (t.quantity || 0), 0);
   const doughBatches = Math.floor(totalBreadSold / 450);
 
-  const totalCashCollected = todaysTransactions
+  const totalCashCollected = monthTransactions
     .filter(t => (t.type as string) === 'CASH_SALE')
     .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
 
-  const todaysCreditDebts = allDebts.filter((d: any) => {
+  const monthCreditDebts = allDebts.filter((d: any) => {
     if (!d.createdAt) return false;
-    const debtDate = format(new Date(d.createdAt), 'yyyy-MM-dd');
-    return debtDate === todayStr;
+    const debtMonth = format(new Date(d.createdAt), 'yyyy-MM');
+    return debtMonth === currentMonth;
   });
-  const unpaidCreditValue = todaysCreditDebts
+  const unpaidCreditValue = monthCreditDebts
     .filter((d: any) => !d.isPaid)
     .reduce((sum: number, d: any) => sum + parseFloat(d.remainingAmount || d.amount || '0'), 0);
 
-  const totalExpenses = todaysTransactions
+  const totalExpenses = monthTransactions
     .filter(t => (t.type as string) === 'EXPENSE')
     .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
   
@@ -319,7 +319,7 @@ export default function Dashboard() {
           <div className="relative z-10">
             <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-2">أهلاً بك، {user?.name || 'مستخدم'}</h1>
             <p className="text-primary-foreground/90 text-lg md:text-xl font-medium max-w-2xl">
-              هذا هو ملخص عمليات المخبز ليوم {format(new Date(), 'eeee, d MMMM yyyy', { locale: ar })}.
+              ملخص عمليات المخبز لشهر {format(new Date(), 'MMMM yyyy', { locale: ar })}.
             </p>
           </div>
           <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
@@ -397,7 +397,7 @@ export default function Dashboard() {
           <CardContent className="px-8 pb-8">
             {(() => {
               const dateMap: Record<string, typeof transactions> = {};
-              transactions.forEach(t => {
+              monthTransactions.forEach(t => {
                 if (!t.createdAt) return;
                 const dateKey = format(new Date(t.createdAt), 'yyyy-MM-dd');
                 if (!dateMap[dateKey]) dateMap[dateKey] = [];
