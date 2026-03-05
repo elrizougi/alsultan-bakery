@@ -517,10 +517,15 @@ export default function DriverTransactionsPage() {
   );
   const uniqueCustomersCount = uniqueCustomersSet.size;
 
-  // حساب إجمالي المرتجع
   const totalReturnBread = transactions
     .filter(t => t.type === 'RETURN')
     .reduce((sum, t) => sum + t.quantity, 0);
+
+  const totalDamagedBread = transactions
+    .filter(t => t.type === 'DAMAGED')
+    .reduce((sum, t) => sum + t.quantity, 0);
+
+  const totalReturnAndDamaged = totalReturnBread + totalDamagedBread;
 
   // عمليات السجل (بدون المرتجع)
   const logTransactions = transactions.filter(t => t.type !== 'RETURN');
@@ -671,8 +676,12 @@ export default function DriverTransactionsPage() {
                   <Undo2 className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-red-600">المرتجع</p>
-                  <p className="text-2xl font-bold text-red-700" data-testid="text-return-bread">{totalReturnBread}</p>
+                  <p className="text-sm font-medium text-red-600">مرتجع + تالف</p>
+                  <p className="text-2xl font-bold text-red-700" data-testid="text-return-bread">{totalReturnAndDamaged}</p>
+                  <div className="flex gap-3 text-xs text-red-600/80 mt-1">
+                    <span>مرتجع: {totalReturnBread}</span>
+                    <span>تالف: {totalDamagedBread}</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
