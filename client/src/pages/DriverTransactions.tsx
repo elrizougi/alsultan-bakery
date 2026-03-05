@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -535,6 +535,13 @@ export default function DriverTransactionsPage() {
 
   const totalLoadedBread = totalSoldBread + totalReturnAndDamaged + totalFreeDistribution + totalCurrentInventory;
 
+  const moghallafProduct = products.find(p => p.name === 'مغلف');
+  const salesExcludingMoghallaf = transactions
+    .filter(t => (t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE') && t.productId !== moghallafProduct?.id);
+  const avgSalePriceQty = salesExcludingMoghallaf.reduce((sum, t) => sum + t.quantity, 0);
+  const avgSalePriceTotal = salesExcludingMoghallaf.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+  const avgSalePrice = avgSalePriceQty > 0 ? avgSalePriceTotal / avgSalePriceQty : 0;
+
   // عمليات السجل (بدون المرتجع)
   const logTransactions = transactions.filter(t => t.type !== 'RETURN');
   const today = new Date();
@@ -632,7 +639,7 @@ export default function DriverTransactionsPage() {
         </Card>
 
         {/* الصف الأول: إحصائيات المخزون والمبيعات */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
           <Card className="border-slate-100 bg-blue-50 hover:shadow-md transition-shadow">
             <CardContent className="pt-6 pb-6">
               <div className="flex items-center gap-4">
@@ -672,6 +679,21 @@ export default function DriverTransactionsPage() {
                   <p className="text-sm font-medium text-green-600">الخبز المباع</p>
                   <p className="text-2xl font-bold text-green-700" data-testid="text-sold-bread">{totalSoldBread}</p>
                   <p className="text-xs text-green-600/70">{totalSoldValue.toFixed(2)} ر.س</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-100 bg-teal-50 hover:shadow-md transition-shadow">
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-teal-500 rounded-xl">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-teal-600">متوسط سعر البيع</p>
+                  <p className="text-2xl font-bold text-teal-700" data-testid="text-avg-sale-price">{avgSalePrice.toFixed(2)}</p>
+                  <p className="text-xs text-teal-600/70">ر.س (بدون المغلف)</p>
                 </div>
               </div>
             </CardContent>
