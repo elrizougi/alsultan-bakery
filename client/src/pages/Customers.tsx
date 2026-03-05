@@ -64,6 +64,7 @@ export default function CustomersPage() {
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [filterDriverId, setFilterDriverId] = useState<string>("");
+  const [filterRouteId, setFilterRouteId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<CustomerFormData>({
@@ -89,12 +90,13 @@ export default function CustomersPage() {
   
   const filteredCustomers = customers.filter(c => {
     const matchesDriver = !filterDriverId || filterDriverId === "all" || c.driverId === filterDriverId;
+    const matchesRoute = !filterRouteId || filterRouteId === "all" || c.routeId === filterRouteId;
     const normalizedQuery = normalizeArabic(searchQuery);
     const matchesSearch = !searchQuery || 
       normalizeArabic(c.name).includes(normalizedQuery) ||
       (c.phone && c.phone.includes(searchQuery)) ||
       (c.address && normalizeArabic(c.address).includes(normalizedQuery));
-    return matchesDriver && matchesSearch;
+    return matchesDriver && matchesRoute && matchesSearch;
   });
 
   const downloadTemplate = () => {
@@ -357,9 +359,23 @@ export default function CustomersPage() {
               data-testid="input-search-customers"
             />
           </div>
-          <Label className="font-medium whitespace-nowrap">فلتر حسب المندوب:</Label>
+          <Label className="font-medium whitespace-nowrap">خط التوزيع:</Label>
+          <Select value={filterRouteId} onValueChange={setFilterRouteId}>
+            <SelectTrigger className="w-52" data-testid="select-filter-route">
+              <SelectValue placeholder="جميع الخطوط" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">جميع الخطوط</SelectItem>
+              {routes.map((route) => (
+                <SelectItem key={route.id} value={route.id}>
+                  {route.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Label className="font-medium whitespace-nowrap">المندوب:</Label>
           <Select value={filterDriverId} onValueChange={setFilterDriverId}>
-            <SelectTrigger className="w-64" data-testid="select-filter-driver">
+            <SelectTrigger className="w-52" data-testid="select-filter-driver">
               <SelectValue placeholder="جميع المناديب" />
             </SelectTrigger>
             <SelectContent>
@@ -371,8 +387,8 @@ export default function CustomersPage() {
               ))}
             </SelectContent>
           </Select>
-          {filterDriverId && filterDriverId !== "all" && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterDriverId("")}>
+          {((filterDriverId && filterDriverId !== "all") || (filterRouteId && filterRouteId !== "all")) && (
+            <Button variant="ghost" size="sm" onClick={() => { setFilterDriverId(""); setFilterRouteId(""); }}>
               إزالة الفلتر
             </Button>
           )}
