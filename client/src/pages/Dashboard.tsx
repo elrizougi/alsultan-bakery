@@ -77,6 +77,8 @@ export default function Dashboard() {
   
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
 
+  const fmt = (n: number) => n % 1 === 0 ? n.toString() : n.toFixed(2);
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -135,7 +137,7 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-emerald-700">{totalCashCollected.toFixed(2)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <div className="text-3xl font-black text-emerald-700">{fmt(totalCashCollected)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
               <p className="text-sm font-medium text-slate-500 mt-1">المبلغ المحصل نقداً</p>
             </CardContent>
           </Card>
@@ -147,7 +149,7 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-yellow-700">{unpaidCreditValue.toFixed(2)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <div className="text-3xl font-black text-yellow-700">{fmt(unpaidCreditValue)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
               <p className="text-sm font-medium text-slate-500 mt-1">آجل غير مدفوع</p>
             </CardContent>
           </Card>
@@ -159,7 +161,7 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-red-600">{totalExpenses.toFixed(2)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <div className="text-3xl font-black text-red-600">{fmt(totalExpenses)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
               <p className="text-sm font-medium text-slate-500 mt-1">مصروفات التوزيع</p>
             </CardContent>
           </Card>
@@ -171,7 +173,7 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-orange-600">{totalBakeryExpenses.toFixed(2)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <div className="text-3xl font-black text-orange-600">{fmt(totalBakeryExpenses)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
               <p className="text-sm font-medium text-slate-500 mt-1">مصروفات المخبز</p>
             </CardContent>
           </Card>
@@ -267,10 +269,10 @@ export default function Dashboard() {
                             <TableCell>{soldBread}</TableCell>
                             <TableCell className="text-blue-600 font-semibold">{returnedBread}</TableCell>
                             <TableCell className="text-gray-600 font-semibold">{damagedBread}</TableCell>
-                            <TableCell className="text-purple-700 font-semibold">{avgPrice > 0 ? `${avgPrice.toFixed(2)} ر.س` : '-'}</TableCell>
-                            <TableCell className="text-emerald-700 font-semibold">{cashCollected.toFixed(2)} ر.س</TableCell>
-                            <TableCell className="text-yellow-700 font-semibold">{creditUnpaid.toFixed(2)} ر.س</TableCell>
-                            <TableCell className="text-red-600 font-semibold">{expenses.toFixed(2)} ر.س</TableCell>
+                            <TableCell className="text-purple-700 font-semibold">{avgPrice > 0 ? `${fmt(avgPrice)} ر.س` : '-'}</TableCell>
+                            <TableCell className="text-emerald-700 font-semibold">{fmt(cashCollected)} ر.س</TableCell>
+                            <TableCell className="text-yellow-700 font-semibold">{fmt(creditUnpaid)} ر.س</TableCell>
+                            <TableCell className="text-red-600 font-semibold">{fmt(expenses)} ر.س</TableCell>
                             <TableCell>{uniqueCustomers}</TableCell>
                           </TableRow>
                         );
