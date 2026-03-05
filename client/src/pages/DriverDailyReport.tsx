@@ -256,6 +256,10 @@ export default function DriverDailyReportPage() {
       return allTransactions.some(t => t.productId === p.id && (t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE'));
     }
     return transactions.some(t => t.productId === p.id && (t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE'));
+  }).sort((a, b) => {
+    if (a.name === 'مغلف') return 1;
+    if (b.name === 'مغلف') return -1;
+    return 0;
   });
 
   const exportToCSV = (
