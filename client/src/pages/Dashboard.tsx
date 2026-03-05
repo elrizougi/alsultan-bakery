@@ -2,7 +2,7 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStore } from "@/lib/store";
 import { useOrders, useDispatchRuns, useCustomers, useRoutes, useProducts, useUsers } from "@/hooks/useData";
-import { DollarSign, Package, Truck, AlertCircle, Loader2, Users, UserCheck, MapPin, ShoppingBag, TrendingUp, ArrowUpRight, ArrowDownRight, ShoppingCart, FileText, Banknote, CreditCard } from "lucide-react";
+import { DollarSign, Package, Truck, AlertCircle, Loader2, Users, UserCheck, MapPin, ShoppingBag, TrendingUp, ArrowUpRight, ArrowDownRight, ShoppingCart, FileText, Banknote, CreditCard, CircleDollarSign, Receipt } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -20,6 +20,10 @@ export default function Dashboard() {
   const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
     queryFn: api.getAllTransactions
+  });
+  const { data: allDebts = [] } = useQuery({
+    queryKey: ['allCustomerDebts'],
+    queryFn: api.getAllCustomerDebts
   });
 
   const isDriver = user?.role === 'DRIVER';
@@ -63,21 +67,34 @@ export default function Dashboard() {
   const todaysOrders = orders.filter(o => o.date === todayStr);
   const activeRuns = dispatchRuns.filter(r => r.status !== 'CLOSED');
   
-  // حساب الإيرادات من الطلبات
-  const ordersRevenue = todaysOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount), 0);
-  
-  // حساب المصروفات من العمليات اليوم
   const todaysTransactions = transactions.filter(t => {
     if (!t.createdAt) return false;
     const txDate = format(new Date(t.createdAt), 'yyyy-MM-dd');
     return txDate === todayStr;
   });
+
+  const todaysSales = todaysTransactions.filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string));
+  const totalSalesCount = todaysSales.reduce((sum, t) => sum + (t.quantity || 0), 0);
+
+  const totalBreadSold = todaysSales.reduce((sum, t) => sum + (t.quantity || 0), 0);
+  const doughBatches = Math.floor(totalBreadSold / 450);
+
+  const totalCashCollected = todaysTransactions
+    .filter(t => (t.type as string) === 'CASH_SALE')
+    .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+
+  const todaysCreditDebts = allDebts.filter((d: any) => {
+    if (!d.createdAt) return false;
+    const debtDate = format(new Date(d.createdAt), 'yyyy-MM-dd');
+    return debtDate === todayStr;
+  });
+  const unpaidCreditValue = todaysCreditDebts
+    .filter((d: any) => !d.isPaid)
+    .reduce((sum: number, d: any) => sum + parseFloat(d.remainingAmount || d.amount || '0'), 0);
+
   const totalExpenses = todaysTransactions
     .filter(t => (t.type as string) === 'EXPENSE')
     .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
-  
-  // صافي الإيرادات = الإيرادات - المصروفات
-  const totalRevenue = ordersRevenue - totalExpenses;
   
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   const salesReps = users.filter(u => u.role === 'SALES' && u.isActive !== false);
@@ -317,54 +334,64 @@ export default function Dashboard() {
         </div>
 
         {/* Main Stats */}
-        <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
-          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-orders">
+        <div className="grid gap-6 grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-sales-count">
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
               <div className="h-10 w-10 rounded-2xl bg-blue-50 flex items-center justify-center">
-                <Package className="h-5 w-5 text-blue-600" />
+                <ShoppingCart className="h-5 w-5 text-blue-600" />
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-slate-800">{todaysOrders.length}</div>
-              <p className="text-sm font-medium text-slate-500 mt-1">طلبات اليوم</p>
+              <div className="text-3xl font-black text-slate-800">{totalSalesCount}</div>
+              <p className="text-sm font-medium text-slate-500 mt-1">عدد المبيعات</p>
             </CardContent>
           </Card>
-          
-          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-stock-value">
-            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
-              <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-indigo-600" />
-              </div>
-            </CardHeader>
-            <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-slate-800">{totalStockValue.toFixed(0)} <span className="text-sm">ر.س</span></div>
-              <p className="text-sm font-medium text-slate-500 mt-1">قيمة المخزون</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-revenue">
-            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
-              <div className="h-10 w-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-emerald-600" />
-              </div>
-            </CardHeader>
-            <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-slate-800">{totalRevenue.toFixed(0)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
-              <p className="text-sm font-medium text-slate-500 mt-1">إيرادات اليوم</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-bread-count">
+
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-dough-batches">
             <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
               <div className="h-10 w-10 rounded-2xl bg-amber-50 flex items-center justify-center">
                 <Package className="h-5 w-5 text-amber-600" />
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-amber-600">
-                {products.reduce((sum, p) => sum + p.stock, 0)}
+              <div className="text-3xl font-black text-amber-600">{doughBatches}</div>
+              <p className="text-sm font-medium text-slate-500 mt-1">عدد العجنات</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-cash-collected">
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
+              <div className="h-10 w-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                <Banknote className="h-5 w-5 text-emerald-600" />
               </div>
-              <p className="text-sm font-medium text-slate-500 mt-1">عدد الخبز</p>
+            </CardHeader>
+            <CardContent className="text-right p-6 pt-0">
+              <div className="text-3xl font-black text-emerald-700">{totalCashCollected.toFixed(2)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <p className="text-sm font-medium text-slate-500 mt-1">المبلغ المحصل نقداً</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-unpaid-credit">
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
+              <div className="h-10 w-10 rounded-2xl bg-yellow-50 flex items-center justify-center">
+                <CreditCard className="h-5 w-5 text-yellow-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="text-right p-6 pt-0">
+              <div className="text-3xl font-black text-yellow-700">{unpaidCreditValue.toFixed(2)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <p className="text-sm font-medium text-slate-500 mt-1">آجل غير مدفوع</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="rounded-3xl border-0 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1" data-testid="stat-expenses">
+            <CardHeader className="flex flex-row-reverse items-center justify-between space-y-0 p-6 pb-2">
+              <div className="h-10 w-10 rounded-2xl bg-red-50 flex items-center justify-center">
+                <Receipt className="h-5 w-5 text-red-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="text-right p-6 pt-0">
+              <div className="text-3xl font-black text-red-600">{totalExpenses.toFixed(2)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <p className="text-sm font-medium text-slate-500 mt-1">المصروفات</p>
             </CardContent>
           </Card>
         </div>

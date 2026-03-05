@@ -269,6 +269,11 @@ export const api = {
     return res.json();
   },
 
+  getAllCustomerDebts: async (): Promise<CustomerDebt[]> => {
+    const res = await fetch('/api/customer-debts');
+    return res.json();
+  },
+
   getDriverCustomerDebts: async (driverId: string): Promise<CustomerDebt[]> => {
     const res = await fetch(`/api/driver-customer-debts/${driverId}`);
     return res.json();

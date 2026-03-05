@@ -746,6 +746,15 @@ export async function registerRoutes(
   });
 
   // ============ CUSTOMER DEBTS ============
+  app.get("/api/customer-debts", async (req, res) => {
+    try {
+      const debts = await storage.getAllCustomerDebts();
+      res.json(debts);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   app.get("/api/customer-debts/:customerId", async (req, res) => {
     try {
       const debts = await storage.getCustomerDebts(req.params.customerId);

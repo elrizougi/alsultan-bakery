@@ -109,6 +109,7 @@ export interface IStorage {
   updateDriverCashBalance(driverId: string, amountChange: string): Promise<DriverBalance | undefined>;
 
   // Customer Debts
+  getAllCustomerDebts(): Promise<CustomerDebt[]>;
   getCustomerDebts(customerId: string): Promise<CustomerDebt[]>;
   getDriverCustomerDebts(driverId: string): Promise<CustomerDebt[]>;
   createCustomerDebt(debt: InsertCustomerDebt): Promise<CustomerDebt>;
@@ -544,6 +545,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Customer Debts
+  async getAllCustomerDebts(): Promise<CustomerDebt[]> {
+    return db.select().from(customerDebts);
+  }
+
   async getCustomerDebts(customerId: string): Promise<CustomerDebt[]> {
     return db.select().from(customerDebts).where(eq(customerDebts.customerId, customerId));
   }
