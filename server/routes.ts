@@ -32,6 +32,10 @@ export async function registerRoutes(
       if (user.password !== password) {
         return res.status(401).json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
       }
+
+      if (user.role !== 'ADMIN') {
+        return res.status(403).json({ message: "الدخول متاح فقط للمدير" });
+      }
       
       // Return user without password
       const { password: _, ...userWithoutPassword } = user;

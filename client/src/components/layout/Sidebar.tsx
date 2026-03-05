@@ -24,16 +24,16 @@ export function Sidebar({ className }: SidebarProps) {
   const user = useStore((state) => state.user);
 
   const menuItems = [
-    { icon: LayoutDashboard, label: "الرئيسية", href: "/", roles: ['ADMIN', 'SALES'] },
-    { icon: FileText, label: "التقرير اليومي", href: "/driver-daily-report", roles: ['ADMIN', 'DRIVER'] },
-    { icon: Wallet, label: "العمليات الميدانية", href: "/driver-transactions", roles: ['ADMIN', 'DRIVER'] },
-    { icon: UserCheck, label: "عملائي", href: "/my-customers", roles: ['ADMIN', 'DRIVER'] },
-    { icon: Send, label: "تسليم المبالغ", href: "/cash-deposits", roles: ['ADMIN'] },
-    { icon: Package, label: "خبز في الصالة", href: "/inventory", roles: ['ADMIN'] },
-    { icon: Users, label: "قائمة العملاء", href: "/customers", roles: ['ADMIN', 'SALES'] },
-    { icon: MapPin, label: "خطوط التوزيع", href: "/routes", roles: ['ADMIN'] },
-    { icon: Shield, label: "الموظفين والصلاحيات", href: "/users", roles: ['ADMIN'] },
-  ].filter(item => !item.roles || (user && item.roles.includes(user.role)));
+    { icon: LayoutDashboard, label: "الرئيسية", href: "/" },
+    { icon: FileText, label: "التقرير اليومي", href: "/driver-daily-report" },
+    { icon: Wallet, label: "العمليات الميدانية", href: "/driver-transactions" },
+    { icon: UserCheck, label: "عملائي", href: "/my-customers" },
+    { icon: Send, label: "تسليم المبالغ", href: "/cash-deposits" },
+    { icon: Package, label: "خبز في الصالة", href: "/inventory" },
+    { icon: Users, label: "قائمة العملاء", href: "/customers" },
+    { icon: MapPin, label: "خطوط التوزيع", href: "/routes" },
+    { icon: Shield, label: "الموظفين والصلاحيات", href: "/users" },
+  ];
 
   return (
     <div className={cn("py-4 text-right h-full overflow-y-auto", className)}>

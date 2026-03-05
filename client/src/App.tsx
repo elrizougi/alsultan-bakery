@@ -30,7 +30,6 @@ function Router() {
       <Route path="/users" component={UsersManagementPage} />
       <Route path="/routes" component={RoutesManagementPage} />
       <Route path="/driver-transactions" component={DriverTransactionsPage} />
-      <Route path="/driver" component={DriverTransactionsPage} />
       <Route path="/cash-deposits" component={CashDepositsPage} />
       <Route path="/driver-daily-report" component={DriverDailyReportPage} />
       <Route path="/my-customers" component={MyCustomersPage} />
