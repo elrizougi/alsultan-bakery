@@ -79,7 +79,10 @@ Preferred communication style: Simple, everyday language.
 - **JetBrains Mono**: Monospace font for code/data display
 
 ### Docker Deployment
-- **Dockerfile**: node:20-alpine, builds frontend+backend, runs `npm start`
-- **docker-compose.yml**: Service `alsultan-bakery`, internal port 3000, external port 3020
+- **Dockerfile**: node:20-alpine, builds frontend+backend, copies committed migrations, runs `npm start`
+- **docker-compose.yml**: Service `alsultan-bakery` + `db` (postgres:15-alpine with healthcheck), internal port 3000, external port 3020
+- **Migrations**: Committed in `migrations/` folder, safe with `IF NOT EXISTS` / `DO $$ EXCEPTION WHEN duplicate_object` for existing databases
+- **Migration execution**: `runMigrations()` called automatically at server startup in production mode (server/index.ts)
+- **Migration retry**: Up to 10 retries with 3s delay for DB connection readiness
 - **Environment**: `.env` file (not committed), `.env.example` as template
 - **Build command**: `docker compose up -d --build`

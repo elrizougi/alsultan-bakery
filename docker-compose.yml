@@ -9,7 +9,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U alsultan -d alsultan"]
+      test: ["CMD-SHELL", "pg_isready -U alsultan -d alsultan_bakery"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -19,7 +19,7 @@ services:
     build: .
     container_name: alsultan-bakery
     environment:
-      DATABASE_URL: postgresql://alsultan:Awe@93554@db:5432/alsultan_bakery
+      DATABASE_URL: postgresql://alsultan:Awe93554@db:5432/alsultan_bakery
       PORT: "3000"
     ports:
       - "3020:3000"
