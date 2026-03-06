@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import {
   users, type User, type InsertUser,
   products, type Product, type InsertProduct,
@@ -88,6 +88,7 @@ export interface IStorage {
   getAllTransactions(): Promise<Transaction[]>;
   getDriverTransactions(driverId: string): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  findDuplicateTransaction(driverId: string, customerId: string, productId: string, type: string, quantity: number, totalAmount: string, createdAt?: Date): Promise<Transaction | undefined>;
   deleteTransactionWithUpdates(id: string): Promise<boolean>;
   updateTransactionWithUpdates(id: string, updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction | undefined>;
 
@@ -444,6 +445,22 @@ export class DatabaseStorage implements IStorage {
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const [newTransaction] = await db.insert(transactions).values(transaction).returning();
     return newTransaction;
+  }
+
+  async findDuplicateTransaction(driverId: string, customerId: string, productId: string, type: string, quantity: number, totalAmount: string, createdAt?: Date): Promise<Transaction | undefined> {
+    const conditions = [
+      eq(transactions.driverId, driverId),
+      eq(transactions.customerId, customerId),
+      eq(transactions.productId, productId),
+      eq(transactions.type, type),
+      eq(transactions.quantity, quantity),
+      eq(transactions.totalAmount, totalAmount),
+    ];
+    if (createdAt) {
+      conditions.push(sql`DATE(${transactions.createdAt}) = DATE(${createdAt})`);
+    }
+    const [existing] = await db.select().from(transactions).where(and(...conditions)).limit(1);
+    return existing;
   }
 
   // Atomic transaction creation with all related updates using DB transaction

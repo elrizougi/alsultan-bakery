@@ -768,6 +768,12 @@ export async function registerRoutes(
             txData.createdAt = new Date(row.date);
           }
 
+          const existingTx = await storage.findDuplicateTransaction(txData.driverId, txData.customerId, txData.productId, txData.type, txData.quantity, txData.totalAmount, txData.createdAt);
+          if (existingTx) {
+            results.push({ row: i + 1, status: 'skipped', error: 'عملية مكررة - تم تخطيها' });
+            continue;
+          }
+
           await storage.createTransactionWithUpdates(txData);
           results.push({ row: i + 1, status: 'success' });
         } catch (err: any) {
@@ -777,7 +783,11 @@ export async function registerRoutes(
 
       const successCount = results.filter(r => r.status === 'success').length;
       const errorCount = results.filter(r => r.status === 'error').length;
-      res.json({ message: `تم استيراد ${successCount} عملية بنجاح${errorCount > 0 ? `، ${errorCount} خطأ` : ''}`, results });
+      const skippedCount = results.filter(r => r.status === 'skipped').length;
+      let msg = `تم استيراد ${successCount} عملية بنجاح`;
+      if (skippedCount > 0) msg += `، ${skippedCount} مكرر تم تخطيه`;
+      if (errorCount > 0) msg += `، ${errorCount} خطأ`;
+      res.json({ message: msg, results });
     } catch (error) {
       console.error("Bulk import error:", error);
       res.status(500).json({ message: "خطأ في الخادم" });
