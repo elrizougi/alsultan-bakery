@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3 } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3, Download, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -42,11 +42,14 @@ export default function DriverTransactionsPage() {
   const queryClient = useQueryClient();
   const currentUser = useStore(state => state.user);
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUB_ADMIN';
+  const canExportCSV = currentUser?.role !== 'SUB_ADMIN';
   const { data: users = [] } = useUsers();
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const driverId = isAdmin ? selectedDriverId : (currentUser?.id || "");
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: products = [] } = useProducts();
   const { data: customers = [] } = useCustomers();
@@ -629,6 +632,188 @@ export default function DriverTransactionsPage() {
     .filter(t => (t.type as string) === 'EXPENSE')
     .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
 
+  const driverName = users.find(u => u.id === driverId)?.name || '';
+
+  const handleExportCSV = () => {
+    const esc = (v: string) => v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
+    const headers = ['التاريخ', 'المندوب', 'النوع', 'المنتج', 'الكمية', 'سعر الوحدة', 'المبلغ', 'العميل', 'ملاحظات'];
+    const csvRows = [headers.map(esc).join(',')];
+
+    const typeReverseMap: Record<string, string> = {
+      CASH_SALE: 'بيع نقدي',
+      CREDIT_SALE: 'بيع آجل',
+      RETURN: 'مرتجع',
+      FREE_DISTRIBUTION: 'توزيع مجاني',
+      FREE_SAMPLE: 'عينات',
+      DAMAGED: 'تالف',
+      EXPENSE: 'مصروفات',
+      DRIVER_DEBT: 'مديونية على المندوب',
+    };
+
+    transactions.forEach(tx => {
+      const isExpenseType = (tx.type as string) === 'EXPENSE';
+      const isDriverDebt = (tx.type as string) === 'DRIVER_DEBT';
+      const isBreadDebt = isDriverDebt && tx.quantity > 0;
+      const isExpense = isExpenseType || (isDriverDebt && !isBreadDebt);
+
+      const cols = [
+        tx.createdAt ? format(new Date(tx.createdAt), 'yyyy-MM-dd') : selectedDate,
+        esc(driverName),
+        esc(typeReverseMap[tx.type] || tx.type),
+        esc(isExpense ? '' : getProductName(tx.productId)),
+        isExpense ? '0' : String(tx.quantity),
+        isExpense ? '0' : String(tx.unitPrice || '0'),
+        String(tx.totalAmount || '0'),
+        esc((isExpense || isDriverDebt) ? '' : getCustomerName(tx.customerId)),
+        esc(tx.notes || ''),
+      ];
+      csvRows.push(cols.join(','));
+    });
+
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `عمليات_${driverName || 'المندوب'}_${selectedDate}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadImportTemplate = () => {
+    const driverNames = drivers.map(d => d.name).join(' / ');
+    const productNames = products.map(p => p.name).join(' / ');
+    const customerNames = customers.slice(0, 3).map(c => c.name).join(' / ');
+    const types = 'بيع نقدي / بيع آجل / مرتجع / توزيع مجاني / عينات / تالف / مصروفات / مديونية على المندوب';
+
+    const headers = 'التاريخ,المندوب,النوع,المنتج,الكمية,سعر الوحدة,المبلغ,العميل,ملاحظات';
+    const instructions = [
+      `# التاريخ: بصيغة YYYY-MM-DD مثال: ${format(new Date(), 'yyyy-MM-dd')}`,
+      `# المناديب المتاحون: ${driverNames}`,
+      `# أنواع العمليات: ${types}`,
+      `# المنتجات المتاحة: ${productNames}`,
+      `# العملاء (أمثلة): ${customerNames || 'لا يوجد عملاء'}`,
+      `# الكمية: عدد صحيح (للمصروفات والمديونية النقدية اتركه 0)`,
+      `# سعر الوحدة: سعر القطعة الواحدة`,
+      `# المبلغ: يُحسب تلقائياً (الكمية × السعر) - للمصروفات والمديونية ضع المبلغ هنا`,
+      `# العميل: مطلوب للبيع الآجل - اختياري للبيع النقدي`,
+      `# ملاحظات: اختيارية (مطلوبة للمصروفات والمديونية)`,
+    ];
+    const example1 = `${format(new Date(), 'yyyy-MM-dd')},${drivers[0]?.name || 'اسم المندوب'},بيع نقدي,${products[0]?.name || 'اسم المنتج'},100,0.50,,${customers[0]?.name || ''},`;
+    const example2 = `${format(new Date(), 'yyyy-MM-dd')},${drivers[0]?.name || 'اسم المندوب'},بيع آجل,${products[0]?.name || 'اسم المنتج'},50,0.50,,${customers[0]?.name || 'اسم العميل'},`;
+    const example3 = `${format(new Date(), 'yyyy-MM-dd')},${drivers[0]?.name || 'اسم المندوب'},مرتجع,${products[0]?.name || 'اسم المنتج'},20,0,,,`;
+    const example4 = `${format(new Date(), 'yyyy-MM-dd')},${drivers[0]?.name || 'اسم المندوب'},مصروفات,,0,0,50,,بنزين`;
+
+    const csvContent = instructions.join('\n') + '\n' + headers + '\n' + example1 + '\n' + example2 + '\n' + example3 + '\n' + example4;
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `نموذج_استيراد_عمليات.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
+
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.replace(/^\uFEFF/, '').split('\n').filter(l => l.trim() && !l.trim().startsWith('#'));
+
+      if (lines.length < 2) {
+        toast({ title: "خطأ", description: "الملف فارغ أو لا يحتوي على بيانات", variant: "destructive" });
+        return;
+      }
+
+      const headerLine = lines[0];
+      const csvHeaders = headerLine.split(',').map(h => h.trim());
+
+      const dateIdx = csvHeaders.indexOf('التاريخ');
+      const driverIdx = csvHeaders.indexOf('المندوب');
+      const typeIdx = csvHeaders.indexOf('النوع');
+      const productIdx = csvHeaders.indexOf('المنتج');
+      const qtyIdx = csvHeaders.indexOf('الكمية');
+      const priceIdx = csvHeaders.indexOf('سعر الوحدة');
+      const amountIdx = csvHeaders.indexOf('المبلغ');
+      const customerIdx = csvHeaders.indexOf('العميل');
+      const notesIdx = csvHeaders.indexOf('ملاحظات');
+
+      const rows = [];
+      const parseCSVLine = (line: string): string[] => {
+        const result: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (let j = 0; j < line.length; j++) {
+          const ch = line[j];
+          if (inQuotes) {
+            if (ch === '"' && line[j + 1] === '"') { current += '"'; j++; }
+            else if (ch === '"') { inQuotes = false; }
+            else { current += ch; }
+          } else {
+            if (ch === '"') { inQuotes = true; }
+            else if (ch === ',') { result.push(current.trim()); current = ''; }
+            else { current += ch; }
+          }
+        }
+        result.push(current.trim());
+        return result;
+      };
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        if (cols.every(c => !c)) continue;
+        rows.push({
+          date: dateIdx >= 0 ? cols[dateIdx] : '',
+          driverName: driverIdx >= 0 ? cols[driverIdx] : '',
+          type: typeIdx >= 0 ? cols[typeIdx] : '',
+          productName: productIdx >= 0 ? cols[productIdx] : '',
+          quantity: qtyIdx >= 0 ? cols[qtyIdx] : '0',
+          unitPrice: priceIdx >= 0 ? cols[priceIdx] : '0',
+          totalAmount: amountIdx >= 0 ? cols[amountIdx] : '0',
+          customerName: customerIdx >= 0 ? cols[customerIdx] : '',
+          notes: notesIdx >= 0 ? cols[notesIdx] : '',
+        });
+      }
+
+      if (rows.length === 0) {
+        toast({ title: "خطأ", description: "لا توجد بيانات صالحة في الملف", variant: "destructive" });
+        return;
+      }
+
+      const result = await api.bulkImportTransactions(rows);
+      const errors = result.results?.filter((r: any) => r.status === 'error') || [];
+
+      if (errors.length > 0) {
+        const errorMessages = errors.slice(0, 5).map((e: any) => `سطر ${e.row}: ${e.error}`).join('\n');
+        toast({
+          title: result.message,
+          description: errorMessages + (errors.length > 5 ? `\n... و ${errors.length - 5} أخطاء أخرى` : ''),
+          variant: errors.length === rows.length ? "destructive" : "default",
+        });
+      } else {
+        toast({ title: "تم بنجاح", description: result.message });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["driver-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-debts"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["allCustomerDebts"] });
+    } catch (error: any) {
+      toast({ title: "خطأ في الاستيراد", description: error.message || "حدث خطأ أثناء استيراد البيانات", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="flex flex-col gap-6" dir="rtl">
@@ -637,10 +822,10 @@ export default function DriverTransactionsPage() {
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800 font-black">العمليات الميدانية</h1>
             <p className="text-sm text-muted-foreground">إدارة عمليات البيع والتوزيع والمرتجعات</p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button 
               onClick={() => setIsCreateOpen(true)} 
-              className="w-full sm:w-auto flex-row gap-2 bg-primary hover:bg-primary/90 rounded-xl h-11 px-6 shadow-lg shadow-primary/20 font-bold"
+              className="flex-row gap-2 bg-primary hover:bg-primary/90 rounded-xl h-11 px-6 shadow-lg shadow-primary/20 font-bold"
               data-testid="button-new-transaction"
               disabled={isAdmin && !driverId}
             >
@@ -648,12 +833,51 @@ export default function DriverTransactionsPage() {
             </Button>
             <Button 
               onClick={() => setIsLoadDialogOpen(true)} 
-              className="w-full sm:w-auto flex-row gap-2 bg-blue-600 hover:bg-blue-700 rounded-xl h-11 px-6 shadow-lg shadow-blue-600/20 font-bold"
+              className="flex-row gap-2 bg-blue-600 hover:bg-blue-700 rounded-xl h-11 px-6 shadow-lg shadow-blue-600/20 font-bold"
               data-testid="button-load-bread"
               disabled={isAdmin && !driverId}
             >
               <Truck className="h-4 w-4" /> تحميل خبز
             </Button>
+            {canExportCSV && (
+              <>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".csv"
+                  onChange={handleImportCSV}
+                  className="hidden"
+                  data-testid="input-import-csv"
+                />
+                <Button
+                  variant="outline"
+                  className="flex-row gap-2 rounded-xl h-11 font-bold"
+                  onClick={downloadImportTemplate}
+                  data-testid="btn-download-template"
+                >
+                  <Download className="h-4 w-4" /> تحميل النموذج
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-row gap-2 rounded-xl h-11 font-bold"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  data-testid="btn-import-csv"
+                >
+                  {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  استيراد CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-row gap-2 rounded-xl h-11 font-bold"
+                  onClick={handleExportCSV}
+                  disabled={!driverId || transactions.length === 0}
+                  data-testid="btn-export-csv"
+                >
+                  <Download className="h-4 w-4" /> تصدير CSV
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
