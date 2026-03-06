@@ -70,6 +70,12 @@ export default function DriverTransactionsPage() {
     enabled: !!driverId,
   });
 
+  const { data: allSystemTransactions = [] } = useQuery({
+    queryKey: ["all-transactions"],
+    queryFn: () => api.getAllTransactions(),
+    enabled: isAdmin && !driverId,
+  });
+
   const transactions = allDriverTransactions.filter(t =>
     t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === selectedDate
   );
@@ -924,12 +930,118 @@ export default function DriverTransactionsPage() {
           </Card>
         )}
 
-        {isAdmin && !driverId && (
-          <div className="text-center py-12 text-muted-foreground">
-            <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-            <p className="text-lg">يرجى اختيار المندوب أولاً لعرض العمليات الميدانية</p>
-          </div>
-        )}
+        {isAdmin && !driverId && (() => {
+          const dateTx = allSystemTransactions.filter(t =>
+            t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === selectedDate
+          );
+          const driverMap = new Map<string, { name: string; cashSales: number; creditSales: number; totalAmount: number; totalQty: number; returnQty: number; expenses: number; customerCount: number }>();
+          dateTx.forEach(t => {
+            if (!driverMap.has(t.driverId)) {
+              const d = drivers.find(dr => dr.id === t.driverId);
+              driverMap.set(t.driverId, { name: d?.name || 'غير معروف', cashSales: 0, creditSales: 0, totalAmount: 0, totalQty: 0, returnQty: 0, expenses: 0, customerCount: 0 });
+            }
+            const entry = driverMap.get(t.driverId)!;
+            const amount = parseFloat(t.totalAmount || "0");
+            if (t.type === 'CASH_SALE') { entry.cashSales += amount; entry.totalQty += t.quantity; }
+            else if (t.type === 'CREDIT_SALE') { entry.creditSales += amount; entry.totalQty += t.quantity; }
+            else if (t.type === 'RETURN') { entry.returnQty += t.quantity; }
+            else if ((t.type as string) === 'EXPENSE') { entry.expenses += amount; }
+          });
+          driverMap.forEach((entry, did) => {
+            entry.totalAmount = entry.cashSales + entry.creditSales;
+            const served = new Set(dateTx.filter(t => t.driverId === did && (t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')).map(t => t.customerId).filter(Boolean));
+            entry.customerCount = served.size;
+          });
+          const driverRows = Array.from(driverMap.entries()).sort((a, b) => b[1].totalAmount - a[1].totalAmount);
+
+          if (driverRows.length === 0) {
+            return (
+              <div className="text-center py-12 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                <p className="text-lg">لا توجد عمليات في هذا اليوم</p>
+              </div>
+            );
+          }
+
+          const totals = driverRows.reduce((acc, [, d]) => ({
+            cashSales: acc.cashSales + d.cashSales,
+            creditSales: acc.creditSales + d.creditSales,
+            totalAmount: acc.totalAmount + d.totalAmount,
+            totalQty: acc.totalQty + d.totalQty,
+            returnQty: acc.returnQty + d.returnQty,
+            expenses: acc.expenses + d.expenses,
+            customerCount: acc.customerCount + d.customerCount,
+          }), { cashSales: 0, creditSales: 0, totalAmount: 0, totalQty: 0, returnQty: 0, expenses: 0, customerCount: 0 });
+
+          return (
+            <Card className="border-slate-100">
+              <CardHeader className="bg-gradient-to-l from-blue-50 to-indigo-50 rounded-t-lg">
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <BarChart3 className="h-6 w-6 text-blue-600" />
+                  ملخص عمليات جميع المناديب - {format(new Date(selectedDate), 'EEEE dd/MM/yyyy', { locale: ar })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50">
+                        <TableHead className="text-right font-bold">المندوب</TableHead>
+                        <TableHead className="text-right font-bold">الكمية المباعة</TableHead>
+                        <TableHead className="text-right font-bold">المرتجع</TableHead>
+                        <TableHead className="text-right font-bold">النقدي</TableHead>
+                        <TableHead className="text-right font-bold">الآجل</TableHead>
+                        <TableHead className="text-right font-bold">الإجمالي</TableHead>
+                        <TableHead className="text-right font-bold">المصروفات</TableHead>
+                        <TableHead className="text-right font-bold">الصافي</TableHead>
+                        <TableHead className="text-right font-bold">العملاء</TableHead>
+                        <TableHead className="text-right font-bold">عرض</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {driverRows.map(([did, d]) => (
+                        <TableRow key={did} data-testid={`all-drivers-row-${did}`}>
+                          <TableCell className="font-medium">{d.name}</TableCell>
+                          <TableCell className="text-blue-700 font-bold">{d.totalQty}</TableCell>
+                          <TableCell className="text-orange-600">{d.returnQty || '-'}</TableCell>
+                          <TableCell className="text-emerald-600">{d.cashSales.toFixed(2)}</TableCell>
+                          <TableCell className="text-yellow-600">{d.creditSales > 0 ? d.creditSales.toFixed(2) : '-'}</TableCell>
+                          <TableCell className="text-blue-600 font-bold">{d.totalAmount.toFixed(2)}</TableCell>
+                          <TableCell className="text-red-600">{d.expenses > 0 ? d.expenses.toFixed(2) : '-'}</TableCell>
+                          <TableCell className="text-teal-700 font-bold">{(d.cashSales - d.expenses).toFixed(2)}</TableCell>
+                          <TableCell className="text-purple-600">{d.customerCount}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-indigo-600 hover:text-indigo-800"
+                              onClick={() => setSelectedDriverId(did)}
+                              data-testid={`btn-select-driver-${did}`}
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-slate-100 font-bold border-t-2">
+                        <TableCell className="font-bold">الإجمالي</TableCell>
+                        <TableCell className="text-blue-700 font-bold">{totals.totalQty}</TableCell>
+                        <TableCell className="text-orange-600">{totals.returnQty || '-'}</TableCell>
+                        <TableCell className="text-emerald-600">{totals.cashSales.toFixed(2)}</TableCell>
+                        <TableCell className="text-yellow-600">{totals.creditSales > 0 ? totals.creditSales.toFixed(2) : '-'}</TableCell>
+                        <TableCell className="text-blue-600 font-bold">{totals.totalAmount.toFixed(2)}</TableCell>
+                        <TableCell className="text-red-600">{totals.expenses > 0 ? totals.expenses.toFixed(2) : '-'}</TableCell>
+                        <TableCell className="text-teal-700 font-bold">{(totals.cashSales - totals.expenses).toFixed(2)}</TableCell>
+                        <TableCell className="text-purple-600">{totals.customerCount}</TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {(!isAdmin || driverId) && (<>
         {/* بطاقة الرصيد النقدي الكبيرة */}
