@@ -46,7 +46,7 @@ export default function Dashboard() {
   const totalSalesCount = monthSales.reduce((sum, t) => sum + (t.quantity || 0), 0);
 
   const totalBreadSold = monthSales.reduce((sum, t) => sum + (t.quantity || 0), 0);
-  const doughBatches = Math.floor(totalBreadSold / 450);
+  const doughBatches = (totalBreadSold / 450).toFixed(1);
 
   const totalCashCollected = monthTransactions
     .filter(t => (t.type as string) === 'CASH_SALE')
