@@ -4,21 +4,28 @@ services:
     container_name: alsultan-db
     environment:
       POSTGRES_USER: alsultan
-      POSTGRES_PASSWORD: Awe@93554
+      POSTGRES_PASSWORD: Awe93554
       POSTGRES_DB: alsultan
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alsultan -d alsultan"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   alsultan-bakery:
     build: .
     container_name: alsultan-bakery
-    env_file:
-      - .env
+    environment:
+      DATABASE_URL: postgresql://alsultan:Awe93554@db:5432/alsultan
+      PORT: "3000"
     ports:
       - "3020:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
