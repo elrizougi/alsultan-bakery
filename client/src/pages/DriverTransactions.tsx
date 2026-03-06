@@ -1335,8 +1335,8 @@ export default function DriverTransactionsPage() {
                     const isDriverDebt = (tx.type as string) === 'DRIVER_DEBT';
                     const isBreadDebt = isDriverDebt && tx.quantity > 0;
                     const isExpense = isExpenseType || (isDriverDebt && !isBreadDebt);
-                    const txDate = tx.createdAt ? new Date(tx.createdAt) : null;
-                    const isToday = txDate ? txDate >= today : false;
+                    const txDate = tx.createdAt ? format(new Date(tx.createdAt), 'yyyy-MM-dd') : null;
+                    const isToday = txDate === selectedDate;
 
                     let paymentStatus: 'unpaid' | 'partial' | 'paid' | null = null;
                     if (tx.type === 'CREDIT_SALE' && tx.customerId) {
