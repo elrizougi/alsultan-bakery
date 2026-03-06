@@ -142,7 +142,7 @@ export const transactions = pgTable("transactions", {
   notes: text("notes"),
 });
 
-export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
+export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true });
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE' | 'DAMAGED' | 'EXPENSE' | 'DRIVER_DEBT';

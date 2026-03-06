@@ -45,6 +45,7 @@ export default function DriverTransactionsPage() {
   const { data: users = [] } = useUsers();
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const driverId = isAdmin ? selectedDriverId : (currentUser?.id || "");
 
   const { data: products = [] } = useProducts();
@@ -60,8 +61,6 @@ export default function DriverTransactionsPage() {
   // طلبات تم تسليمها للعملاء
   const deliveredOrders = orders.filter(o => o.customerId === driverId && o.status === 'DELIVERED');
   
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-
   const { data: allDriverTransactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ["driver-transactions", driverId],
     queryFn: () => api.getDriverTransactions(driverId),
@@ -69,7 +68,7 @@ export default function DriverTransactionsPage() {
   });
 
   const transactions = allDriverTransactions.filter(t =>
-    t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === todayStr
+    t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === selectedDate
   );
 
   const { data: inventory = [] } = useQuery({
@@ -417,6 +416,7 @@ export default function DriverTransactionsPage() {
           unitPrice,
           totalAmount,
           notes: `فرق خبز: ${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
+          createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
         });
       } else {
         const amount = parseFloat(expenseAmount);
@@ -439,6 +439,7 @@ export default function DriverTransactionsPage() {
           unitPrice: "0",
           totalAmount: amount.toFixed(2),
           notes: `فرق نقدي: ${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
+          createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
         });
       }
       return;
@@ -474,6 +475,7 @@ export default function DriverTransactionsPage() {
         unitPrice: "0",
         totalAmount: amount.toFixed(2),
         notes: `${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
+        createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
       });
       return;
     }
@@ -517,6 +519,7 @@ export default function DriverTransactionsPage() {
       unitPrice,
       totalAmount,
       notes: formData.notes,
+      createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
     });
   };
 
@@ -657,7 +660,7 @@ export default function DriverTransactionsPage() {
         {isAdmin && (
           <Card className="border-2 border-primary/20 bg-primary/5">
             <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <Label className="font-bold text-lg whitespace-nowrap">اختر المندوب:</Label>
                 <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
                   <SelectTrigger className="max-w-xs bg-white" data-testid="select-driver">
@@ -671,6 +674,27 @@ export default function DriverTransactionsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="flex items-center gap-2 mr-auto">
+                  <Label className="font-bold whitespace-nowrap">التاريخ:</Label>
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    max={format(new Date(), 'yyyy-MM-dd')}
+                    className="w-44 bg-white"
+                    data-testid="input-date-filter"
+                  />
+                  {selectedDate !== format(new Date(), 'yyyy-MM-dd') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedDate(format(new Date(), 'yyyy-MM-dd'))}
+                      data-testid="button-reset-date"
+                    >
+                      اليوم
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

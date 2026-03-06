@@ -304,6 +304,7 @@ export interface InsertTransaction {
   unitPrice?: string;
   totalAmount?: string;
   notes?: string;
+  createdAt?: string;
 }
 
 export interface DriverInventory {

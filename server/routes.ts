@@ -634,7 +634,11 @@ export async function registerRoutes(
 
   app.post("/api/transactions", async (req, res) => {
     try {
-      const parsed = insertTransactionSchema.parse(req.body);
+      const body = { ...req.body };
+      if (body.createdAt && typeof body.createdAt === 'string') {
+        body.createdAt = new Date(body.createdAt);
+      }
+      const parsed = insertTransactionSchema.parse(body);
       
       const { type, customerId } = parsed;
       
