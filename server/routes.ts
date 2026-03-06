@@ -33,7 +33,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "اسم المستخدم أو كلمة المرور غير صحيحة" });
       }
 
-      if (user.role !== 'ADMIN') {
+      if (user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN') {
         return res.status(403).json({ message: "الدخول متاح فقط للمدير" });
       }
       

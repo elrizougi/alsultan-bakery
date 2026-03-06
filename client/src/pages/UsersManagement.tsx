@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { useStore } from "@/lib/store";
 import { useUsers, useCreateUser, useUpdateUser, useChangePassword, useToggleUserActive, useDeleteUser } from "@/hooks/useData";
 import {
   Table,
@@ -40,17 +41,21 @@ import { MoreVertical } from "lucide-react";
 
 const roleLabels: Record<Role, string> = {
   ADMIN: "مدير النظام",
+  SUB_ADMIN: "مدير مساعد",
   DRIVER: "مندوب توزيع",
   SALES: "موظف مبيعات",
 };
 
 const roleColors: Record<Role, string> = {
   ADMIN: "bg-purple-50 text-purple-700 border-purple-200",
+  SUB_ADMIN: "bg-amber-50 text-amber-700 border-amber-200",
   DRIVER: "bg-blue-50 text-blue-700 border-blue-200",
   SALES: "bg-green-50 text-green-700 border-green-200",
 };
 
 export default function UsersManagementPage() {
+  const currentUser = useStore(state => state.user);
+  const canExportCSV = currentUser?.role !== 'SUB_ADMIN';
   const { data: users = [], isLoading } = useUsers();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
@@ -123,7 +128,7 @@ export default function UsersManagementPage() {
         const password = values[passwordIdx];
         const name = values[nameIdx];
         const roleValue = roleIdx !== -1 ? values[roleIdx]?.toUpperCase() : "SALES";
-        const role: Role = (roleValue === "ADMIN" || roleValue === "DRIVER" || roleValue === "SALES") ? roleValue : "SALES";
+        const role: Role = (roleValue === "ADMIN" || roleValue === "SUB_ADMIN" || roleValue === "DRIVER" || roleValue === "SALES") ? roleValue : "SALES";
 
         if (!username || !password || !name || password.length < 6) {
           errorCount++;
@@ -254,6 +259,7 @@ export default function UsersManagementPage() {
             <Button onClick={() => setIsCreateOpen(true)} className="gap-2 bg-primary rounded-xl h-11 px-6 font-bold shadow-lg shadow-primary/20">
               <UserPlus className="h-4 w-4" /> إضافة موظف
             </Button>
+            {canExportCSV && (<>
             <Button 
               variant="outline" 
               className="gap-2 rounded-xl h-11" 
@@ -277,6 +283,7 @@ export default function UsersManagementPage() {
               onChange={handleFileUpload}
               className="hidden"
             />
+            </>)}
           </div>
         </div>
 
@@ -441,6 +448,7 @@ export default function UsersManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ADMIN">مدير النظام</SelectItem>
+                    <SelectItem value="SUB_ADMIN">مدير مساعد</SelectItem>
                     <SelectItem value="DRIVER">مندوب توزيع</SelectItem>
                     <SelectItem value="SALES">موظف مبيعات</SelectItem>
                   </SelectContent>
@@ -480,6 +488,7 @@ export default function UsersManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ADMIN">مدير النظام</SelectItem>
+                    <SelectItem value="SUB_ADMIN">مدير مساعد</SelectItem>
                     <SelectItem value="DRIVER">مندوب توزيع</SelectItem>
                     <SelectItem value="SALES">موظف مبيعات</SelectItem>
                   </SelectContent>

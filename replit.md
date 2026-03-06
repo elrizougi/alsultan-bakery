@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 - **Shared Types**: Schema types are shared between frontend and backend via the `@shared` path alias
 
 ### Key Entities
-- **Users**: Authentication with role-based permissions (ADMIN, DRIVER, SALES)
+- **Users**: Authentication with role-based permissions (ADMIN, SUB_ADMIN, DRIVER, SALES). SUB_ADMIN has all ADMIN capabilities except CSV import/export.
 - **Products**: Bakery items with SKU, pricing, and stock tracking
 - **Customers**: Customer profiles with delivery addresses and route assignments
 - **Routes**: Delivery routes with assigned drivers

@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 // --- Types ---
 
-export type Role = 'ADMIN' | 'DRIVER' | 'SALES';
+export type Role = 'ADMIN' | 'SUB_ADMIN' | 'DRIVER' | 'SALES';
 
 export interface User {
   id: string;

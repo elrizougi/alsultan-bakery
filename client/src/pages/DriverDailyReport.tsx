@@ -26,7 +26,8 @@ import { ar } from "date-fns/locale";
 
 export default function DriverDailyReportPage() {
   const currentUser = useStore(state => state.user);
-  const isAdmin = currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUB_ADMIN';
+  const canExportCSV = currentUser?.role !== 'SUB_ADMIN';
   const { data: users = [] } = useUsers();
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
@@ -591,6 +592,7 @@ export default function DriverDailyReportPage() {
                   <FileText className="h-6 w-6 text-blue-600" />
                   تقارير جميع المناديب
                 </CardTitle>
+                {canExportCSV && (
                 <div className="flex gap-2">
                   <input
                     type="file"
@@ -633,6 +635,7 @@ export default function DriverDailyReportPage() {
                     تصدير CSV
                   </Button>
                 </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -702,6 +705,7 @@ export default function DriverDailyReportPage() {
                         <FileText className="h-6 w-6 text-blue-600" />
                         سجل العمليات اليومية - {driverName}
                       </CardTitle>
+                      {canExportCSV && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -713,6 +717,7 @@ export default function DriverDailyReportPage() {
                         <Download className="h-4 w-4" />
                         تصدير CSV
                       </Button>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">

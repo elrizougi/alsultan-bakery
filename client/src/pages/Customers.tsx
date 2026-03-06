@@ -1,4 +1,5 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { useStore } from "@/lib/store";
 import { useCustomers, useRoutes, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useUsers } from "@/hooks/useData";
 import {
   Table,
@@ -51,6 +52,8 @@ interface CustomerFormData {
 }
 
 export default function CustomersPage() {
+  const currentUser = useStore(state => state.user);
+  const canExportCSV = currentUser?.role !== 'SUB_ADMIN';
   const { data: customers = [], isLoading } = useCustomers();
   const { data: routes = [] } = useRoutes();
   const { data: users = [] } = useUsers();
@@ -336,6 +339,7 @@ export default function CustomersPage() {
             <Button className="flex flex-row-reverse gap-2" onClick={openAddForm} data-testid="button-add-customer">
               <UserPlus className="h-4 w-4" /> إضافة عميل
             </Button>
+            {canExportCSV && (<>
             <Button 
               variant="outline" 
               className="flex flex-row-reverse gap-2" 
@@ -369,6 +373,7 @@ export default function CustomersPage() {
               onChange={handleFileUpload}
               className="hidden"
             />
+            </>)}
           </div>
         </div>
 

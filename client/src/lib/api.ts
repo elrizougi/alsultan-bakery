@@ -1,7 +1,7 @@
 import { apiRequest } from "./queryClient";
 
 // Types from store (we'll use these for consistency)
-export type Role = 'ADMIN' | 'DRIVER' | 'SALES';
+export type Role = 'ADMIN' | 'SUB_ADMIN' | 'DRIVER' | 'SALES';
 export type Status = 'DRAFT' | 'CONFIRMED' | 'ASSIGNED' | 'DELIVERED' | 'CLOSED' | 'CANCELED';
 
 export interface User {

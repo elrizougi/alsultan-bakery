@@ -4,7 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Enums
-export const roleEnum = pgEnum('role', ['ADMIN', 'DRIVER', 'SALES']);
+export const roleEnum = pgEnum('role', ['ADMIN', 'SUB_ADMIN', 'DRIVER', 'SALES']);
 export const orderStatusEnum = pgEnum('order_status', ['DRAFT', 'CONFIRMED', 'ASSIGNED', 'DELIVERED', 'CLOSED', 'CANCELED']);
 export const transactionTypeEnum = pgEnum('transaction_type', ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE', 'DAMAGED', 'EXPENSE', 'DRIVER_DEBT']);
 
@@ -21,7 +21,7 @@ export const users = pgTable("users", {
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
-export type Role = 'ADMIN' | 'DRIVER' | 'SALES';
+export type Role = 'ADMIN' | 'SUB_ADMIN' | 'DRIVER' | 'SALES';
 
 // Products table
 export const products = pgTable("products", {

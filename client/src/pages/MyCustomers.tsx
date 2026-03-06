@@ -15,7 +15,8 @@ import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-f
 
 export default function MyCustomersPage() {
   const currentUser = useStore(state => state.user);
-  const isAdmin = currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUB_ADMIN';
+  const canExportCSV = currentUser?.role !== 'SUB_ADMIN';
   const { data: allUsers = [] } = useUsers();
   const driversList = allUsers.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
@@ -165,10 +166,12 @@ export default function MyCustomersPage() {
               <Users className="h-5 w-5 text-primary" />
               <span className="font-bold text-primary">{myCustomers.length} عميل</span>
             </div>
+            {canExportCSV && (
             <Button onClick={handleExportCSV} variant="outline" className="gap-2" data-testid="button-export-csv" disabled={isAdmin && !driverId}>
               <Download className="h-4 w-4" />
               تحميل CSV
             </Button>
+            )}
           </div>
         </div>
 

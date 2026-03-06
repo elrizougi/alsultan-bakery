@@ -41,7 +41,7 @@ export default function DriverTransactionsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const currentUser = useStore(state => state.user);
-  const isAdmin = currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUB_ADMIN';
   const { data: users = [] } = useUsers();
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");

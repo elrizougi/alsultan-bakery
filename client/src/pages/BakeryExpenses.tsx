@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,8 @@ interface BakeryExpense {
 }
 
 export default function BakeryExpensesPage() {
+  const currentUser = useStore(state => state.user);
+  const canExportCSV = currentUser?.role !== 'SUB_ADMIN';
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showExpenseDialog, setShowExpenseDialog] = useState(false);
@@ -320,10 +323,12 @@ export default function BakeryExpensesPage() {
               <Settings2 className="h-4 w-4" />
               إدارة البنود
             </Button>
+            {canExportCSV && (
             <Button onClick={handleExportCSV} variant="outline" className="gap-2" data-testid="button-export-csv">
               <Download className="h-4 w-4" />
               تصدير CSV
             </Button>
+            )}
           </div>
         </div>
 
