@@ -258,7 +258,12 @@ export default function DriverDailyReportPage() {
       amount: parseFloat(t.totalAmount || "0"),
     }));
 
-    return { customers: Array.from(customerMap.values()), returnData, damagedData, expenseData };
+    const servedCustomerIds = new Set(
+      dayTx.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
+        .map(t => t.customerId).filter(Boolean)
+    );
+
+    return { customers: Array.from(customerMap.values()), returnData, damagedData, expenseData, servedCustomerIds };
   };
 
   const productColumns = products.filter(p => {
@@ -881,6 +886,44 @@ export default function DriverDailyReportPage() {
                       </Table>
                     </CardContent>
                   </Card>
+
+                  {(() => {
+                    const detailDriverCustomers = customers.filter(c => c.driverId === detailDriverId);
+                    const unservedCustomers = detailDriverCustomers.filter(c => !detail.servedCustomerIds.has(c.id));
+                    if (unservedCustomers.length === 0) return null;
+                    return (
+                      <Card className="border-slate-200">
+                        <CardHeader className="bg-slate-50 py-3">
+                          <CardTitle className="text-lg font-bold flex items-center gap-2">
+                            <Users className="h-5 w-5 text-slate-500" />
+                            عملاء لم يتم التوزيع لهم ({unservedCustomers.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-slate-50">
+                                <TableHead className="text-right font-bold">#</TableHead>
+                                <TableHead className="text-right font-bold">اسم العميل</TableHead>
+                                <TableHead className="text-right font-bold">رقم الهاتف</TableHead>
+                                <TableHead className="text-right font-bold">العنوان</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {unservedCustomers.map((c, i) => (
+                                <TableRow key={c.id} className="text-slate-500" data-testid={`unserved-customer-${c.id}`}>
+                                  <TableCell>{i + 1}</TableCell>
+                                  <TableCell className="font-medium">{c.name}</TableCell>
+                                  <TableCell>{c.phone || '-'}</TableCell>
+                                  <TableCell>{c.address || '-'}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
 
                   {detail.returnData.length > 0 && (
                     <Card className="border-orange-100">
