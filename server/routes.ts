@@ -48,6 +48,10 @@ export async function registerRoutes(
   app.post("/api/auth/register", async (req, res) => {
     try {
       const parsed = insertUserSchema.parse(req.body);
+      const requestedByRole = req.headers['x-user-role'];
+      if (requestedByRole === 'SUB_ADMIN' && parsed.role === 'ADMIN') {
+        return res.status(403).json({ message: "لا يمكن للمدير المساعد إنشاء حساب مدير نظام" });
+      }
       const existing = await storage.getUserByUsername(parsed.username);
       
       if (existing) {
@@ -182,8 +186,21 @@ export async function registerRoutes(
   });
 
   // ============ USERS MANAGEMENT ============
+  const checkSubAdminCannotModifyAdmin = async (req: any, res: any, targetUserId: string): Promise<boolean> => {
+    const requestedByRole = req.headers['x-user-role'];
+    if (requestedByRole === 'SUB_ADMIN') {
+      const targetUser = await storage.getUser(targetUserId);
+      if (targetUser && targetUser.role === 'ADMIN') {
+        res.status(403).json({ message: "لا يمكن للمدير المساعد تعديل بيانات مدير النظام" });
+        return false;
+      }
+    }
+    return true;
+  };
+
   app.patch("/api/users/:id", async (req, res) => {
     try {
+      if (!(await checkSubAdminCannotModifyAdmin(req, res, req.params.id))) return;
       const { password, ...userData } = req.body;
       const user = await storage.updateUser(req.params.id, userData);
       if (!user) {
@@ -198,6 +215,7 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id/password", async (req, res) => {
     try {
+      if (!(await checkSubAdminCannotModifyAdmin(req, res, req.params.id))) return;
       const { password } = req.body;
       if (!password || password.length < 6) {
         return res.status(400).json({ message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
@@ -214,6 +232,7 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id/toggle-active", async (req, res) => {
     try {
+      if (!(await checkSubAdminCannotModifyAdmin(req, res, req.params.id))) return;
       const { isActive } = req.body;
       const user = await storage.toggleUserActive(req.params.id, isActive);
       if (!user) {
@@ -228,6 +247,7 @@ export async function registerRoutes(
 
   app.delete("/api/users/:id", async (req, res) => {
     try {
+      if (!(await checkSubAdminCannotModifyAdmin(req, res, req.params.id))) return;
       await storage.deleteUser(req.params.id);
       res.json({ message: "تم حذف المستخدم" });
     } catch (error) {

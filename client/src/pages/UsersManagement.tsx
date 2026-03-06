@@ -351,6 +351,7 @@ export default function UsersManagementPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-left">
+                    {(currentUser?.role !== 'SUB_ADMIN' || user.role !== 'ADMIN') ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -388,6 +389,9 @@ export default function UsersManagementPage() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    ) : (
+                      <Shield className="h-4 w-4 text-purple-400 mx-auto" />
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -447,7 +451,7 @@ export default function UsersManagementPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ADMIN">مدير النظام</SelectItem>
+                    {currentUser?.role !== 'SUB_ADMIN' && <SelectItem value="ADMIN">مدير النظام</SelectItem>}
                     <SelectItem value="SUB_ADMIN">مدير مساعد</SelectItem>
                     <SelectItem value="DRIVER">مندوب توزيع</SelectItem>
                     <SelectItem value="SALES">موظف مبيعات</SelectItem>
@@ -487,7 +491,7 @@ export default function UsersManagementPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ADMIN">مدير النظام</SelectItem>
+                    {currentUser?.role !== 'SUB_ADMIN' && <SelectItem value="ADMIN">مدير النظام</SelectItem>}
                     <SelectItem value="SUB_ADMIN">مدير مساعد</SelectItem>
                     <SelectItem value="DRIVER">مندوب توزيع</SelectItem>
                     <SelectItem value="SALES">موظف مبيعات</SelectItem>

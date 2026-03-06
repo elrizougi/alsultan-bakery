@@ -46,7 +46,7 @@ export default function DriverDailyReportPage() {
   const { data: allTransactions = [] } = useQuery({
     queryKey: ["all-transactions"],
     queryFn: () => api.getAllTransactions(),
-    enabled: isAdmin && !selectedDriverId,
+    enabled: isAdmin && (!selectedDriverId || selectedDriverId === "all"),
   });
 
   const { data: driverTransactions = [] } = useQuery({
