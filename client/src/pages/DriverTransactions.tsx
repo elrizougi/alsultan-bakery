@@ -324,6 +324,7 @@ export default function DriverTransactionsPage() {
   const [editForm, setEditForm] = useState({ quantity: 1, unitPrice: "", customerId: "", notes: "" });
   const [editCustomerSearchOpen, setEditCustomerSearchOpen] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [loadProductId, setLoadProductId] = useState("");
   const [loadQuantity, setLoadQuantity] = useState<string>("");
   const [newCustomerName, setNewCustomerName] = useState("");
@@ -386,6 +387,25 @@ export default function DriverTransactionsPage() {
     } catch (error) {
       toast({ title: "حدث خطأ في إضافة العميل", variant: "destructive" });
     }
+  };
+
+  const checkDuplicateAndSubmit = (txData: { type: string; customerId?: string; productId?: string; quantity: number }, submitFn: () => void) => {
+    const isDuplicate = transactions.some(t =>
+      t.type === txData.type &&
+      t.customerId === txData.customerId &&
+      t.productId === txData.productId &&
+      t.quantity === txData.quantity
+    );
+    if (isDuplicate) {
+      const customerName = txData.customerId ? (customers.find(c => c.id === txData.customerId)?.name || '') : '';
+      const typeName = transactionTypeLabels[txData.type]?.label || txData.type;
+      setDuplicateWarning({
+        message: `توجد عملية مشابهة (${typeName}${customerName ? ' - ' + customerName : ''} - ${txData.quantity} قطعة) مسجلة مسبقاً اليوم. هل تريد المتابعة؟`,
+        onConfirm: () => { setDuplicateWarning(null); submitFn(); },
+      });
+      return;
+    }
+    submitFn();
   };
 
   const handleSubmit = () => {
@@ -519,17 +539,21 @@ export default function DriverTransactionsPage() {
       customerId = defaultCustomer.id;
     }
 
-    createTransaction.mutate({
-      type: formData.type as TransactionType,
-      driverId: driverId,
-      productId: formData.productId,
-      quantity: requestedQuantity,
-      customerId: customerId!,
-      unitPrice,
-      totalAmount,
-      notes: formData.notes,
-      createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
-    });
+    const doSubmit = () => {
+      createTransaction.mutate({
+        type: formData.type as TransactionType,
+        driverId: driverId,
+        productId: formData.productId,
+        quantity: requestedQuantity,
+        customerId: customerId!,
+        unitPrice,
+        totalAmount,
+        notes: formData.notes,
+        createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
+      });
+    };
+
+    checkDuplicateAndSubmit({ type: formData.type as string, customerId: customerId!, productId: formData.productId, quantity: requestedQuantity }, doSubmit);
   };
 
   const handleSubmitDeposit = () => {
@@ -2222,6 +2246,30 @@ export default function DriverTransactionsPage() {
               data-testid="button-confirm-load"
             >
               {loadInventory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "تحميل"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!duplicateWarning} onOpenChange={(open) => { if (!open) setDuplicateWarning(null); }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              تحذير: عملية مكررة
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-right text-sm leading-relaxed py-2">{duplicateWarning?.message}</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDuplicateWarning(null)}>
+              إلغاء
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={() => duplicateWarning?.onConfirm()}
+              data-testid="button-confirm-duplicate"
+            >
+              متابعة على أي حال
             </Button>
           </DialogFooter>
         </DialogContent>
