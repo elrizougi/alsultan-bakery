@@ -53,11 +53,11 @@ export type Route = typeof routes.$inferSelect;
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  address: text("address").notNull(),
+  address: text("address").default(""),
   locationUrl: text("location_url"),
   routeId: varchar("route_id").references(() => routes.id),
   driverId: varchar("driver_id").references(() => users.id),
-  phone: text("phone").notNull(),
+  phone: text("phone").default(""),
 });
 
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true });

@@ -276,19 +276,19 @@ export default function CustomersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.address || !formData.phone) {
-      toast({ title: "يرجى ملء جميع الحقول المطلوبة", variant: "destructive" });
+    if (!formData.name) {
+      toast({ title: "يرجى إدخال اسم العميل", variant: "destructive" });
       return;
     }
 
     try {
-      const customerData = {
+      const customerData: any = {
         name: formData.name,
-        address: formData.address,
+        address: formData.address || "",
         locationUrl: formData.locationUrl || undefined,
-        phone: formData.phone,
-        routeId: formData.routeId || undefined,
-        driverId: formData.driverId || undefined,
+        phone: formData.phone || "",
+        routeId: formData.routeId || null,
+        driverId: formData.driverId || null,
       };
 
       if (editingCustomer) {
@@ -558,7 +558,6 @@ export default function CustomersPage() {
                   id="name" 
                   value={formData.name} 
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-                  required 
                   data-testid="input-customer-name"
                 />
               </div>
@@ -574,11 +573,12 @@ export default function CustomersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="driver">المندوب المسؤول</Label>
-                  <Select onValueChange={(value) => setFormData({ ...formData, driverId: value })} value={formData.driverId}>
+                  <Select onValueChange={(value) => setFormData({ ...formData, driverId: value === "none" ? "" : value })} value={formData.driverId || "none"}>
                     <SelectTrigger className="text-right" data-testid="select-customer-driver">
                       <SelectValue placeholder="اختر المندوب" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">— بدون مندوب —</SelectItem>
                       {drivers.map(driver => (
                         <SelectItem key={driver.id} value={driver.id}>{driver.name}</SelectItem>
                       ))}
@@ -589,11 +589,12 @@ export default function CustomersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="route">خط التوزيع</Label>
-                  <Select onValueChange={(value) => setFormData({ ...formData, routeId: value })} value={formData.routeId}>
+                  <Select onValueChange={(value) => setFormData({ ...formData, routeId: value === "none" ? "" : value })} value={formData.routeId || "none"}>
                     <SelectTrigger className="text-right" data-testid="select-customer-route">
                       <SelectValue placeholder="اختر الخط" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">— بدون خط —</SelectItem>
                       {routes.map(route => (
                         <SelectItem key={route.id} value={route.id}>{route.name}</SelectItem>
                       ))}
@@ -607,7 +608,6 @@ export default function CustomersPage() {
                   id="address" 
                   value={formData.address} 
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
-                  required 
                   data-testid="input-customer-address"
                 />
               </div>
