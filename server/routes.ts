@@ -796,14 +796,31 @@ export async function registerRoutes(
 
   app.post("/api/driver-load-inventory", async (req, res) => {
     try {
-      const { driverId, productId, quantity } = req.body;
+      const { driverId, productId, quantity, mode } = req.body;
       if (!driverId || !productId || !quantity || quantity <= 0) {
         return res.status(400).json({ message: "بيانات غير صالحة" });
       }
 
-      await storage.updateDriverInventory(driverId, productId, quantity);
+      const isReturn = mode === 'return';
+      const qtyChange = isReturn ? -quantity : quantity;
 
-      res.json({ message: "تم تحميل الخبز بنجاح" });
+      if (isReturn) {
+        const currentInv = await storage.getDriverInventoryItem(driverId, productId);
+        if (!currentInv || currentInv.quantity < quantity) {
+          return res.status(400).json({ message: `الكمية المتوفرة لدى المندوب (${currentInv?.quantity || 0}) أقل من كمية المرتجع (${quantity})` });
+        }
+      }
+
+      await storage.updateDriverInventory(driverId, productId, qtyChange);
+
+      const product = await storage.getProduct(productId);
+      if (product) {
+        const stockChange = isReturn ? quantity : -quantity;
+        const newStock = Math.max(0, product.stock + stockChange);
+        await storage.updateProduct(productId, { stock: newStock });
+      }
+
+      res.json({ message: isReturn ? "تم إرجاع الخبز للمخبز بنجاح" : "تم تحميل الخبز بنجاح" });
     } catch (error) {
       console.error("Load inventory error:", error);
       res.status(500).json({ message: "خطأ في الخادم" });

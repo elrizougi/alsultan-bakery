@@ -151,18 +151,19 @@ export default function DriverTransactionsPage() {
   });
 
   const loadInventory = useMutation({
-    mutationFn: ({ productId, quantity }: { productId: string; quantity: number }) =>
-      api.loadDriverInventory(driverId, productId, quantity),
-    onSuccess: () => {
+    mutationFn: ({ productId, quantity, mode }: { productId: string; quantity: number; mode: 'load' | 'return' }) =>
+      api.loadDriverInventory(driverId, productId, quantity, mode),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast({ title: "تم تحميل الخبز للمندوب بنجاح" });
+      toast({ title: variables.mode === 'return' ? "تم إرجاع الخبز للمخبز بنجاح" : "تم تحميل الخبز للمندوب بنجاح" });
       setIsLoadDialogOpen(false);
       setLoadProductId("");
       setLoadQuantity("");
+      setLoadMode("load");
     },
     onError: (error: any) => {
-      const message = error?.message || "حدث خطأ في تحميل الخبز";
+      const message = error?.message || "حدث خطأ";
       toast({ title: message, variant: "destructive" });
     },
   });
@@ -324,6 +325,7 @@ export default function DriverTransactionsPage() {
   const [editForm, setEditForm] = useState({ quantity: 1, unitPrice: "", customerId: "", notes: "" });
   const [editCustomerSearchOpen, setEditCustomerSearchOpen] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  const [loadMode, setLoadMode] = useState<'load' | 'return'>('load');
   const [duplicateWarning, setDuplicateWarning] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [loadProductId, setLoadProductId] = useState("");
   const [loadQuantity, setLoadQuantity] = useState<string>("");
@@ -2198,9 +2200,36 @@ export default function DriverTransactionsPage() {
       <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
         <DialogContent className="sm:max-w-md" dir="rtl">
           <DialogHeader>
-            <DialogTitle className="text-right">تحميل خبز للمندوب</DialogTitle>
+            <DialogTitle className="text-right">
+              {loadMode === 'load' ? 'تحميل خبز للمندوب' : 'مرتجع خبز من المندوب'}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>نوع العملية *</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={loadMode === 'load' ? 'default' : 'outline'}
+                  className={`flex-1 ${loadMode === 'load' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                  onClick={() => setLoadMode('load')}
+                  data-testid="btn-load-mode"
+                >
+                  <Truck className="h-4 w-4 ml-2" />
+                  تحميل
+                </Button>
+                <Button
+                  type="button"
+                  variant={loadMode === 'return' ? 'default' : 'outline'}
+                  className={`flex-1 ${loadMode === 'return' ? 'bg-orange-600 hover:bg-orange-700' : ''}`}
+                  onClick={() => setLoadMode('return')}
+                  data-testid="btn-return-mode"
+                >
+                  <Undo2 className="h-4 w-4 ml-2" />
+                  مرتجع
+                </Button>
+              </div>
+            </div>
             <div className="grid gap-2">
               <Label>المنتج *</Label>
               <Select value={loadProductId} onValueChange={setLoadProductId}>
@@ -2211,6 +2240,10 @@ export default function DriverTransactionsPage() {
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name}
+                      {loadMode === 'return' && (() => {
+                        const inv = inventory.find(i => i.productId === product.id);
+                        return inv ? ` (متوفر: ${inv.quantity})` : '';
+                      })()}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -2228,24 +2261,34 @@ export default function DriverTransactionsPage() {
                 data-testid="input-load-quantity"
               />
             </div>
+
+            {loadMode === 'return' && loadProductId && (() => {
+              const inv = inventory.find(i => i.productId === loadProductId);
+              return (
+                <p className="text-sm text-orange-600 font-medium">
+                  الكمية المتوفرة لدى المندوب: {inv?.quantity || 0}
+                </p>
+              );
+            })()}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsLoadDialogOpen(false); setLoadProductId(""); setLoadQuantity(""); }}>
+            <Button variant="outline" onClick={() => { setIsLoadDialogOpen(false); setLoadProductId(""); setLoadQuantity(""); setLoadMode("load"); }}>
               إلغاء
             </Button>
             <Button
+              className={loadMode === 'return' ? 'bg-orange-600 hover:bg-orange-700' : ''}
               onClick={() => {
                 const qty = parseInt(loadQuantity);
                 if (!loadProductId || !qty || qty <= 0) {
                   toast({ title: "يرجى اختيار المنتج وإدخال الكمية", variant: "destructive" });
                   return;
                 }
-                loadInventory.mutate({ productId: loadProductId, quantity: qty });
+                loadInventory.mutate({ productId: loadProductId, quantity: qty, mode: loadMode });
               }}
               disabled={loadInventory.isPending}
               data-testid="button-confirm-load"
             >
-              {loadInventory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "تحميل"}
+              {loadInventory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : (loadMode === 'return' ? 'إرجاع' : 'تحميل')}
             </Button>
           </DialogFooter>
         </DialogContent>
