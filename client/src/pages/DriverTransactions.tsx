@@ -1122,7 +1122,7 @@ export default function DriverTransactionsPage() {
         {(!isAdmin || driverId) && (<>
         {/* بطاقة الرصيد النقدي الكبيرة */}
         <Card className={`border shadow-sm mb-4 ${cumulativeBalance >= 0 ? 'border-blue-200 bg-blue-50/50' : 'border-red-200 bg-red-50/50'}`}>
-          <CardContent className="py-3 px-4">
+          <CardContent className="p-6 py-3 px-4 pt-[18px] pb-[18px] pl-[16px] pr-[16px]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-xl ${cumulativeBalance >= 0 ? 'bg-blue-500' : 'bg-red-500'}`}>
