@@ -686,8 +686,7 @@ export default function DriverTransactionsPage() {
   const avgSalePriceTotal = salesExcludingMoghallaf.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
   const avgSalePrice = avgSalePriceQty > 0 ? avgSalePriceTotal / avgSalePriceQty : 0;
 
-  // عمليات السجل (بدون المرتجع)
-  const logTransactions = transactions.filter(t => t.type !== 'RETURN');
+  const logTransactions = transactions;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
