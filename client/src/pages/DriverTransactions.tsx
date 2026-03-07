@@ -704,7 +704,7 @@ export default function DriverTransactionsPage() {
   const dailyPaidToBakery = cashDeposits
     .filter(d => d.depositDate === selectedDate && d.status === 'CONFIRMED')
     .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
-  const driverCashBalance = parseFloat(balance?.cashBalance || '0');
+  const driverCashBalance = totalSoldValue - dailyPaidToBakery - dailyCreditSales;
 
   const driverName = users.find(u => u.id === driverId)?.name || '';
 
