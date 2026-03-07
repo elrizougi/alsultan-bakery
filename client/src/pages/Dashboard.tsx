@@ -208,7 +208,6 @@ export default function Dashboard() {
                         <TableHead className="text-right font-bold">عدد المناديب</TableHead>
                         <TableHead className="text-right font-bold">الخبز الكلي</TableHead>
                         <TableHead className="text-right font-bold">الخبز المباع</TableHead>
-                        <TableHead className="text-right font-bold">الراجع</TableHead>
                         <TableHead className="text-right font-bold">التالف</TableHead>
                         <TableHead className="text-right font-bold">متوسط سعر البيع</TableHead>
                         <TableHead className="text-right font-bold">المحصل نقداً</TableHead>
@@ -267,7 +266,6 @@ export default function Dashboard() {
                             <TableCell>{activeDrivers}</TableCell>
                             <TableCell>{totalBread}</TableCell>
                             <TableCell>{soldBread}</TableCell>
-                            <TableCell className="text-blue-600 font-semibold">{returnedBread}</TableCell>
                             <TableCell className="text-gray-600 font-semibold">{damagedBread}</TableCell>
                             <TableCell className="text-purple-700 font-semibold">{avgPrice > 0 ? `${fmt(avgPrice)} ر.س` : '-'}</TableCell>
                             <TableCell className="text-emerald-700 font-semibold">{fmt(cashCollected)} ر.س</TableCell>
