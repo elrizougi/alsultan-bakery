@@ -1122,17 +1122,17 @@ export default function DriverTransactionsPage() {
         {(!isAdmin || driverId) && (<>
         {/* بطاقة الرصيد النقدي الكبيرة */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg">
+          <Card className={`border-2 shadow-lg ${driverCashBalance >= 0 ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50' : 'border-red-200 bg-gradient-to-br from-red-50 to-rose-50'}`}>
             <CardContent className="pt-6">
               <div className="flex flex-col items-center gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="p-4 bg-green-500 rounded-2xl shadow-md">
+                  <div className={`p-4 rounded-2xl shadow-md ${driverCashBalance >= 0 ? 'bg-green-500' : 'bg-red-500'}`}>
                     <DollarSign className="h-10 w-10 text-white" />
                   </div>
                   <div className="text-center md:text-right">
-                    <p className="text-lg font-medium text-green-700">الرصيد النقدي</p>
-                    <div className="text-4xl md:text-5xl font-bold text-green-600" data-testid="text-cash-balance">
-                      {parseFloat(balance?.cashBalance || "0").toFixed(2)} <span className="text-2xl">ر.س</span>
+                    <p className={`text-lg font-medium ${driverCashBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>رصيد المندوب لهذا اليوم</p>
+                    <div className={`text-4xl md:text-5xl font-bold ${driverCashBalance >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-cash-balance">
+                      {driverCashBalance.toFixed(2)} <span className="text-2xl">ر.س</span>
                     </div>
                   </div>
                 </div>
