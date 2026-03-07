@@ -1121,42 +1121,35 @@ export default function DriverTransactionsPage() {
 
         {(!isAdmin || driverId) && (<>
         {/* بطاقة الرصيد النقدي الكبيرة */}
-        <Card className={`border-2 shadow-lg mb-6 ${cumulativeBalance >= 0 ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50' : 'border-red-200 bg-gradient-to-br from-red-50 to-rose-50'}`}>
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-4">
-                <div className={`p-4 rounded-2xl shadow-md ${cumulativeBalance >= 0 ? 'bg-blue-500' : 'bg-red-500'}`}>
-                  <BarChart3 className="h-10 w-10 text-white" />
+        <Card className={`border shadow-sm mb-4 ${cumulativeBalance >= 0 ? 'border-blue-200 bg-blue-50/50' : 'border-red-200 bg-red-50/50'}`}>
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${cumulativeBalance >= 0 ? 'bg-blue-500' : 'bg-red-500'}`}>
+                  <BarChart3 className="h-5 w-5 text-white" />
                 </div>
-                <div className="text-center md:text-right">
-                  <p className={`text-lg font-medium ${cumulativeBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>رصيد المندوب التراكمي</p>
-                  <div className={`text-4xl md:text-5xl font-bold ${cumulativeBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`} data-testid="text-cumulative-balance">
-                    {cumulativeBalance.toFixed(2)} <span className="text-2xl">ر.س</span>
+                <div>
+                  <p className={`text-xs font-medium ${cumulativeBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>رصيد المندوب التراكمي</p>
+                  <div className={`text-2xl font-bold ${cumulativeBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`} data-testid="text-cumulative-balance">
+                    {cumulativeBalance.toFixed(2)} <span className="text-sm">ر.س</span>
                   </div>
                 </div>
               </div>
-              <Button 
-                size="lg"
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg rounded-xl shadow-md"
-                onClick={() => setIsDepositDialogOpen(true)}
-                data-testid="button-open-deposit-dialog"
-              >
-                <Banknote className="h-6 w-6 ml-2" />
-                تسليم مبلغ للمخبز
-              </Button>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                <span className="text-gray-600">إجمالي المبيعات</span>
-                <span className="font-bold text-gray-800">{allTotalSales.toFixed(2)} ر.س</span>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                <span className="text-gray-600">المدفوع للمخبز</span>
-                <span className="font-bold text-emerald-700">- {allPaidToBakery.toFixed(2)} ر.س</span>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                <span className="text-gray-600">الآجل</span>
-                <span className="font-bold text-yellow-700">- {allCreditSales.toFixed(2)} ر.س</span>
+              <div className="flex items-center gap-3">
+                <div className="hidden md:flex gap-4 text-xs">
+                  <span className="text-gray-600">المبيعات: <strong className="text-gray-800">{allTotalSales.toFixed(2)}</strong></span>
+                  <span className="text-emerald-600">المدفوع: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
+                  <span className="text-yellow-600">الآجل: <strong>-{allCreditSales.toFixed(2)}</strong></span>
+                </div>
+                <Button 
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                  onClick={() => setIsDepositDialogOpen(true)}
+                  data-testid="button-open-deposit-dialog"
+                >
+                  <Banknote className="h-4 w-4 ml-1" />
+                  تسليم للمخبز
+                </Button>
               </div>
             </div>
           </CardContent>
