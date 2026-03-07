@@ -1205,11 +1205,11 @@ export default function DriverTransactionsPage() {
             <CardContent className="pt-6 pb-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-red-500 rounded-xl">
-                  <Undo2 className="h-6 w-6 text-white" />
+                  <AlertTriangle className="h-6 w-6 text-white" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-red-600">تالف</p>
-                  <p className="text-2xl font-bold text-red-700" data-testid="text-return-bread">{totalDamagedBread}</p>
+                  <p className="text-2xl font-bold text-red-700" data-testid="text-damaged-bread">{totalDamagedBread}</p>
                 </div>
               </div>
             </CardContent>
