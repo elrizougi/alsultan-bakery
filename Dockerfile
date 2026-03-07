@@ -21,6 +21,9 @@ COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 
+RUN mkdir -p /app/uploads/receipts \
+    && chown -R node:node /app/uploads
+
 ENV NODE_ENV=production
 ENV PORT=3000
 
