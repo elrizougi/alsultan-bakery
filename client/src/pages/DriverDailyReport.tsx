@@ -285,7 +285,7 @@ export default function DriverDailyReportPage() {
     if (showDriverColumn) headers.push('المندوب');
     productColumns.forEach(p => headers.push(p.name));
     if (showDriverColumn) {
-      headers.push('المجموع', 'النقدي', 'الآجل', 'الإجمالي', 'المصروفات', 'المديونية', 'الصافي', 'العملاء');
+      headers.push('المجموع', 'التالف', 'النقدي', 'الآجل', 'الإجمالي', 'المصروفات', 'المديونية', 'الصافي', 'العملاء');
     } else {
       headers.push('المجموع', 'المرتجع', 'التالف', 'النقدي', 'الآجل', 'الإجمالي', 'المصروفات', 'المديونية', 'الصافي', 'العملاء');
     }
@@ -303,8 +303,9 @@ export default function DriverDailyReportPage() {
       });
       cols.push(String(d.totalSoldQty));
       if (!showDriverColumn) {
-        cols.push(String(d.returnedQty), String(d.damagedQty));
+        cols.push(String(d.returnedQty));
       }
+      cols.push(String(d.damagedQty));
       cols.push(
         d.cashAmount.toFixed(2),
         d.creditAmount.toFixed(2),
@@ -334,7 +335,7 @@ export default function DriverDailyReportPage() {
     rows: { date: string; driverId?: string; driverName?: string; data: ReturnType<typeof getDayDataForDriver> }[],
     showDriverColumn: boolean
   ) => {
-    const colCount = (showDriverColumn ? 9 : 11) + productColumns.length + (showDriverColumn ? 1 : 0);
+    const colCount = (showDriverColumn ? 10 : 11) + productColumns.length + (showDriverColumn ? 1 : 0);
 
     return (
       <Table>
@@ -347,7 +348,7 @@ export default function DriverDailyReportPage() {
             ))}
             <TableHead className="text-right font-bold">المجموع</TableHead>
             {!showDriverColumn && <TableHead className="text-right font-bold">المرتجع</TableHead>}
-            {!showDriverColumn && <TableHead className="text-right font-bold">التالف</TableHead>}
+            <TableHead className="text-right font-bold">التالف</TableHead>
             <TableHead className="text-right font-bold">النقدي</TableHead>
             <TableHead className="text-right font-bold">الآجل</TableHead>
             <TableHead className="text-right font-bold">الإجمالي</TableHead>
@@ -386,7 +387,7 @@ export default function DriverDailyReportPage() {
                   })}
                   <TableCell className="text-blue-700 font-bold">{d.totalSoldQty}</TableCell>
                   {!showDriverColumn && <TableCell className="text-orange-600">{d.returnedQty || '-'}</TableCell>}
-                  {!showDriverColumn && <TableCell className="text-gray-600">{d.damagedQty || '-'}</TableCell>}
+                  <TableCell className="text-gray-600">{d.damagedQty || '-'}</TableCell>
                   <TableCell className="text-emerald-600 text-sm">{d.cashAmount.toFixed(2)}</TableCell>
                   <TableCell className="text-yellow-600 text-sm">{d.creditAmount > 0 ? d.creditAmount.toFixed(2) : '-'}</TableCell>
                   <TableCell className="text-blue-600 font-bold text-sm">{d.totalSalesAmount.toFixed(2)}</TableCell>
