@@ -1463,25 +1463,25 @@ export default function DriverTransactionsPage() {
                           {tx.createdAt ? format(new Date(tx.createdAt), "dd/MM/yyyy HH:mm", { locale: ar }) : "-"}
                         </TableCell>
                         <TableCell>
-                          {isToday && (
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                                onClick={() => {
-                                  setEditingTransaction(tx);
-                                  setEditForm({
-                                    quantity: tx.quantity,
-                                    unitPrice: tx.unitPrice || "",
-                                    customerId: tx.customerId || "",
-                                    notes: tx.notes || "",
-                                  });
-                                }}
-                                data-testid={`button-edit-transaction-${tx.id}`}
-                              >
-                                <Edit3 className="h-4 w-4" />
-                              </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => {
+                                setEditingTransaction(tx);
+                                setEditForm({
+                                  quantity: tx.quantity,
+                                  unitPrice: tx.unitPrice || "",
+                                  customerId: tx.customerId || "",
+                                  notes: tx.notes || "",
+                                });
+                              }}
+                              data-testid={`button-edit-transaction-${tx.id}`}
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            {isToday && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1496,8 +1496,8 @@ export default function DriverTransactionsPage() {
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
