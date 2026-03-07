@@ -695,6 +695,17 @@ export default function DriverTransactionsPage() {
     .filter(t => (t.type as string) === 'EXPENSE')
     .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
 
+  const dailyCashSales = transactions
+    .filter(t => t.type === 'CASH_SALE')
+    .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+  const dailyCreditSales = transactions
+    .filter(t => t.type === 'CREDIT_SALE')
+    .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+  const dailyPaidToBakery = cashDeposits
+    .filter(d => d.depositDate === selectedDate && d.status === 'CONFIRMED')
+    .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
+  const driverCashBalance = parseFloat(balance?.cashBalance || '0');
+
   const driverName = users.find(u => u.id === driverId)?.name || '';
 
   const handleExportCSV = () => {
@@ -1146,12 +1157,12 @@ export default function DriverTransactionsPage() {
             <CardContent className="pt-6 pb-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-orange-500 rounded-xl">
-                  <Package className="h-6 w-6 text-white" />
+                  <Banknote className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-orange-600">المخزون الحالي</p>
-                  <p className="text-2xl font-bold text-orange-700" data-testid="text-current-inventory">{totalCurrentInventory}</p>
-                  <p className="text-xs text-orange-600/70">{totalCurrentInventoryValue.toFixed(2)} ر.س</p>
+                  <p className="text-sm font-medium text-orange-600">المدفوع للمخبز</p>
+                  <p className="text-2xl font-bold text-orange-700" data-testid="text-paid-bakery-kpi">{dailyPaidToBakery.toFixed(2)}</p>
+                  <p className="text-xs text-orange-600/70">ر.س</p>
                 </div>
               </div>
             </CardContent>
@@ -1267,31 +1278,35 @@ export default function DriverTransactionsPage() {
           <Card className="border-slate-100">
             <CardHeader>
               <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                مخزوني الحالي
+                <DollarSign className="h-5 w-5" />
+                تتبع المدفوعات اليومية
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {inventory.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">لا يوجد مخزون حالياً</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-right">المنتج</TableHead>
-                      <TableHead className="text-right">الكمية</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {inventory.map((item) => (
-                      <TableRow key={item.id} data-testid={`row-inventory-${item.id}`}>
-                        <TableCell>{getProductName(item.productId)}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                  <span className="text-sm font-medium text-blue-700">إجمالي المبيعات</span>
+                  <span className="text-lg font-bold text-blue-800" data-testid="text-daily-total-sales">{totalSoldValue.toFixed(2)} ر.س</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                  <span className="text-sm font-medium text-green-700">النقدي</span>
+                  <span className="text-lg font-bold text-green-800" data-testid="text-daily-cash-sales">{dailyCashSales.toFixed(2)} ر.س</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                  <span className="text-sm font-medium text-yellow-700">الآجل (غير مدفوع)</span>
+                  <span className="text-lg font-bold text-yellow-800" data-testid="text-daily-credit-sales">{dailyCreditSales.toFixed(2)} ر.س</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
+                  <span className="text-sm font-medium text-emerald-700">المدفوع للمخبز</span>
+                  <span className="text-lg font-bold text-emerald-800" data-testid="text-daily-paid-bakery">{dailyPaidToBakery.toFixed(2)} ر.س</span>
+                </div>
+                <div className={`flex justify-between items-center p-3 rounded-lg ${driverCashBalance >= 0 ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
+                  <span className={`text-sm font-medium ${driverCashBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>رصيد المندوب</span>
+                  <span className={`text-lg font-bold ${driverCashBalance >= 0 ? 'text-green-800' : 'text-red-800'}`} data-testid="text-driver-balance-summary">
+                    {driverCashBalance.toFixed(2)} ر.س
+                  </span>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
