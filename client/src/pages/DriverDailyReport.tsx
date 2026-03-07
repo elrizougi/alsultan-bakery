@@ -305,7 +305,7 @@ export default function DriverDailyReportPage() {
       if (!showDriverColumn) {
         cols.push(String(d.returnedQty));
       }
-      cols.push(String(d.damagedQty));
+      cols.push(d.damagedQty ? `${d.damagedQty} (${d.totalBread > 0 ? (d.damagedQty / d.totalBread * 100).toFixed(1) : 0}%)` : '0');
       cols.push(
         d.cashAmount.toFixed(2),
         d.creditAmount.toFixed(2),
@@ -387,7 +387,7 @@ export default function DriverDailyReportPage() {
                   })}
                   <TableCell className="text-blue-700 font-bold">{d.totalSoldQty}</TableCell>
                   {!showDriverColumn && <TableCell className="text-orange-600">{d.returnedQty || '-'}</TableCell>}
-                  <TableCell className="text-gray-600">{d.damagedQty || '-'}</TableCell>
+                  <TableCell className="text-gray-600">{d.damagedQty ? `${d.damagedQty} (${d.totalBread > 0 ? (d.damagedQty / d.totalBread * 100).toFixed(1) : 0}%)` : '-'}</TableCell>
                   <TableCell className="text-emerald-600 text-sm">{d.cashAmount.toFixed(2)}</TableCell>
                   <TableCell className="text-yellow-600 text-sm">{d.creditAmount > 0 ? d.creditAmount.toFixed(2) : '-'}</TableCell>
                   <TableCell className="text-blue-600 font-bold text-sm">{d.totalSalesAmount.toFixed(2)}</TableCell>
@@ -776,7 +776,7 @@ export default function DriverDailyReportPage() {
                         <p className="text-2xl font-bold text-orange-700">{day.returnedQty + day.damagedQty}</p>
                         <div className="flex justify-center gap-2 text-xs text-orange-500 mt-1">
                           <span>مرتجع: {day.returnedQty}</span>
-                          <span>تالف: {day.damagedQty}</span>
+                          <span>تالف: {day.damagedQty}{day.totalBread > 0 ? ` (${(day.damagedQty / day.totalBread * 100).toFixed(1)}%)` : ''}</span>
                         </div>
                       </CardContent>
                     </Card>

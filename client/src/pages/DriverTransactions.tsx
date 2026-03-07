@@ -1210,6 +1210,7 @@ export default function DriverTransactionsPage() {
                 <div>
                   <p className="text-sm font-medium text-red-600">تالف</p>
                   <p className="text-2xl font-bold text-red-700" data-testid="text-damaged-bread">{totalDamagedBread}</p>
+                  {totalLoadedBread > 0 && <p className="text-xs text-red-500">({(totalDamagedBread / totalLoadedBread * 100).toFixed(1)}%)</p>}
                 </div>
               </div>
             </CardContent>

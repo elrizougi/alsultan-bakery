@@ -221,7 +221,7 @@ export default function Dashboard() {
                         const dayTx = dateMap[dateKey];
                         const activeDrivers = new Set(dayTx.map(t => t.driverId)).size;
                         const totalBread = dayTx
-                          .filter(t => !['EXPENSE'].includes(t.type as string))
+                          .filter(t => !['EXPENSE', 'DRIVER_DEBT'].includes(t.type as string))
                           .reduce((sum, t) => sum + (t.quantity || 0), 0);
                         const soldBread = dayTx
                           .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string))
@@ -266,7 +266,7 @@ export default function Dashboard() {
                             <TableCell>{activeDrivers}</TableCell>
                             <TableCell>{totalBread}</TableCell>
                             <TableCell>{soldBread}</TableCell>
-                            <TableCell className="text-gray-600 font-semibold">{damagedBread}</TableCell>
+                            <TableCell className="text-gray-600 font-semibold">{damagedBread}{totalBread > 0 ? ` (${(damagedBread / totalBread * 100).toFixed(1)}%)` : ''}</TableCell>
                             <TableCell className="text-purple-700 font-semibold">{avgPrice > 0 ? `${fmt(avgPrice)} ر.س` : '-'}</TableCell>
                             <TableCell className="text-emerald-700 font-semibold">{fmt(cashCollected)} ر.س</TableCell>
                             <TableCell className="text-yellow-700 font-semibold">{fmt(creditUnpaid)} ر.س</TableCell>
