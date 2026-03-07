@@ -188,6 +188,7 @@ export const bakeryExpenses = pgTable("bakery_expenses", {
   expenseDate: text("expense_date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: varchar("created_by").references(() => users.id),
+  receiptImage: text("receipt_image"),
 });
 
 export const insertBakeryExpenseSchema = createInsertSchema(bakeryExpenses).omit({ id: true, createdAt: true });

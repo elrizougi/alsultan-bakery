@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit3, Download, Receipt, Loader2, Calendar, DollarSign, TrendingUp, Settings2, Tag } from "lucide-react";
+import { Plus, Trash2, Edit3, Download, Receipt, Loader2, Calendar, DollarSign, TrendingUp, Settings2, Tag, Upload, FileText } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -44,6 +44,7 @@ interface BakeryExpense {
   expenseDate: string;
   createdAt: string;
   createdBy: string | null;
+  receiptImage: string | null;
 }
 
 export default function BakeryExpensesPage() {
@@ -65,6 +66,9 @@ export default function BakeryExpensesPage() {
     description: "",
     expenseDate: format(new Date(), 'yyyy-MM-dd'),
   });
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string>("");
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
 
   const [categoryForm, setCategoryForm] = useState({
     name: "",
@@ -191,6 +195,8 @@ export default function BakeryExpensesPage() {
 
   const resetExpenseForm = () => {
     setExpenseForm({ categoryId: "", amount: "", description: "", expenseDate: format(new Date(), 'yyyy-MM-dd') });
+    setReceiptFile(null);
+    setReceiptPreview("");
     setEditingExpense(null);
     setShowExpenseDialog(false);
   };
@@ -201,15 +207,45 @@ export default function BakeryExpensesPage() {
     setShowCategoryDialog(false);
   };
 
-  const handleExpenseSubmit = () => {
+  const handleExpenseSubmit = async () => {
     if (!expenseForm.categoryId || !expenseForm.amount || !expenseForm.description || !expenseForm.expenseDate) {
       toast({ title: "يرجى ملء جميع الحقول المطلوبة", variant: "destructive" });
       return;
     }
+
+    let receiptUrl: string | undefined;
+    if (receiptFile) {
+      if (receiptFile.size > 50 * 1024 * 1024) {
+        toast({ title: "حجم الملف يتجاوز 50 ميغابايت", variant: "destructive" });
+        return;
+      }
+      setIsUploadingReceipt(true);
+      try {
+        const fd = new FormData();
+        fd.append("receipt", receiptFile);
+        const uploadRes = await fetch("/api/upload-receipt", { method: "POST", body: fd });
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json();
+          toast({ title: "خطأ في رفع الصورة", description: err.message, variant: "destructive" });
+          setIsUploadingReceipt(false);
+          return;
+        }
+        const { url } = await uploadRes.json();
+        receiptUrl = url;
+      } catch {
+        toast({ title: "خطأ في رفع الصورة", variant: "destructive" });
+        setIsUploadingReceipt(false);
+        return;
+      }
+      setIsUploadingReceipt(false);
+    }
+
+    const data = { ...expenseForm, receiptImage: receiptUrl || (editingExpense?.receiptImage ?? null) };
+
     if (editingExpense) {
-      updateExpenseMutation.mutate({ id: editingExpense.id, data: expenseForm });
+      updateExpenseMutation.mutate({ id: editingExpense.id, data });
     } else {
-      createExpenseMutation.mutate(expenseForm);
+      createExpenseMutation.mutate(data);
     }
   };
 
@@ -514,7 +550,17 @@ export default function BakeryExpensesPage() {
                             {getCategoryName(expense.categoryId)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-xs truncate">{expense.description}</TableCell>
+                        <TableCell className="max-w-xs">
+                          <div className="flex flex-col gap-1">
+                            <span className="truncate">{expense.description}</span>
+                            {expense.receiptImage && (
+                              <a href={expense.receiptImage} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                عرض الفاتورة
+                              </a>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="font-bold text-primary">
                           {parseFloat(expense.amount).toFixed(2)} ر.س
                         </TableCell>
@@ -596,16 +642,70 @@ export default function BakeryExpensesPage() {
                   data-testid="input-expense-date"
                 />
               </div>
+              <div>
+                <Label>صورة الفاتورة (اختياري - حد أقصى 50 ميغا)</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <label className="flex-1 cursor-pointer">
+                    <div className="flex items-center justify-center gap-2 border-2 border-dashed rounded-lg p-3 hover:bg-muted/50 transition-colors" data-testid="input-bakery-expense-receipt">
+                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {receiptFile ? receiptFile.name : "اختر صورة الفاتورة..."}
+                      </span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 50 * 1024 * 1024) {
+                            toast({ title: "حجم الملف يتجاوز 50 ميغابايت", variant: "destructive" });
+                            return;
+                          }
+                          setReceiptFile(file);
+                          if (file.type.startsWith("image/")) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => setReceiptPreview(ev.target?.result as string);
+                            reader.readAsDataURL(file);
+                          } else {
+                            setReceiptPreview("");
+                          }
+                        }
+                      }}
+                    />
+                  </label>
+                  {(receiptFile || editingExpense?.receiptImage) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setReceiptFile(null); setReceiptPreview(""); if (editingExpense) { editingExpense.receiptImage = null; } }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {receiptPreview && (
+                  <img src={receiptPreview} alt="معاينة الفاتورة" className="mt-2 max-h-40 rounded-lg border object-contain" />
+                )}
+                {!receiptPreview && editingExpense?.receiptImage && (
+                  <a href={editingExpense.receiptImage} target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    عرض الفاتورة الحالية
+                  </a>
+                )}
+              </div>
             </div>
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={resetExpenseForm} data-testid="button-cancel-expense">إلغاء</Button>
               <Button
                 onClick={handleExpenseSubmit}
-                disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}
+                disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending || isUploadingReceipt}
                 data-testid="button-submit-expense"
               >
-                {(createExpenseMutation.isPending || updateExpenseMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-                {editingExpense ? "تعديل" : "إضافة"}
+                {(createExpenseMutation.isPending || updateExpenseMutation.isPending || isUploadingReceipt) && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                {isUploadingReceipt ? "جاري رفع الصورة..." : editingExpense ? "تعديل" : "إضافة"}
               </Button>
             </DialogFooter>
           </DialogContent>
