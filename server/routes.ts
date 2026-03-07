@@ -953,6 +953,19 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/cash-deposits/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteCashDeposit(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "طلب التسليم غير موجود" });
+      }
+      res.json({ message: "تم حذف طلب التسليم بنجاح" });
+    } catch (error) {
+      console.error("Delete deposit error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   app.put("/api/cash-deposits/:id", async (req, res) => {
     try {
       const { amount, notes, depositDate } = req.body;

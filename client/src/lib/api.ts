@@ -277,6 +277,10 @@ export const api = {
     return res.json();
   },
 
+  deleteCashDeposit: async (id: string): Promise<void> => {
+    await apiRequest("DELETE", `/api/cash-deposits/${id}`);
+  },
+
   confirmCashDeposit: async (id: string, confirmedBy: string): Promise<CashDeposit> => {
     const res = await apiRequest("POST", `/api/cash-deposits/${id}/confirm`, { confirmedBy });
     return res.json();

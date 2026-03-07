@@ -98,6 +98,7 @@ export interface IStorage {
   getPendingCashDeposits(): Promise<CashDeposit[]>;
   createCashDeposit(deposit: InsertCashDeposit): Promise<CashDeposit>;
   updateCashDeposit(id: string, data: { amount?: string; notes?: string; depositDate?: string }): Promise<CashDeposit | undefined>;
+  deleteCashDeposit(id: string): Promise<boolean>;
   confirmCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
   rejectCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
 
@@ -805,6 +806,26 @@ export class DatabaseStorage implements IStorage {
       .where(eq(cashDeposits.id, id))
       .returning();
     return updated;
+  }
+
+  async deleteCashDeposit(id: string): Promise<boolean> {
+    const [deposit] = await db.select().from(cashDeposits).where(eq(cashDeposits.id, id));
+    if (!deposit) return false;
+    if (deposit.status === "CONFIRMED") {
+      return db.transaction(async (tx) => {
+        const [balance] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, deposit.driverId));
+        if (balance) {
+          const newBalance = parseFloat(balance.cashBalance) + parseFloat(deposit.amount);
+          await tx.update(driverBalance)
+            .set({ cashBalance: newBalance.toFixed(2) })
+            .where(eq(driverBalance.driverId, deposit.driverId));
+        }
+        await tx.delete(cashDeposits).where(eq(cashDeposits.id, id));
+        return true;
+      });
+    }
+    await db.delete(cashDeposits).where(eq(cashDeposits.id, id));
+    return true;
   }
 
   async confirmCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined> {

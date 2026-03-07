@@ -12,7 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, CashDeposit } from "@/lib/api";
 import { useUsers, useProducts } from "@/hooks/useData";
 import { useStore } from "@/lib/store";
-import { Send, Check, X, Clock, Plus, FileText, User, Package, DollarSign, Undo2, Gift, Loader2, Pencil } from "lucide-react";
+import { Send, Check, X, Clock, Plus, FileText, User, Package, DollarSign, Undo2, Gift, Loader2, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -170,6 +170,18 @@ export default function CashDepositsPage() {
     },
     onError: () => {
       toast({ title: "خطأ", description: "فشل في تعديل بيانات التسليم", variant: "destructive" });
+    },
+  });
+
+  const deleteDepositMutation = useMutation({
+    mutationFn: async (id: string) => api.deleteCashDeposit(id),
+    onSuccess: () => {
+      toast({ title: "تم الحذف", description: "تم حذف عملية التسليم بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/cash-deposits"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في حذف عملية التسليم", variant: "destructive" });
     },
   });
 
@@ -551,6 +563,71 @@ export default function CashDepositsPage() {
                     </CardContent>
                   </Card>
 
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">سجل المبالغ المدفوعة للمخبز</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {(() => {
+                        const driverDeposits = deposits.filter((d: CashDeposit) => d.driverId === settlementDriverId);
+                        if (driverDeposits.length === 0) {
+                          return <p className="text-center text-muted-foreground py-4">لا توجد مبالغ مسجلة</p>;
+                        }
+                        return (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-right">التاريخ</TableHead>
+                                <TableHead className="text-right">المبلغ</TableHead>
+                                <TableHead className="text-right">الحالة</TableHead>
+                                <TableHead className="text-right">ملاحظات</TableHead>
+                                <TableHead className="text-right">إجراءات</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {driverDeposits.map((dep: CashDeposit) => (
+                                <TableRow key={dep.id}>
+                                  <TableCell className="font-medium">{dep.depositDate}</TableCell>
+                                  <TableCell className="font-bold">{parseFloat(dep.amount).toFixed(2)} ر.س</TableCell>
+                                  <TableCell>{getStatusBadge(dep.status)}</TableCell>
+                                  <TableCell>{dep.notes || "-"}</TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => openEditDialog(dep)}
+                                        data-testid={`button-edit-settlement-deposit-${dep.id}`}
+                                      >
+                                        <Pencil className="h-4 w-4 ml-1" />
+                                        تعديل
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                          if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
+                                            deleteDepositMutation.mutate(dep.id);
+                                          }
+                                        }}
+                                        disabled={deleteDepositMutation.isPending}
+                                        data-testid={`button-delete-settlement-deposit-${dep.id}`}
+                                      >
+                                        <Trash2 className="h-4 w-4 ml-1" />
+                                        حذف
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-green-300">
                       <CardContent className="pt-6">
@@ -648,6 +725,21 @@ export default function CashDepositsPage() {
                           >
                             <X className="h-4 w-4 ml-1" />
                             رفض
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
+                                deleteDepositMutation.mutate(deposit.id);
+                              }
+                            }}
+                            disabled={deleteDepositMutation.isPending}
+                            data-testid={`button-delete-pending-deposit-${deposit.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 ml-1" />
+                            حذف
                           </Button>
                         </div>
                       </TableCell>
@@ -752,15 +844,32 @@ export default function CashDepositsPage() {
                           <TableCell>{getConfirmerName(deposit.confirmedBy) || "-"}</TableCell>
                           <TableCell>{deposit.notes || "-"}</TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditDialog(deposit)}
-                              data-testid={`button-edit-log-deposit-${deposit.id}`}
-                            >
-                              <Pencil className="h-4 w-4 ml-1" />
-                              تعديل
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEditDialog(deposit)}
+                                data-testid={`button-edit-log-deposit-${deposit.id}`}
+                              >
+                                <Pencil className="h-4 w-4 ml-1" />
+                                تعديل
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => {
+                                  if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
+                                    deleteDepositMutation.mutate(deposit.id);
+                                  }
+                                }}
+                                disabled={deleteDepositMutation.isPending}
+                                data-testid={`button-delete-log-deposit-${deposit.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 ml-1" />
+                                حذف
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
