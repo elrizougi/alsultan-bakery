@@ -242,6 +242,11 @@ export default function CashDepositsPage() {
     setShowSettlement(true);
   };
 
+  const getTxDay = (t: any): string => {
+    if (!t.createdAt) return '';
+    return format(new Date(t.createdAt), 'yyyy-MM-dd');
+  };
+
   const getSettlementStats = () => {
     const cashSales = settlementTransactions.filter(t => t.type === 'CASH_SALE');
     const creditSales = settlementTransactions.filter(t => t.type === 'CREDIT_SALE');
@@ -249,17 +254,19 @@ export default function CashDepositsPage() {
     const damaged = settlementTransactions.filter(t => t.type === 'DAMAGED');
     const freeSamples = settlementTransactions.filter(t => t.type === 'FREE_SAMPLE');
     const freeDistribution = settlementTransactions.filter(t => t.type === 'FREE_DISTRIBUTION');
+    const expenses = settlementTransactions.filter(t => t.type === 'EXPENSE');
 
-    const dailyStats: Record<string, { soldQty: number; totalAmount: number; cashAmount: number; creditAmount: number; depositAmount: number }> = {};
+    const dailyStats: Record<string, { soldQty: number; totalAmount: number; cashAmount: number; creditAmount: number; depositAmount: number; expensesAmount: number }> = {};
     
     const ensureDay = (day: string) => {
       if (!dailyStats[day]) {
-        dailyStats[day] = { soldQty: 0, totalAmount: 0, cashAmount: 0, creditAmount: 0, depositAmount: 0 };
+        dailyStats[day] = { soldQty: 0, totalAmount: 0, cashAmount: 0, creditAmount: 0, depositAmount: 0, expensesAmount: 0 };
       }
     };
 
     cashSales.forEach(t => {
-      const day = t.date || '';
+      const day = getTxDay(t);
+      if (!day) return;
       ensureDay(day);
       dailyStats[day].soldQty += t.quantity || 0;
       dailyStats[day].totalAmount += parseFloat(t.totalAmount || '0');
@@ -267,11 +274,19 @@ export default function CashDepositsPage() {
     });
 
     creditSales.forEach(t => {
-      const day = t.date || '';
+      const day = getTxDay(t);
+      if (!day) return;
       ensureDay(day);
       dailyStats[day].soldQty += t.quantity || 0;
       dailyStats[day].totalAmount += parseFloat(t.totalAmount || '0');
       dailyStats[day].creditAmount += parseFloat(t.totalAmount || '0');
+    });
+
+    expenses.forEach(t => {
+      const day = getTxDay(t);
+      if (!day) return;
+      ensureDay(day);
+      dailyStats[day].expensesAmount += parseFloat(t.totalAmount || '0');
     });
 
     const driverDeposits = deposits.filter((d: CashDeposit) => d.driverId === settlementDriverId && d.status === 'CONFIRMED');
@@ -288,6 +303,7 @@ export default function CashDepositsPage() {
     const totalAmount = [...cashSales, ...creditSales].reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
     const cashSalesAmount = cashSales.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
     const creditAmount = creditSales.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+    const totalExpenses = expenses.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
     
     const collectedDebts = settlementDebts.reduce((sum, d) => sum + parseFloat(d.paidAmount || '0'), 0);
     const totalDebt = settlementDebts.reduce((sum, d) => 
@@ -307,6 +323,7 @@ export default function CashDepositsPage() {
       collectedDebts,
       creditAmount,
       totalDebt,
+      totalExpenses,
     };
   };
 
@@ -507,6 +524,8 @@ export default function CashDepositsPage() {
                         const grandCash = dailyEntries.reduce((s, [, d]) => s + d.cashAmount, 0);
                         const grandCredit = dailyEntries.reduce((s, [, d]) => s + d.creditAmount, 0);
                         const grandDeposit = dailyEntries.reduce((s, [, d]) => s + d.depositAmount, 0);
+                        const grandExpenses = dailyEntries.reduce((s, [, d]) => s + d.expensesAmount, 0);
+                        const grandNet = grandCash - grandExpenses;
                         const grandAvgPrice = grandTotalQty > 0 ? grandTotalAmount / grandTotalQty : 0;
 
                         return (
@@ -519,13 +538,15 @@ export default function CashDepositsPage() {
                                 <TableHead className="text-right">نقدي</TableHead>
                                 <TableHead className="text-right">آجل</TableHead>
                                 <TableHead className="text-right">المجموع</TableHead>
+                                <TableHead className="text-right">المصروفات</TableHead>
+                                <TableHead className="text-right">الصافي</TableHead>
                                 <TableHead className="text-right">المدفوع للمخبز</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {dailyEntries.length === 0 ? (
                                 <TableRow>
-                                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                                  <TableCell colSpan={9} className="text-center text-muted-foreground">
                                     لا توجد مبيعات مسجلة
                                   </TableCell>
                                 </TableRow>
@@ -533,6 +554,7 @@ export default function CashDepositsPage() {
                                 <>
                                   {dailyEntries.map(([day, data]) => {
                                     const avgPrice = data.soldQty > 0 ? data.totalAmount / data.soldQty : 0;
+                                    const netAmount = data.cashAmount - data.expensesAmount;
                                     return (
                                       <TableRow key={day}>
                                         <TableCell className="font-medium">{day}</TableCell>
@@ -541,6 +563,8 @@ export default function CashDepositsPage() {
                                         <TableCell className="text-blue-600 font-bold">{data.cashAmount.toFixed(2)} ر.س</TableCell>
                                         <TableCell className="text-amber-600 font-bold">{data.creditAmount.toFixed(2)} ر.س</TableCell>
                                         <TableCell className="font-bold">{data.totalAmount.toFixed(2)} ر.س</TableCell>
+                                        <TableCell className="text-red-600">{data.expensesAmount > 0 ? data.expensesAmount.toFixed(2) + ' ر.س' : '-'}</TableCell>
+                                        <TableCell className="text-teal-700 font-bold">{netAmount.toFixed(2)} ر.س</TableCell>
                                         <TableCell className="text-emerald-600 font-bold">{data.depositAmount > 0 ? data.depositAmount.toFixed(2) + ' ر.س' : '-'}</TableCell>
                                       </TableRow>
                                     );
@@ -552,6 +576,8 @@ export default function CashDepositsPage() {
                                     <TableCell className="text-blue-700">{grandCash.toFixed(2)} ر.س</TableCell>
                                     <TableCell className="text-amber-700">{grandCredit.toFixed(2)} ر.س</TableCell>
                                     <TableCell className="text-primary">{grandTotalAmount.toFixed(2)} ر.س</TableCell>
+                                    <TableCell className="text-red-700">{grandExpenses.toFixed(2)} ر.س</TableCell>
+                                    <TableCell className="text-teal-700 font-bold">{grandNet.toFixed(2)} ر.س</TableCell>
                                     <TableCell className="text-emerald-700">{grandDeposit.toFixed(2)} ر.س</TableCell>
                                   </TableRow>
                                 </>
@@ -628,7 +654,7 @@ export default function CashDepositsPage() {
                     </CardContent>
                   </Card>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-green-300">
                       <CardContent className="pt-6">
                         <div className="text-center">
@@ -648,6 +674,15 @@ export default function CashDepositsPage() {
                             <p>مبيعات نقدية: {stats?.cashSalesAmount.toFixed(2) || '0.00'} ر.س</p>
                             <p>ديون محصلة: {stats?.collectedDebts.toFixed(2) || '0.00'} ر.س</p>
                           </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-red-100 to-rose-100 border-red-300">
+                      <CardContent className="pt-6">
+                        <div className="text-center">
+                          <DollarSign className="h-8 w-8 text-red-600 mx-auto mb-2" />
+                          <p className="text-sm text-red-600 font-medium">المصروفات</p>
+                          <p className="text-3xl font-bold text-red-700">{stats?.totalExpenses.toFixed(2) || '0.00'} ر.س</p>
                         </div>
                       </CardContent>
                     </Card>
