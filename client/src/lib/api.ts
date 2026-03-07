@@ -195,12 +195,16 @@ export const api = {
 
   getAllTransactions: async (): Promise<Transaction[]> => {
     const res = await fetch('/api/transactions');
-    return res.json();
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   },
 
   getDriverTransactions: async (driverId: string): Promise<Transaction[]> => {
     const res = await fetch(`/api/driver-transactions/${driverId}`);
-    return res.json();
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   },
 
   bulkImportTransactions: async (rows: any[]): Promise<{ message: string; results: any[] }> => {
