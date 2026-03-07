@@ -545,14 +545,6 @@ export default function CashDepositsPage() {
                     </Card>
                   </div>
 
-                  <div className="p-4 bg-slate-100 rounded-lg border">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-medium">الرصيد النقدي الحالي:</span>
-                      <span className="text-2xl font-bold text-primary">
-                        {parseFloat(settlementBalance?.cashBalance || '0').toFixed(2)} ر.س
-                      </span>
-                    </div>
-                  </div>
 
                 </div>
               )
