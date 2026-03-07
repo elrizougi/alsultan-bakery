@@ -198,15 +198,35 @@ export default function CashDepositsPage() {
     const freeSamples = settlementTransactions.filter(t => t.type === 'FREE_SAMPLE');
     const freeDistribution = settlementTransactions.filter(t => t.type === 'FREE_DISTRIBUTION');
 
-    const dailyStats: Record<string, { soldQty: number; totalAmount: number }> = {};
+    const dailyStats: Record<string, { soldQty: number; totalAmount: number; cashAmount: number; creditAmount: number; depositAmount: number }> = {};
     
-    [...cashSales, ...creditSales].forEach(t => {
-      const day = t.date || '';
+    const ensureDay = (day: string) => {
       if (!dailyStats[day]) {
-        dailyStats[day] = { soldQty: 0, totalAmount: 0 };
+        dailyStats[day] = { soldQty: 0, totalAmount: 0, cashAmount: 0, creditAmount: 0, depositAmount: 0 };
       }
+    };
+
+    cashSales.forEach(t => {
+      const day = t.date || '';
+      ensureDay(day);
       dailyStats[day].soldQty += t.quantity || 0;
       dailyStats[day].totalAmount += parseFloat(t.totalAmount || '0');
+      dailyStats[day].cashAmount += parseFloat(t.totalAmount || '0');
+    });
+
+    creditSales.forEach(t => {
+      const day = t.date || '';
+      ensureDay(day);
+      dailyStats[day].soldQty += t.quantity || 0;
+      dailyStats[day].totalAmount += parseFloat(t.totalAmount || '0');
+      dailyStats[day].creditAmount += parseFloat(t.totalAmount || '0');
+    });
+
+    const driverDeposits = deposits.filter((d: CashDeposit) => d.driverId === settlementDriverId && d.status === 'CONFIRMED');
+    driverDeposits.forEach((d: CashDeposit) => {
+      const day = d.depositDate || '';
+      ensureDay(day);
+      dailyStats[day].depositAmount += parseFloat(d.amount);
     });
 
     const totalSold = [...cashSales, ...creditSales].reduce((sum, t) => sum + (t.quantity || 0), 0);
@@ -432,6 +452,9 @@ export default function CashDepositsPage() {
                         const dailyEntries = stats ? Object.entries(stats.dailyStats).sort(([a], [b]) => a.localeCompare(b)) : [];
                         const grandTotalQty = dailyEntries.reduce((s, [, d]) => s + d.soldQty, 0);
                         const grandTotalAmount = dailyEntries.reduce((s, [, d]) => s + d.totalAmount, 0);
+                        const grandCash = dailyEntries.reduce((s, [, d]) => s + d.cashAmount, 0);
+                        const grandCredit = dailyEntries.reduce((s, [, d]) => s + d.creditAmount, 0);
+                        const grandDeposit = dailyEntries.reduce((s, [, d]) => s + d.depositAmount, 0);
                         const grandAvgPrice = grandTotalQty > 0 ? grandTotalAmount / grandTotalQty : 0;
 
                         return (
@@ -441,13 +464,16 @@ export default function CashDepositsPage() {
                                 <TableHead className="text-right">التاريخ</TableHead>
                                 <TableHead className="text-right">عدد المباع</TableHead>
                                 <TableHead className="text-right">متوسط السعر</TableHead>
+                                <TableHead className="text-right">نقدي</TableHead>
+                                <TableHead className="text-right">آجل</TableHead>
                                 <TableHead className="text-right">المجموع</TableHead>
+                                <TableHead className="text-right">المدفوع للمخبز</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {dailyEntries.length === 0 ? (
                                 <TableRow>
-                                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                                     لا توجد مبيعات مسجلة
                                   </TableCell>
                                 </TableRow>
@@ -460,7 +486,10 @@ export default function CashDepositsPage() {
                                         <TableCell className="font-medium">{day}</TableCell>
                                         <TableCell className="text-green-600 font-bold">{data.soldQty}</TableCell>
                                         <TableCell>{avgPrice.toFixed(2)} ر.س</TableCell>
+                                        <TableCell className="text-blue-600 font-bold">{data.cashAmount.toFixed(2)} ر.س</TableCell>
+                                        <TableCell className="text-amber-600 font-bold">{data.creditAmount.toFixed(2)} ر.س</TableCell>
                                         <TableCell className="font-bold">{data.totalAmount.toFixed(2)} ر.س</TableCell>
+                                        <TableCell className="text-emerald-600 font-bold">{data.depositAmount > 0 ? data.depositAmount.toFixed(2) + ' ر.س' : '-'}</TableCell>
                                       </TableRow>
                                     );
                                   })}
@@ -468,7 +497,10 @@ export default function CashDepositsPage() {
                                     <TableCell>الإجمالي</TableCell>
                                     <TableCell className="text-green-700">{grandTotalQty}</TableCell>
                                     <TableCell>{grandAvgPrice.toFixed(2)} ر.س</TableCell>
+                                    <TableCell className="text-blue-700">{grandCash.toFixed(2)} ر.س</TableCell>
+                                    <TableCell className="text-amber-700">{grandCredit.toFixed(2)} ر.س</TableCell>
                                     <TableCell className="text-primary">{grandTotalAmount.toFixed(2)} ر.س</TableCell>
+                                    <TableCell className="text-emerald-700">{grandDeposit.toFixed(2)} ر.س</TableCell>
                                   </TableRow>
                                 </>
                               )}
