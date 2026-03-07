@@ -198,47 +198,15 @@ export default function CashDepositsPage() {
     const freeSamples = settlementTransactions.filter(t => t.type === 'FREE_SAMPLE');
     const freeDistribution = settlementTransactions.filter(t => t.type === 'FREE_DISTRIBUTION');
 
-    const productStats: Record<string, { sold: number; returned: number; samples: number; free: number; amount: number }> = {};
+    const dailyStats: Record<string, { soldQty: number; totalAmount: number }> = {};
     
     [...cashSales, ...creditSales].forEach(t => {
-      const productName = getProductName(t.productId || '');
-      if (!productStats[productName]) {
-        productStats[productName] = { sold: 0, returned: 0, samples: 0, free: 0, amount: 0 };
+      const day = t.date || '';
+      if (!dailyStats[day]) {
+        dailyStats[day] = { soldQty: 0, totalAmount: 0 };
       }
-      productStats[productName].sold += t.quantity || 0;
-      productStats[productName].amount += parseFloat(t.totalAmount || '0');
-    });
-
-    returns.forEach(t => {
-      const productName = getProductName(t.productId || '');
-      if (!productStats[productName]) {
-        productStats[productName] = { sold: 0, returned: 0, samples: 0, free: 0, amount: 0 };
-      }
-      productStats[productName].returned += t.quantity || 0;
-    });
-
-    damaged.forEach(t => {
-      const productName = getProductName(t.productId || '');
-      if (!productStats[productName]) {
-        productStats[productName] = { sold: 0, returned: 0, samples: 0, free: 0, amount: 0 };
-      }
-      productStats[productName].returned += t.quantity || 0;
-    });
-
-    freeSamples.forEach(t => {
-      const productName = getProductName(t.productId || '');
-      if (!productStats[productName]) {
-        productStats[productName] = { sold: 0, returned: 0, samples: 0, free: 0, amount: 0 };
-      }
-      productStats[productName].samples += t.quantity || 0;
-    });
-
-    freeDistribution.forEach(t => {
-      const productName = getProductName(t.productId || '');
-      if (!productStats[productName]) {
-        productStats[productName] = { sold: 0, returned: 0, samples: 0, free: 0, amount: 0 };
-      }
-      productStats[productName].free += t.quantity || 0;
+      dailyStats[day].soldQty += t.quantity || 0;
+      dailyStats[day].totalAmount += parseFloat(t.totalAmount || '0');
     });
 
     const totalSold = [...cashSales, ...creditSales].reduce((sum, t) => sum + (t.quantity || 0), 0);
@@ -256,7 +224,7 @@ export default function CashDepositsPage() {
     const cashAmount = cashSalesAmount + collectedDebts;
 
     return {
-      productStats,
+      dailyStats,
       totalSold,
       totalReturned,
       totalSamples,
@@ -457,40 +425,57 @@ export default function CashDepositsPage() {
 
                   <Card>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">تفاصيل الخبز حسب النوع</CardTitle>
+                      <CardTitle className="text-lg">حساب المندوب حسب اليوم</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-right">نوع الخبز</TableHead>
-                            <TableHead className="text-right">المباع</TableHead>
-                            <TableHead className="text-right">المرتجع</TableHead>
-                            <TableHead className="text-right">العينات</TableHead>
-                            <TableHead className="text-right">المجاني</TableHead>
-                            <TableHead className="text-right">المبلغ</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {stats && Object.entries(stats.productStats).map(([productName, data]) => (
-                            <TableRow key={productName}>
-                              <TableCell className="font-medium">{productName}</TableCell>
-                              <TableCell className="text-green-600 font-bold">{data.sold}</TableCell>
-                              <TableCell className="text-red-600">{data.returned || '-'}</TableCell>
-                              <TableCell className="text-blue-600">{data.samples || '-'}</TableCell>
-                              <TableCell className="text-purple-600">{data.free || '-'}</TableCell>
-                              <TableCell className="font-bold">{data.amount.toFixed(2)} ر.س</TableCell>
-                            </TableRow>
-                          ))}
-                          {stats && Object.keys(stats.productStats).length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center text-muted-foreground">
-                                لا توجد عمليات مسجلة
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
+                      {(() => {
+                        const dailyEntries = stats ? Object.entries(stats.dailyStats).sort(([a], [b]) => a.localeCompare(b)) : [];
+                        const grandTotalQty = dailyEntries.reduce((s, [, d]) => s + d.soldQty, 0);
+                        const grandTotalAmount = dailyEntries.reduce((s, [, d]) => s + d.totalAmount, 0);
+                        const grandAvgPrice = grandTotalQty > 0 ? grandTotalAmount / grandTotalQty : 0;
+
+                        return (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-right">التاريخ</TableHead>
+                                <TableHead className="text-right">عدد المباع</TableHead>
+                                <TableHead className="text-right">متوسط السعر</TableHead>
+                                <TableHead className="text-right">المجموع</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {dailyEntries.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                    لا توجد مبيعات مسجلة
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                <>
+                                  {dailyEntries.map(([day, data]) => {
+                                    const avgPrice = data.soldQty > 0 ? data.totalAmount / data.soldQty : 0;
+                                    return (
+                                      <TableRow key={day}>
+                                        <TableCell className="font-medium">{day}</TableCell>
+                                        <TableCell className="text-green-600 font-bold">{data.soldQty}</TableCell>
+                                        <TableCell>{avgPrice.toFixed(2)} ر.س</TableCell>
+                                        <TableCell className="font-bold">{data.totalAmount.toFixed(2)} ر.س</TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                  <TableRow className="bg-slate-100 font-bold border-t-2">
+                                    <TableCell>الإجمالي</TableCell>
+                                    <TableCell className="text-green-700">{grandTotalQty}</TableCell>
+                                    <TableCell>{grandAvgPrice.toFixed(2)} ر.س</TableCell>
+                                    <TableCell className="text-primary">{grandTotalAmount.toFixed(2)} ر.س</TableCell>
+                                  </TableRow>
+                                </>
+                              )}
+                            </TableBody>
+                          </Table>
+                        );
+                      })()}
                     </CardContent>
                   </Card>
 
