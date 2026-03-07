@@ -97,6 +97,7 @@ export interface IStorage {
   getDriverCashDeposits(driverId: string): Promise<CashDeposit[]>;
   getPendingCashDeposits(): Promise<CashDeposit[]>;
   createCashDeposit(deposit: InsertCashDeposit): Promise<CashDeposit>;
+  updateCashDeposit(id: string, data: { amount?: string; notes?: string; depositDate?: string }): Promise<CashDeposit | undefined>;
   confirmCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
   rejectCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined>;
 
@@ -794,6 +795,16 @@ export class DatabaseStorage implements IStorage {
   async createCashDeposit(deposit: InsertCashDeposit): Promise<CashDeposit> {
     const [newDeposit] = await db.insert(cashDeposits).values(deposit).returning();
     return newDeposit;
+  }
+
+  async updateCashDeposit(id: string, data: { amount?: string; notes?: string; depositDate?: string }): Promise<CashDeposit | undefined> {
+    const [deposit] = await db.select().from(cashDeposits).where(eq(cashDeposits.id, id));
+    if (!deposit) return undefined;
+    const [updated] = await db.update(cashDeposits)
+      .set(data)
+      .where(eq(cashDeposits.id, id))
+      .returning();
+    return updated;
   }
 
   async confirmCashDeposit(id: string, confirmedBy: string): Promise<CashDeposit | undefined> {

@@ -953,6 +953,24 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/cash-deposits/:id", async (req, res) => {
+    try {
+      const { amount, notes, depositDate } = req.body;
+      const updateData: { amount?: string; notes?: string; depositDate?: string } = {};
+      if (amount !== undefined) updateData.amount = String(amount);
+      if (notes !== undefined) updateData.notes = notes;
+      if (depositDate !== undefined) updateData.depositDate = depositDate;
+      const deposit = await storage.updateCashDeposit(req.params.id, updateData);
+      if (!deposit) {
+        return res.status(404).json({ message: "طلب التسليم غير موجود" });
+      }
+      res.json(deposit);
+    } catch (error) {
+      console.error("Update deposit error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   app.post("/api/cash-deposits/:id/confirm", async (req, res) => {
     try {
       const { confirmedBy } = req.body;

@@ -12,7 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, CashDeposit } from "@/lib/api";
 import { useUsers, useProducts } from "@/hooks/useData";
 import { useStore } from "@/lib/store";
-import { Send, Check, X, Clock, Plus, FileText, User, Package, DollarSign, Undo2, Gift, Loader2 } from "lucide-react";
+import { Send, Check, X, Clock, Plus, FileText, User, Package, DollarSign, Undo2, Gift, Loader2, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -38,6 +38,11 @@ export default function CashDepositsPage() {
   const [isSettlementDepositOpen, setIsSettlementDepositOpen] = useState(false);
   const [settlementDepositAmount, setSettlementDepositAmount] = useState<string>("");
   const [settlementDepositNotes, setSettlementDepositNotes] = useState<string>("");
+
+  const [editingDeposit, setEditingDeposit] = useState<CashDeposit | null>(null);
+  const [editAmount, setEditAmount] = useState<string>("");
+  const [editNotes, setEditNotes] = useState<string>("");
+  const [editDate, setEditDate] = useState<string>("");
 
   const drivers = users.filter(u => u.role === "DRIVER");
 
@@ -153,6 +158,41 @@ export default function CashDepositsPage() {
       amount: parseFloat(settlementDepositAmount),
       notes: settlementDepositNotes || `استلام من مخالصة - ${getDriverName(settlementDriverId)}`,
     });
+  };
+
+  const updateDepositMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { amount?: number; notes?: string; depositDate?: string } }) =>
+      api.updateCashDeposit(id, data),
+    onSuccess: () => {
+      toast({ title: "تم التعديل", description: "تم تعديل بيانات التسليم بنجاح" });
+      setEditingDeposit(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/cash-deposits"] });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في تعديل بيانات التسليم", variant: "destructive" });
+    },
+  });
+
+  const handleEditDeposit = () => {
+    if (!editingDeposit || !editAmount || parseFloat(editAmount) <= 0) {
+      toast({ title: "خطأ", description: "يرجى إدخال مبلغ صحيح", variant: "destructive" });
+      return;
+    }
+    updateDepositMutation.mutate({
+      id: editingDeposit.id,
+      data: {
+        amount: parseFloat(editAmount),
+        notes: editNotes,
+        depositDate: editDate,
+      },
+    });
+  };
+
+  const openEditDialog = (deposit: CashDeposit) => {
+    setEditingDeposit(deposit);
+    setEditAmount(deposit.amount);
+    setEditNotes(deposit.notes || "");
+    setEditDate(deposit.depositDate);
   };
 
   const getDriverName = (driverId: string) => users.find(u => u.id === driverId)?.name || "غير معروف";
@@ -582,6 +622,15 @@ export default function CashDepositsPage() {
                         <div className="flex gap-2">
                           <Button
                             size="sm"
+                            variant="outline"
+                            onClick={() => openEditDialog(deposit)}
+                            data-testid={`button-edit-deposit-${deposit.id}`}
+                          >
+                            <Pencil className="h-4 w-4 ml-1" />
+                            تعديل
+                          </Button>
+                          <Button
+                            size="sm"
                             onClick={() => handleConfirm(deposit.id)}
                             disabled={confirmMutation.isPending}
                             className="bg-green-600 hover:bg-green-700"
@@ -690,6 +739,7 @@ export default function CashDepositsPage() {
                         <TableHead className="text-right">الحالة</TableHead>
                         <TableHead className="text-right">تأكيد بواسطة</TableHead>
                         <TableHead className="text-right">ملاحظات</TableHead>
+                        <TableHead className="text-right">إجراءات</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -701,6 +751,17 @@ export default function CashDepositsPage() {
                           <TableCell>{getStatusBadge(deposit.status)}</TableCell>
                           <TableCell>{getConfirmerName(deposit.confirmedBy) || "-"}</TableCell>
                           <TableCell>{deposit.notes || "-"}</TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditDialog(deposit)}
+                              data-testid={`button-edit-log-deposit-${deposit.id}`}
+                            >
+                              <Pencil className="h-4 w-4 ml-1" />
+                              تعديل
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -711,6 +772,64 @@ export default function CashDepositsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!editingDeposit} onOpenChange={(open) => { if (!open) setEditingDeposit(null); }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">تعديل عملية تسليم</DialogTitle>
+          </DialogHeader>
+          {editingDeposit && (
+            <div className="space-y-4">
+              <div>
+                <Label className="font-bold">المندوب</Label>
+                <Input value={getDriverName(editingDeposit.driverId)} disabled className="bg-gray-50 mt-1" />
+              </div>
+              <div>
+                <Label className="font-bold">المبلغ (ر.س)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="mt-1"
+                  data-testid="input-edit-deposit-amount"
+                />
+              </div>
+              <div>
+                <Label className="font-bold">تاريخ التسليم</Label>
+                <Input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="mt-1"
+                  data-testid="input-edit-deposit-date"
+                />
+              </div>
+              <div>
+                <Label className="font-bold">ملاحظات</Label>
+                <Input
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="mt-1"
+                  data-testid="input-edit-deposit-notes"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setEditingDeposit(null)}>إلغاء</Button>
+                <Button
+                  onClick={handleEditDeposit}
+                  disabled={updateDepositMutation.isPending}
+                  data-testid="button-save-edit-deposit"
+                >
+                  {updateDepositMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin ml-1" /> : null}
+                  حفظ التعديل
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
