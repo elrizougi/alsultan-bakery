@@ -1121,37 +1121,10 @@ export default function DriverTransactionsPage() {
 
         {(!isAdmin || driverId) && (<>
         {/* بطاقة الرصيد النقدي الكبيرة */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Card className={`border-2 shadow-lg ${driverCashBalance >= 0 ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50' : 'border-red-200 bg-gradient-to-br from-red-50 to-rose-50'}`}>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center gap-4">
-                <div className="flex items-center gap-4">
-                  <div className={`p-4 rounded-2xl shadow-md ${driverCashBalance >= 0 ? 'bg-green-500' : 'bg-red-500'}`}>
-                    <DollarSign className="h-10 w-10 text-white" />
-                  </div>
-                  <div className="text-center md:text-right">
-                    <p className={`text-lg font-medium ${driverCashBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>رصيد المندوب لهذا اليوم</p>
-                    <div className={`text-4xl md:text-5xl font-bold ${driverCashBalance >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-cash-balance">
-                      {driverCashBalance.toFixed(2)} <span className="text-2xl">ر.س</span>
-                    </div>
-                  </div>
-                </div>
-                <Button 
-                  size="lg"
-                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg rounded-xl shadow-md w-full"
-                  onClick={() => setIsDepositDialogOpen(true)}
-                  data-testid="button-open-deposit-dialog"
-                >
-                  <Banknote className="h-6 w-6 ml-2" />
-                  تسليم مبلغ للمخبز
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`border-2 shadow-lg ${cumulativeBalance >= 0 ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50' : 'border-red-200 bg-gradient-to-br from-red-50 to-rose-50'}`}>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4 mb-4">
+        <Card className={`border-2 shadow-lg mb-6 ${cumulativeBalance >= 0 ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50' : 'border-red-200 bg-gradient-to-br from-red-50 to-rose-50'}`}>
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-4">
                 <div className={`p-4 rounded-2xl shadow-md ${cumulativeBalance >= 0 ? 'bg-blue-500' : 'bg-red-500'}`}>
                   <BarChart3 className="h-10 w-10 text-white" />
                 </div>
@@ -1162,23 +1135,32 @@ export default function DriverTransactionsPage() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                  <span className="text-gray-600">إجمالي المبيعات</span>
-                  <span className="font-bold text-gray-800">{allTotalSales.toFixed(2)} ر.س</span>
-                </div>
-                <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                  <span className="text-gray-600">المدفوع للمخبز</span>
-                  <span className="font-bold text-emerald-700">- {allPaidToBakery.toFixed(2)} ر.س</span>
-                </div>
-                <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                  <span className="text-gray-600">الآجل</span>
-                  <span className="font-bold text-yellow-700">- {allCreditSales.toFixed(2)} ر.س</span>
-                </div>
+              <Button 
+                size="lg"
+                className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg rounded-xl shadow-md"
+                onClick={() => setIsDepositDialogOpen(true)}
+                data-testid="button-open-deposit-dialog"
+              >
+                <Banknote className="h-6 w-6 ml-2" />
+                تسليم مبلغ للمخبز
+              </Button>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
+                <span className="text-gray-600">إجمالي المبيعات</span>
+                <span className="font-bold text-gray-800">{allTotalSales.toFixed(2)} ر.س</span>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
+                <span className="text-gray-600">المدفوع للمخبز</span>
+                <span className="font-bold text-emerald-700">- {allPaidToBakery.toFixed(2)} ر.س</span>
+              </div>
+              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
+                <span className="text-gray-600">الآجل</span>
+                <span className="font-bold text-yellow-700">- {allCreditSales.toFixed(2)} ر.س</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* الصف الأول: إحصائيات المخزون والمبيعات */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
