@@ -335,6 +335,9 @@ export default function DriverTransactionsPage() {
   const [customPrice, setCustomPrice] = useState<string>("");
   const [expenseAmount, setExpenseAmount] = useState<string>("");
   const [expenseDescription, setExpenseDescription] = useState<string>("");
+  const [expenseReceiptFile, setExpenseReceiptFile] = useState<File | null>(null);
+  const [expenseReceiptPreview, setExpenseReceiptPreview] = useState<string>("");
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const [debtSubType, setDebtSubType] = useState<"cash" | "bread">("cash");
   
   const [formData, setFormData] = useState<Partial<InsertTransaction> & { customerId?: string }>({
@@ -410,7 +413,7 @@ export default function DriverTransactionsPage() {
     submitFn();
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // معالجة خاصة للمديونية على المندوب
     if ((formData.type as string) === 'DRIVER_DEBT') {
       if (!expenseDescription.trim()) {
@@ -488,13 +491,39 @@ export default function DriverTransactionsPage() {
         return;
       }
 
-      // للمصروفات نستخدم أول منتج وأول عميل كقيم افتراضية (حقول مطلوبة في قاعدة البيانات)
       const defaultProduct = products[0];
       const defaultCustomer = customers[0];
       
       if (!defaultProduct || !defaultCustomer) {
         toast({ title: "يجب وجود منتج وعميل واحد على الأقل في النظام", variant: "destructive" });
         return;
+      }
+
+      let receiptUrl: string | undefined;
+      if (expenseReceiptFile) {
+        if (expenseReceiptFile.size > 50 * 1024 * 1024) {
+          toast({ title: "حجم الملف يتجاوز 50 ميغابايت", variant: "destructive" });
+          return;
+        }
+        setIsUploadingReceipt(true);
+        try {
+          const fd = new FormData();
+          fd.append("receipt", expenseReceiptFile);
+          const uploadRes = await fetch("/api/upload-receipt", { method: "POST", body: fd });
+          if (!uploadRes.ok) {
+            const err = await uploadRes.json();
+            toast({ title: "خطأ في رفع الصورة", description: err.message, variant: "destructive" });
+            setIsUploadingReceipt(false);
+            return;
+          }
+          const { url } = await uploadRes.json();
+          receiptUrl = url;
+        } catch {
+          toast({ title: "خطأ في رفع الصورة", variant: "destructive" });
+          setIsUploadingReceipt(false);
+          return;
+        }
+        setIsUploadingReceipt(false);
       }
 
       createTransaction.mutate({
@@ -506,8 +535,11 @@ export default function DriverTransactionsPage() {
         unitPrice: "0",
         totalAmount: amount.toFixed(2),
         notes: `${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
+        receiptImage: receiptUrl || null,
         createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
       });
+      setExpenseReceiptFile(null);
+      setExpenseReceiptPreview("");
       return;
     }
 
@@ -1420,7 +1452,17 @@ export default function DriverTransactionsPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{isExpense ? (tx.notes || '-') : isBreadDebt ? `${getProductName(tx.productId)} (${tx.notes || ''})` : getProductName(tx.productId)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <span>{isExpense ? (tx.notes || '-') : isBreadDebt ? `${getProductName(tx.productId)} (${tx.notes || ''})` : getProductName(tx.productId)}</span>
+                            {tx.receiptImage && (
+                              <a href={tx.receiptImage} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                عرض الفاتورة
+                              </a>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{isExpense ? '-' : tx.quantity}</TableCell>
                         <TableCell>{isExpense ? '-' : (tx.unitPrice ? `${parseFloat(tx.unitPrice).toFixed(2)} ر.س` : "-")}</TableCell>
                         <TableCell>{tx.totalAmount ? `${parseFloat(tx.totalAmount).toFixed(2)} ر.س` : "-"}</TableCell>
@@ -1528,6 +1570,55 @@ export default function DriverTransactionsPage() {
                     placeholder="مثال: وقود، صيانة، غداء..."
                     data-testid="input-expense-description"
                   />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>صورة الفاتورة (اختياري - حد أقصى 50 ميغا)</Label>
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 cursor-pointer">
+                      <div className="flex items-center justify-center gap-2 border-2 border-dashed rounded-lg p-3 hover:bg-muted/50 transition-colors" data-testid="input-expense-receipt">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          {expenseReceiptFile ? expenseReceiptFile.name : "اختر صورة الفاتورة..."}
+                        </span>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 50 * 1024 * 1024) {
+                              toast({ title: "حجم الملف يتجاوز 50 ميغابايت", variant: "destructive" });
+                              return;
+                            }
+                            setExpenseReceiptFile(file);
+                            if (file.type.startsWith("image/")) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => setExpenseReceiptPreview(ev.target?.result as string);
+                              reader.readAsDataURL(file);
+                            } else {
+                              setExpenseReceiptPreview("");
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+                    {expenseReceiptFile && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setExpenseReceiptFile(null); setExpenseReceiptPreview(""); }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {expenseReceiptPreview && (
+                    <img src={expenseReceiptPreview} alt="معاينة الفاتورة" className="mt-2 max-h-40 rounded-lg border object-contain" />
+                  )}
                 </div>
 
                 {expenseAmount && (
@@ -1808,10 +1899,10 @@ export default function DriverTransactionsPage() {
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={createTransaction.isPending}
+              disabled={createTransaction.isPending || isUploadingReceipt}
               data-testid="button-submit-transaction"
             >
-              {createTransaction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ العملية"}
+              {(createTransaction.isPending || isUploadingReceipt) ? <><Loader2 className="h-4 w-4 animate-spin ml-2" />{isUploadingReceipt ? "جاري رفع الصورة..." : "جاري الحفظ..."}</> : "حفظ العملية"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -40,7 +40,7 @@ Preferred communication style: Simple, everyday language.
 - **Customers**: Customer profiles with delivery addresses and route assignments
 - **Routes**: Delivery routes with assigned drivers
 - **Orders**: Customer orders with line items and status workflow (DRAFT → CONFIRMED → ASSIGNED → DELIVERED → CLOSED)
-- **Transactions**: Field operations log (CASH_SALE, CREDIT_SALE, RETURN, FREE_DISTRIBUTION, FREE_SAMPLE, DAMAGED, EXPENSE)
+- **Transactions**: Field operations log (CASH_SALE, CREDIT_SALE, RETURN, FREE_DISTRIBUTION, FREE_SAMPLE, DAMAGED, EXPENSE). EXPENSE transactions support optional receipt image upload (receiptImage field, stored in uploads/receipts/)
 - **Driver Inventory**: Per-driver product stock tracking
 - **Driver Balance**: Per-driver cash balance tracking
 - **Customer Debts**: Credit sale debt tracking with partial payment support

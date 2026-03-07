@@ -3,11 +3,42 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrderSchema, insertOrderItemSchema, insertRouteSchema, insertTransactionSchema, insertExpenseCategorySchema, insertBakeryExpenseSchema } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const uploadsDir = path.join(process.cwd(), "uploads", "receipts");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const receiptStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => {
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
+});
+
+const uploadReceipt = multer({
+  storage: receiptStorage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|gif|webp|bmp|pdf)$/i;
+    if (allowed.test(path.extname(file.originalname))) {
+      cb(null, true);
+    } else {
+      cb(new Error("نوع الملف غير مدعوم. الأنواع المسموحة: JPG, PNG, GIF, WebP, BMP, PDF"));
+    }
+  },
+});
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.use("/uploads", (await import("express")).default.static(path.join(process.cwd(), "uploads")));
 
   // ============ AUTH ============
   app.post("/api/auth/login", async (req, res) => {
@@ -649,6 +680,18 @@ export async function registerRoutes(
       res.json(driverTransactions);
     } catch (error) {
       res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/upload-receipt", uploadReceipt.single("receipt"), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "لم يتم اختيار ملف" });
+      }
+      const filePath = `/uploads/receipts/${req.file.filename}`;
+      res.json({ url: filePath });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "خطأ في رفع الملف" });
     }
   });
 

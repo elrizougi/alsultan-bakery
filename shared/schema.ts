@@ -140,6 +140,7 @@ export const transactions = pgTable("transactions", {
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at").defaultNow(),
   notes: text("notes"),
+  receiptImage: text("receipt_image"),
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true });
