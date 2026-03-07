@@ -31,6 +31,9 @@ export default function CashDepositsPage() {
   
   const [settlementDriverId, setSettlementDriverId] = useState<string>("");
   const [showSettlement, setShowSettlement] = useState(false);
+
+  const [filterDate, setFilterDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [filterDriverId, setFilterDriverId] = useState<string>("");
   
   const [isSettlementDepositOpen, setIsSettlementDepositOpen] = useState(false);
   const [settlementDepositAmount, setSettlementDepositAmount] = useState<string>("");
@@ -668,40 +671,100 @@ export default function CashDepositsPage() {
           <CardHeader>
             <CardTitle className="text-right flex items-center gap-2">
               <Send className="h-5 w-5 text-primary" />
-              سجل جميع طلبات التسليم
+              سجل طلبات التسليم
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <p className="text-center py-4">جاري التحميل...</p>
-            ) : deposits.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">لا توجد طلبات تسليم</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-right">المندوب</TableHead>
-                    <TableHead className="text-right">المبلغ</TableHead>
-                    <TableHead className="text-right">تاريخ التسليم</TableHead>
-                    <TableHead className="text-right">الحالة</TableHead>
-                    <TableHead className="text-right">تأكيد بواسطة</TableHead>
-                    <TableHead className="text-right">ملاحظات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {deposits.map((deposit: CashDeposit) => (
-                    <TableRow key={deposit.id}>
-                      <TableCell className="font-medium">{getDriverName(deposit.driverId)}</TableCell>
-                      <TableCell className="font-bold">{parseFloat(deposit.amount).toFixed(2)} ر.س</TableCell>
-                      <TableCell>{deposit.depositDate}</TableCell>
-                      <TableCell>{getStatusBadge(deposit.status)}</TableCell>
-                      <TableCell>{getConfirmerName(deposit.confirmedBy) || "-"}</TableCell>
-                      <TableCell>{deposit.notes || "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+            <div className="flex flex-wrap items-end gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <Label className="font-bold whitespace-nowrap">التاريخ:</Label>
+                <Input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  max={format(new Date(), 'yyyy-MM-dd')}
+                  className="w-44 bg-white"
+                  data-testid="input-filter-date"
+                />
+                {filterDate !== format(new Date(), 'yyyy-MM-dd') && (
+                  <Button variant="outline" size="sm" onClick={() => setFilterDate(format(new Date(), 'yyyy-MM-dd'))}>
+                    اليوم
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="font-bold whitespace-nowrap">المندوب:</Label>
+                <Select value={filterDriverId} onValueChange={setFilterDriverId}>
+                  <SelectTrigger className="w-48 bg-white" data-testid="select-filter-driver">
+                    <SelectValue placeholder="جميع المناديب" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع المناديب</SelectItem>
+                    {drivers.map(driver => (
+                      <SelectItem key={driver.id} value={driver.id}>{driver.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {filterDriverId && filterDriverId !== "all" && (
+                  <Button variant="outline" size="sm" onClick={() => setFilterDriverId("")}>
+                    الكل
+                  </Button>
+                )}
+              </div>
+            </div>
+            {(() => {
+              const filtered = deposits.filter((d: CashDeposit) => {
+                const matchDate = !filterDate || d.depositDate === filterDate;
+                const matchDriver = !filterDriverId || filterDriverId === "all" || d.driverId === filterDriverId;
+                return matchDate && matchDriver;
+              });
+              const totalFiltered = filtered.reduce((sum: number, d: CashDeposit) => sum + parseFloat(d.amount), 0);
+              const confirmedTotal = filtered.filter((d: CashDeposit) => d.status === 'CONFIRMED').reduce((sum: number, d: CashDeposit) => sum + parseFloat(d.amount), 0);
+
+              return isLoading ? (
+                <p className="text-center py-4">جاري التحميل...</p>
+              ) : filtered.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">لا توجد طلبات تسليم في هذا اليوم</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-4 mb-4">
+                    <Badge className="bg-blue-100 text-blue-700 text-sm px-3 py-1">
+                      عدد العمليات: {filtered.length}
+                    </Badge>
+                    <Badge className="bg-green-100 text-green-700 text-sm px-3 py-1">
+                      إجمالي المبالغ: {totalFiltered.toFixed(2)} ر.س
+                    </Badge>
+                    <Badge className="bg-emerald-100 text-emerald-700 text-sm px-3 py-1">
+                      المؤكد: {confirmedTotal.toFixed(2)} ر.س
+                    </Badge>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">المندوب</TableHead>
+                        <TableHead className="text-right">المبلغ</TableHead>
+                        <TableHead className="text-right">تاريخ التسليم</TableHead>
+                        <TableHead className="text-right">الحالة</TableHead>
+                        <TableHead className="text-right">تأكيد بواسطة</TableHead>
+                        <TableHead className="text-right">ملاحظات</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((deposit: CashDeposit) => (
+                        <TableRow key={deposit.id}>
+                          <TableCell className="font-medium">{getDriverName(deposit.driverId)}</TableCell>
+                          <TableCell className="font-bold">{parseFloat(deposit.amount).toFixed(2)} ر.س</TableCell>
+                          <TableCell>{deposit.depositDate}</TableCell>
+                          <TableCell>{getStatusBadge(deposit.status)}</TableCell>
+                          <TableCell>{getConfirmerName(deposit.confirmedBy) || "-"}</TableCell>
+                          <TableCell>{deposit.notes || "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
