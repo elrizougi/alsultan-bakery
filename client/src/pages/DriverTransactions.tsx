@@ -1259,15 +1259,16 @@ export default function DriverTransactionsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-100 bg-slate-50 hover:shadow-md transition-shadow">
+          <Card className="border-slate-100 bg-amber-50 hover:shadow-md transition-shadow">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-500 rounded-lg">
-                  <ShoppingCart className="h-5 w-5 text-white" />
+                <div className="p-2 bg-amber-500 rounded-lg">
+                  <Package className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-600">العمليات اليوم</p>
-                  <p className="text-xl font-bold text-slate-700" data-testid="text-today-transactions">{transactions.length}</p>
+                  <p className="text-xs font-medium text-amber-600">المخزون الحالي</p>
+                  <p className="text-xl font-bold text-amber-700" data-testid="text-current-inventory">{totalCurrentInventory}</p>
+                  <p className="text-xs text-amber-600/70">{totalCurrentInventoryValue.toFixed(2)} ر.س</p>
                 </div>
               </div>
             </CardContent>
