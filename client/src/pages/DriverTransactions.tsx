@@ -884,7 +884,7 @@ export default function DriverTransactionsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="text-right">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800 font-black">العمليات الميدانية</h1>
-            <p className="text-sm text-muted-foreground">إدارة عمليات البيع والتوزيع والمرتجعات</p>
+            <p className="text-sm text-muted-foreground">إدارة عمليات البيع والتوزيع</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button 
@@ -1046,7 +1046,6 @@ export default function DriverTransactionsPage() {
                       <TableRow className="bg-slate-50">
                         <TableHead className="text-right font-bold">المندوب</TableHead>
                         <TableHead className="text-right font-bold">الكمية المباعة</TableHead>
-                        <TableHead className="text-right font-bold">المرتجع</TableHead>
                         <TableHead className="text-right font-bold">النقدي</TableHead>
                         <TableHead className="text-right font-bold">الآجل</TableHead>
                         <TableHead className="text-right font-bold">الإجمالي</TableHead>
@@ -1061,7 +1060,6 @@ export default function DriverTransactionsPage() {
                         <TableRow key={did} data-testid={`all-drivers-row-${did}`}>
                           <TableCell className="font-medium">{d.name}</TableCell>
                           <TableCell className="text-blue-700 font-bold">{d.totalQty}</TableCell>
-                          <TableCell className="text-orange-600">{d.returnQty || '-'}</TableCell>
                           <TableCell className="text-emerald-600">{d.cashSales.toFixed(2)}</TableCell>
                           <TableCell className="text-yellow-600">{d.creditSales > 0 ? d.creditSales.toFixed(2) : '-'}</TableCell>
                           <TableCell className="text-blue-600 font-bold">{d.totalAmount.toFixed(2)}</TableCell>
@@ -1084,7 +1082,6 @@ export default function DriverTransactionsPage() {
                       <TableRow className="bg-slate-100 font-bold border-t-2">
                         <TableCell className="font-bold">الإجمالي</TableCell>
                         <TableCell className="text-blue-700 font-bold">{totals.totalQty}</TableCell>
-                        <TableCell className="text-orange-600">{totals.returnQty || '-'}</TableCell>
                         <TableCell className="text-emerald-600">{totals.cashSales.toFixed(2)}</TableCell>
                         <TableCell className="text-yellow-600">{totals.creditSales > 0 ? totals.creditSales.toFixed(2) : '-'}</TableCell>
                         <TableCell className="text-blue-600 font-bold">{totals.totalAmount.toFixed(2)}</TableCell>
@@ -1212,12 +1209,8 @@ export default function DriverTransactionsPage() {
                   <Undo2 className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-red-600">مرتجع + تالف</p>
-                  <p className="text-2xl font-bold text-red-700" data-testid="text-return-bread">{totalReturnAndDamaged}</p>
-                  <div className="flex gap-3 text-xs text-red-600/80 mt-1">
-                    <span>مرتجع: {totalReturnBread}</span>
-                    <span>تالف: {totalDamagedBread}</span>
-                  </div>
+                  <p className="text-sm font-medium text-red-600">تالف</p>
+                  <p className="text-2xl font-bold text-red-700" data-testid="text-return-bread">{totalDamagedBread}</p>
                 </div>
               </div>
             </CardContent>
@@ -1534,7 +1527,7 @@ export default function DriverTransactionsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(transactionTypeLabels).map(([key, { label, icon }]) => (
+                  {Object.entries(transactionTypeLabels).filter(([key]) => key !== 'RETURN').map(([key, { label, icon }]) => (
                     <SelectItem key={key} value={key}>
                       <div className="flex items-center gap-2">
                         {icon}
