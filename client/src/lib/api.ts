@@ -138,6 +138,10 @@ export const api = {
     return res.json();
   },
 
+  updateOrderItemReceivedQty: async (itemId: string, data: { receivedQuantity: number; driverId: string; productId: string; oldReceivedQuantity: number }): Promise<void> => {
+    await apiRequest("PATCH", `/api/order-items/${itemId}/received-quantity`, data);
+  },
+
   // Users
   getUsers: async (): Promise<User[]> => {
     const res = await fetch("/api/users");

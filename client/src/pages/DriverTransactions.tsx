@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3, Download, Upload } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3, Download, Upload, ClipboardList, Calendar, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -339,6 +340,9 @@ export default function DriverTransactionsPage() {
   const [expenseReceiptPreview, setExpenseReceiptPreview] = useState<string>("");
   const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const [debtSubType, setDebtSubType] = useState<"cash" | "bread">("cash");
+  const [isBreadDetailsSidebarOpen, setIsBreadDetailsSidebarOpen] = useState(false);
+  const [editingOrderItem, setEditingOrderItem] = useState<{ orderId: string; itemId: string; productId: string; quantity: number; receivedQuantity: number } | null>(null);
+  const [editOrderItemQty, setEditOrderItemQty] = useState<string>("");
   
   const [formData, setFormData] = useState<Partial<InsertTransaction> & { customerId?: string }>({
     type: "CASH_SALE",
@@ -923,6 +927,15 @@ export default function DriverTransactionsPage() {
               disabled={isAdmin && !driverId}
             >
               <Truck className="h-4 w-4" /> تحميل خبز
+            </Button>
+            <Button 
+              onClick={() => setIsBreadDetailsSidebarOpen(true)} 
+              variant="outline"
+              className="flex-row gap-2 rounded-xl h-11 font-bold"
+              data-testid="button-bread-details"
+              disabled={isAdmin && !driverId}
+            >
+              <ClipboardList className="h-4 w-4" /> سجل الخبز
             </Button>
             {canExportCSV && (
               <>
@@ -2433,6 +2446,265 @@ export default function DriverTransactionsPage() {
               متابعة على أي حال
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Sheet open={isBreadDetailsSidebarOpen} onOpenChange={setIsBreadDetailsSidebarOpen}>
+        <SheetContent side="left" className="w-[420px] sm:max-w-[420px] p-0 overflow-y-auto" dir="rtl">
+          <SheetHeader className="sticky top-0 bg-white z-10 p-4 border-b">
+            <SheetTitle className="text-right flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-blue-600" />
+              سجل الخبز المستلم والمرتجع والتالف
+            </SheetTitle>
+          </SheetHeader>
+          <div className="p-4 space-y-4">
+            {(() => {
+              const receivedOrders = orders
+                .filter(o => o.customerId === driverId && (o.status === 'ASSIGNED' || o.status === 'DELIVERED' || o.status === 'CLOSED'))
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+              const returnTransactions = allDriverTransactions.filter(t => t.type === 'RETURN');
+              const damagedTransactions = allDriverTransactions.filter(t => t.type === 'DAMAGED');
+
+              const allDates = new Set<string>();
+              receivedOrders.forEach(o => allDates.add(o.date));
+              returnTransactions.forEach(t => {
+                if (t.createdAt) allDates.add(format(new Date(t.createdAt), 'yyyy-MM-dd'));
+              });
+              damagedTransactions.forEach(t => {
+                if (t.createdAt) allDates.add(format(new Date(t.createdAt), 'yyyy-MM-dd'));
+              });
+
+              const sortedDates = Array.from(allDates).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+              if (sortedDates.length === 0) {
+                return (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Package className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                    <p>لا توجد بيانات</p>
+                  </div>
+                );
+              }
+
+              return sortedDates.map(date => {
+                const dateOrders = receivedOrders.filter(o => o.date === date);
+                const dateReturns = returnTransactions.filter(t => t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === date);
+                const dateDamaged = damagedTransactions.filter(t => t.createdAt && format(new Date(t.createdAt), 'yyyy-MM-dd') === date);
+
+                const totalReceived = dateOrders.reduce((sum, o) => sum + (o.items?.reduce((s, item) => s + (item.receivedQuantity || item.quantity), 0) || 0), 0);
+                const totalReturn = dateReturns.reduce((sum, t) => sum + t.quantity, 0);
+                const totalDamaged = dateDamaged.reduce((sum, t) => sum + t.quantity, 0);
+
+                return (
+                  <Card key={date} className="border-slate-200" data-testid={`bread-details-${date}`}>
+                    <CardHeader className="py-3 px-4 bg-slate-50 rounded-t-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-slate-500" />
+                          <span className="font-bold text-sm">{format(new Date(date), 'EEEE dd/MM/yyyy', { locale: ar })}</span>
+                        </div>
+                        <div className="flex gap-3 text-xs">
+                          {totalReceived > 0 && <Badge className="bg-blue-100 text-blue-700">مستلم: {totalReceived}</Badge>}
+                          {totalReturn > 0 && <Badge className="bg-orange-100 text-orange-700">مرتجع: {totalReturn}</Badge>}
+                          {totalDamaged > 0 && <Badge className="bg-red-100 text-red-700">تالف: {totalDamaged}</Badge>}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-3">
+                      {dateOrders.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1">
+                            <Truck className="h-3.5 w-3.5" /> الخبز المستلم
+                          </p>
+                          {dateOrders.map(order => (
+                            <div key={order.id} className="mb-2">
+                              {order.items?.map((item, idx) => (
+                                <div key={idx} className="flex items-center justify-between py-1.5 px-2 bg-blue-50/50 rounded-md mb-1 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{getProductName(item.productId)}</span>
+                                    <Badge variant="outline" className="text-xs">{item.receivedQuantity || item.quantity}</Badge>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-blue-500 hover:text-blue-700"
+                                      onClick={() => {
+                                        setEditingOrderItem({
+                                          orderId: order.id,
+                                          itemId: item.id || '',
+                                          productId: item.productId,
+                                          quantity: item.quantity,
+                                          receivedQuantity: item.receivedQuantity || item.quantity,
+                                        });
+                                        setEditOrderItemQty(String(item.receivedQuantity || item.quantity));
+                                      }}
+                                      data-testid={`btn-edit-order-item-${item.id}`}
+                                    >
+                                      <Edit3 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {dateReturns.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-orange-700 mb-2 flex items-center gap-1">
+                            <Undo2 className="h-3.5 w-3.5" /> المرتجع
+                          </p>
+                          {dateReturns.map(tx => (
+                            <div key={tx.id} className="flex items-center justify-between py-1.5 px-2 bg-orange-50/50 rounded-md mb-1 text-sm" data-testid={`sidebar-return-${tx.id}`}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{getProductName(tx.productId)}</span>
+                                <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">{tx.quantity}</Badge>
+                                {tx.customerId && <span className="text-xs text-muted-foreground">({getCustomerName(tx.customerId)})</span>}
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-blue-500 hover:text-blue-700"
+                                  onClick={() => {
+                                    setEditingTransaction(tx);
+                                    setEditForm({
+                                      quantity: tx.quantity,
+                                      unitPrice: tx.unitPrice || "",
+                                      customerId: tx.customerId || "",
+                                      notes: tx.notes || "",
+                                    });
+                                  }}
+                                  data-testid={`sidebar-btn-edit-return-${tx.id}`}
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-red-500 hover:text-red-700"
+                                  onClick={() => {
+                                    if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
+                                      deleteTransaction.mutate(tx.id);
+                                    }
+                                  }}
+                                  data-testid={`sidebar-btn-delete-return-${tx.id}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {dateDamaged.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-red-700 mb-2 flex items-center gap-1">
+                            <AlertTriangle className="h-3.5 w-3.5" /> التالف
+                          </p>
+                          {dateDamaged.map(tx => (
+                            <div key={tx.id} className="flex items-center justify-between py-1.5 px-2 bg-red-50/50 rounded-md mb-1 text-sm" data-testid={`sidebar-damaged-${tx.id}`}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{getProductName(tx.productId)}</span>
+                                <Badge variant="outline" className="text-xs border-red-300 text-red-700">{tx.quantity}</Badge>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-blue-500 hover:text-blue-700"
+                                  onClick={() => {
+                                    setEditingTransaction(tx);
+                                    setEditForm({
+                                      quantity: tx.quantity,
+                                      unitPrice: tx.unitPrice || "",
+                                      customerId: tx.customerId || "",
+                                      notes: tx.notes || "",
+                                    });
+                                  }}
+                                  data-testid={`sidebar-btn-edit-damaged-${tx.id}`}
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-red-500 hover:text-red-700"
+                                  onClick={() => {
+                                    if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
+                                      deleteTransaction.mutate(tx.id);
+                                    }
+                                  }}
+                                  data-testid={`sidebar-btn-delete-damaged-${tx.id}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              });
+            })()}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={!!editingOrderItem} onOpenChange={(open) => !open && setEditingOrderItem(null)}>
+        <DialogContent className="sm:max-w-sm" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">تعديل كمية الخبز المستلم</DialogTitle>
+          </DialogHeader>
+          {editingOrderItem && (
+            <div className="grid gap-4 py-4">
+              <div>
+                <Label>المنتج</Label>
+                <p className="font-bold mt-1">{getProductName(editingOrderItem.productId)}</p>
+              </div>
+              <div className="grid gap-2">
+                <Label>الكمية المستلمة</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={editOrderItemQty}
+                  onChange={(e) => setEditOrderItemQty(e.target.value)}
+                  data-testid="input-edit-order-item-qty"
+                />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setEditingOrderItem(null)}>إلغاء</Button>
+                <Button
+                  onClick={async () => {
+                    const newQty = parseInt(editOrderItemQty);
+                    if (isNaN(newQty) || newQty < 0) return;
+                    try {
+                      await api.updateOrderItemReceivedQty(editingOrderItem.itemId, {
+                        receivedQuantity: newQty,
+                        driverId: driverId,
+                        productId: editingOrderItem.productId,
+                        oldReceivedQuantity: editingOrderItem.receivedQuantity,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["orders"] });
+                      queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+                      toast({ title: "تم تعديل الكمية بنجاح" });
+                      setEditingOrderItem(null);
+                    } catch {
+                      toast({ title: "حدث خطأ في تعديل الكمية", variant: "destructive" });
+                    }
+                  }}
+                  data-testid="button-save-order-item-edit"
+                >
+                  حفظ
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AdminLayout>

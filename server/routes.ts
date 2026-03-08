@@ -502,6 +502,26 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/order-items/:id/received-quantity", async (req, res) => {
+    try {
+      const { receivedQuantity, driverId, productId, oldReceivedQuantity } = req.body;
+      const newQty = Number(receivedQuantity);
+      const oldQty = Number(oldReceivedQuantity);
+      const diff = newQty - oldQty;
+
+      await storage.updateOrderItemReceived(req.params.id, newQty);
+
+      if (diff !== 0 && driverId && productId) {
+        await storage.updateDriverInventory(driverId, productId, diff);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating order item received quantity:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   app.delete("/api/orders/:id", async (req, res) => {
     try {
       const orderId = req.params.id;
