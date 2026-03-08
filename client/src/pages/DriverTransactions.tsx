@@ -660,8 +660,8 @@ export default function DriverTransactionsPage() {
     return sum + (item.quantity * parseFloat(product?.price || '0'));
   }, 0);
 
-  // حساب الخبز المباع (بيع نقدي + بيع آجل) مع القيمة
-  const totalSoldBread = transactions
+  // حساب الخبز المباع الإجمالي (بيع نقدي + بيع آجل)
+  const grossSoldBread = transactions
     .filter(t => t.type === "CASH_SALE" || t.type === "CREDIT_SALE")
     .reduce((sum, t) => sum + t.quantity, 0);
   const totalSoldValue = transactions
@@ -691,7 +691,10 @@ export default function DriverTransactionsPage() {
     .filter(t => t.type === 'FREE_DISTRIBUTION' || t.type === 'FREE_SAMPLE')
     .reduce((sum, t) => sum + t.quantity, 0);
 
-  const totalLoadedBread = totalSoldBread + totalDamagedBread;
+  // الخبز التالف يُخصم من المباع
+  const totalSoldBread = grossSoldBread - totalDamagedBread;
+  // المستلم = إجمالي المباع قبل خصم التالف
+  const totalLoadedBread = grossSoldBread;
 
   const moghallafProduct = products.find(p => p.name === 'مغلف');
   const salesExcludingMoghallaf = transactions

@@ -98,7 +98,7 @@ export default function DriverDailyReportPage() {
       soldByProduct.set(t.productId, existing);
     });
 
-    const totalSoldQty = dayTx.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
+    const grossSoldQty = dayTx.filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
       .reduce((s, t) => s + t.quantity, 0);
 
     const returnedQty = dayTx.filter(t => t.type === 'RETURN').reduce((s, t) => s + t.quantity, 0);
@@ -106,7 +106,9 @@ export default function DriverDailyReportPage() {
     const freeQty = dayTx.filter(t => t.type === 'FREE_DISTRIBUTION' || t.type === 'FREE_SAMPLE')
       .reduce((s, t) => s + t.quantity, 0);
 
-    const totalBread = totalSoldQty + returnedQty + damagedQty + freeQty;
+    // التالف يُخصم من المباع
+    const totalSoldQty = grossSoldQty - damagedQty;
+    const totalBread = grossSoldQty + returnedQty + freeQty;
 
     const cashAmount = dayTx.filter(t => t.type === 'CASH_SALE')
       .reduce((s, t) => s + parseFloat(t.totalAmount || "0"), 0);
