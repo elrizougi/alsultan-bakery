@@ -726,44 +726,50 @@ export default function DriverTransactionsPage() {
   const dailyCashSales = transactions
     .filter(t => t.type === 'CASH_SALE')
     .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
-  const dailyCreditSales = transactions
+  const dailyCreditSalesTotal = transactions
     .filter(t => t.type === 'CREDIT_SALE')
     .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+  const unpaidDebtsForDriver = debts.filter(d => d.driverId === driverId && !d.isPaid);
+  const dailyCreditSalesUnpaid = unpaidDebtsForDriver
+    .filter(d => d.createdAt && format(new Date(d.createdAt), 'yyyy-MM-dd') === selectedDate)
+    .reduce((sum, d) => sum + (parseFloat(d.amount) - parseFloat(d.paidAmount || '0')), 0);
   const dailyPaidToBakery = cashDeposits
     .filter(d => d.depositDate === selectedDate && d.status === 'CONFIRMED')
     .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
-  const driverCashBalance = totalSoldValue - dailyPaidToBakery - dailyCreditSales;
+  const driverCashBalance = totalSoldValue - dailyPaidToBakery - dailyCreditSalesUnpaid;
 
   const allTotalSales = allDriverTransactions
     .filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
     .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
-  const allCreditSales = allDriverTransactions
-    .filter(t => t.type === 'CREDIT_SALE')
-    .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+  const allCreditSalesUnpaid = unpaidDebtsForDriver
+    .reduce((sum, d) => sum + (parseFloat(d.amount) - parseFloat(d.paidAmount || '0')), 0);
   const allPaidToBakery = cashDeposits
     .filter(d => d.status === 'CONFIRMED')
     .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
-  const allCollectedDebts = debts
-    .filter(d => d.driverId === driverId)
-    .reduce((sum, d) => sum + parseFloat(d.paidAmount || '0'), 0);
-  const cumulativeBalance = allTotalSales - allPaidToBakery - allCreditSales + allCollectedDebts;
+  const cumulativeBalance = allTotalSales - allPaidToBakery - allCreditSalesUnpaid;
 
   const dailyBalanceBreakdown = (() => {
-    const dateMap = new Map<string, { cashSales: number; creditSales: number; paidToBakery: number; expenses: number }>();
+    const dateMap = new Map<string, { cashSales: number; creditSalesUnpaid: number; paidToBakery: number; expenses: number }>();
     allDriverTransactions.forEach(t => {
       if (!t.createdAt) return;
       const date = format(new Date(t.createdAt), 'yyyy-MM-dd');
-      const entry = dateMap.get(date) || { cashSales: 0, creditSales: 0, paidToBakery: 0, expenses: 0 };
+      const entry = dateMap.get(date) || { cashSales: 0, creditSalesUnpaid: 0, paidToBakery: 0, expenses: 0 };
       const amount = parseFloat(t.totalAmount || '0');
       if (t.type === 'CASH_SALE') entry.cashSales += amount;
-      else if (t.type === 'CREDIT_SALE') entry.creditSales += amount;
       else if ((t.type as string) === 'EXPENSE') entry.expenses += amount;
+      dateMap.set(date, entry);
+    });
+    unpaidDebtsForDriver.forEach(d => {
+      if (!d.createdAt) return;
+      const date = format(new Date(d.createdAt), 'yyyy-MM-dd');
+      const entry = dateMap.get(date) || { cashSales: 0, creditSalesUnpaid: 0, paidToBakery: 0, expenses: 0 };
+      entry.creditSalesUnpaid += parseFloat(d.amount) - parseFloat(d.paidAmount || '0');
       dateMap.set(date, entry);
     });
     cashDeposits.filter(d => d.status === 'CONFIRMED').forEach(d => {
       const date = d.depositDate || '';
       if (!date) return;
-      const entry = dateMap.get(date) || { cashSales: 0, creditSales: 0, paidToBakery: 0, expenses: 0 };
+      const entry = dateMap.get(date) || { cashSales: 0, creditSalesUnpaid: 0, paidToBakery: 0, expenses: 0 };
       entry.paidToBakery += parseFloat(d.amount || '0');
       dateMap.set(date, entry);
     });
@@ -1207,8 +1213,7 @@ export default function DriverTransactionsPage() {
                 <div className="hidden md:flex gap-4 text-xs">
                   <span className="text-gray-600">المبيعات: <strong className="text-gray-800">{allTotalSales.toFixed(2)}</strong></span>
                   <span className="text-emerald-600">المدفوع: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
-                  <span className="text-yellow-600">الآجل: <strong>-{allCreditSales.toFixed(2)}</strong></span>
-                  {allCollectedDebts > 0 && <span className="text-cyan-600">محصّل: <strong>+{allCollectedDebts.toFixed(2)}</strong></span>}
+                  <span className="text-yellow-600">الآجل: <strong>-{allCreditSalesUnpaid.toFixed(2)}</strong></span>
                 </div>
                 <Button
                   size="sm"
@@ -1392,7 +1397,7 @@ export default function DriverTransactionsPage() {
                 </div>
                 <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
                   <span className="text-sm font-medium text-yellow-700">الآجل (غير مدفوع)</span>
-                  <span className="text-lg font-bold text-yellow-800" data-testid="text-daily-credit-sales">{dailyCreditSales.toFixed(2)} ر.س</span>
+                  <span className="text-lg font-bold text-yellow-800" data-testid="text-daily-credit-sales">{dailyCreditSalesUnpaid.toFixed(2)} ر.س</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
                   <span className="text-sm font-medium text-emerald-700">المدفوع للمخبز</span>
@@ -2981,8 +2986,7 @@ export default function DriverTransactionsPage() {
                 <div className="flex justify-center gap-3 mt-2 text-xs">
                   <span className="text-gray-600">المبيعات: <strong>{allTotalSales.toFixed(2)}</strong></span>
                   <span className="text-orange-600">المدفوع: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
-                  <span className="text-yellow-600">الآجل: <strong>-{allCreditSales.toFixed(2)}</strong></span>
-                  {allCollectedDebts > 0 && <span className="text-cyan-600">محصّل: <strong>+{allCollectedDebts.toFixed(2)}</strong></span>}
+                  <span className="text-yellow-600">الآجل: <strong>-{allCreditSalesUnpaid.toFixed(2)}</strong></span>
                 </div>
               </CardContent>
             </Card>
