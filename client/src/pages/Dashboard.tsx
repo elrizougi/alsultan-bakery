@@ -48,9 +48,18 @@ export default function Dashboard() {
   const totalBreadSold = monthSales.reduce((sum, t) => sum + (t.quantity || 0), 0);
   const doughBatches = (totalBreadSold / 450).toFixed(1);
 
-  const totalCashCollected = monthTransactions
-    .filter(t => (t.type as string) === 'CASH_SALE')
-    .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+  const { data: cashDeposits = [] } = useQuery({
+    queryKey: ['all-cash-deposits'],
+    queryFn: api.getCashDeposits
+  });
+
+  const totalReceivedFromDrivers = cashDeposits
+    .filter((d: any) => {
+      if (d.status !== 'CONFIRMED' || !d.depositDate) return false;
+      const depositMonth = format(new Date(d.depositDate), 'yyyy-MM');
+      return depositMonth === currentMonth;
+    })
+    .reduce((sum: number, d: any) => sum + parseFloat(d.amount || '0'), 0);
 
   const monthCreditDebts = allDebts.filter((d: any) => {
     if (!d.createdAt) return false;
@@ -113,8 +122,8 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-slate-800">{totalSalesCount}</div>
-              <p className="text-sm font-medium text-slate-500 mt-1">عدد المبيعات</p>
+              <div className="text-3xl font-black text-slate-800">{totalBreadSold}</div>
+              <p className="text-sm font-medium text-slate-500 mt-1">عدد الخبز المباع</p>
             </CardContent>
           </Card>
 
@@ -137,8 +146,8 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="text-right p-6 pt-0">
-              <div className="text-3xl font-black text-emerald-700">{fmt(totalCashCollected)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
-              <p className="text-sm font-medium text-slate-500 mt-1">المبلغ المحصل نقداً</p>
+              <div className="text-3xl font-black text-emerald-700">{fmt(totalReceivedFromDrivers)} <span className="text-sm font-bold text-slate-400">ر.س</span></div>
+              <p className="text-sm font-medium text-slate-500 mt-1">المبلغ المستلم من المندوبين</p>
             </CardContent>
           </Card>
 
