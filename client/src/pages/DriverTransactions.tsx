@@ -286,6 +286,8 @@ export default function DriverTransactionsPage() {
   };
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [debtDateFrom, setDebtDateFrom] = useState('');
+  const [debtDateTo, setDebtDateTo] = useState('');
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
   
   // حالة إغلاق الرحلة
@@ -651,6 +653,13 @@ export default function DriverTransactionsPage() {
   }
 
   const unpaidDebts = debts.filter(d => !d.isPaid);
+  const filteredUnpaidDebts = unpaidDebts.filter(d => {
+    if (!d.createdAt) return true;
+    const debtDate = format(new Date(d.createdAt), 'yyyy-MM-dd');
+    if (debtDateFrom && debtDate < debtDateFrom) return false;
+    if (debtDateTo && debtDate > debtDateTo) return false;
+    return true;
+  });
   const totalDebts = unpaidDebts.reduce((sum, d) => sum + (parseFloat(d.amount) - parseFloat(d.paidAmount || "0")), 0);
 
   // حساب المخزون الحالي مع القيمة
@@ -1357,62 +1366,96 @@ export default function DriverTransactionsPage() {
 
           <Card className="border-slate-100">
             <CardHeader>
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                الديون غير المدفوعة
-              </CardTitle>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  الديون غير المدفوعة
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground">من:</label>
+                  <Input
+                    type="date"
+                    value={debtDateFrom}
+                    onChange={(e) => setDebtDateFrom(e.target.value)}
+                    className="w-40 text-sm"
+                    data-testid="input-debt-date-from"
+                  />
+                  <label className="text-sm text-muted-foreground">إلى:</label>
+                  <Input
+                    type="date"
+                    value={debtDateTo}
+                    onChange={(e) => setDebtDateTo(e.target.value)}
+                    className="w-40 text-sm"
+                    data-testid="input-debt-date-to"
+                  />
+                  {(debtDateFrom || debtDateTo) && (
+                    <Button size="sm" variant="ghost" onClick={() => { setDebtDateFrom(''); setDebtDateTo(''); }} data-testid="button-clear-debt-filter">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {unpaidDebts.length === 0 ? (
+              {filteredUnpaidDebts.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">لا توجد ديون</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-right">العميل</TableHead>
-                      <TableHead className="text-right">المبلغ الكلي</TableHead>
-                      <TableHead className="text-right">المدفوع</TableHead>
-                      <TableHead className="text-right">الباقي</TableHead>
-                      <TableHead className="text-right">إجراء</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {unpaidDebts.map((debt) => {
-                      const total = parseFloat(debt.amount);
-                      const paid = parseFloat(debt.paidAmount || "0");
-                      const remaining = total - paid;
-                      return (
-                        <TableRow key={debt.id} data-testid={`row-debt-${debt.id}`}>
-                          <TableCell>{getCustomerName(debt.customerId)}</TableCell>
-                          <TableCell>{total.toFixed(2)} ر.س</TableCell>
-                          <TableCell className="text-green-600">{paid.toFixed(2)} ر.س</TableCell>
-                          <TableCell className="text-red-600 font-bold">{remaining.toFixed(2)} ر.س</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => setPaymentDialogDebt(debt)}
-                                data-testid={`button-partial-pay-${debt.id}`}
-                              >
-                                دفع جزئي
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="default"
-                                onClick={() => updateDebt.mutate({ id: debt.id, isPaid: true })}
-                                data-testid={`button-mark-paid-${debt.id}`}
-                              >
-                                <Check className="h-4 w-4 ml-1" />
-                                دفع كامل
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <>
+                  <div className="mb-3 text-sm text-muted-foreground">
+                    إجمالي الديون المعروضة: <span className="font-bold text-red-600">{filteredUnpaidDebts.reduce((s, d) => s + parseFloat(d.amount) - parseFloat(d.paidAmount || "0"), 0).toFixed(2)} ر.س</span>
+                    <span className="mx-2">|</span>
+                    عدد: <span className="font-bold">{filteredUnpaidDebts.length}</span>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">التاريخ</TableHead>
+                        <TableHead className="text-right">العميل</TableHead>
+                        <TableHead className="text-right">المبلغ الكلي</TableHead>
+                        <TableHead className="text-right">المدفوع</TableHead>
+                        <TableHead className="text-right">الباقي</TableHead>
+                        <TableHead className="text-right">إجراء</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUnpaidDebts.map((debt) => {
+                        const total = parseFloat(debt.amount);
+                        const paid = parseFloat(debt.paidAmount || "0");
+                        const remaining = total - paid;
+                        return (
+                          <TableRow key={debt.id} data-testid={`row-debt-${debt.id}`}>
+                            <TableCell className="text-muted-foreground text-sm">{debt.createdAt ? format(new Date(debt.createdAt), 'yyyy-MM-dd') : '-'}</TableCell>
+                            <TableCell>{getCustomerName(debt.customerId)}</TableCell>
+                            <TableCell>{total.toFixed(2)} ر.س</TableCell>
+                            <TableCell className="text-green-600">{paid.toFixed(2)} ر.س</TableCell>
+                            <TableCell className="text-red-600 font-bold">{remaining.toFixed(2)} ر.س</TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => setPaymentDialogDebt(debt)}
+                                  data-testid={`button-partial-pay-${debt.id}`}
+                                >
+                                  دفع جزئي
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="default"
+                                  onClick={() => updateDebt.mutate({ id: debt.id, isPaid: true })}
+                                  data-testid={`button-mark-paid-${debt.id}`}
+                                >
+                                  <Check className="h-4 w-4 ml-1" />
+                                  دفع كامل
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </>
               )}
             </CardContent>
           </Card>
