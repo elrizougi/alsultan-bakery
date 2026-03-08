@@ -470,7 +470,7 @@ export class DatabaseStorage implements IStorage {
     const { type, driverId, customerId, productId, quantity } = transaction;
     const totalAmount = transaction.totalAmount || "0";
     
-    const typesRequiringInventory = ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'DAMAGED', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
+    const typesRequiringInventory = ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
     if (typesRequiringInventory.includes(type)) {
       const [existing] = await db.select().from(driverInventory)
         .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)));
@@ -535,8 +535,10 @@ export class DatabaseStorage implements IStorage {
           break;
           
         case 'RETURN':
-        case 'DAMAGED':
           await updateInventoryInTx(-quantity);
+          break;
+
+        case 'DAMAGED':
           break;
           
         case 'FREE_DISTRIBUTION':
@@ -620,8 +622,9 @@ export class DatabaseStorage implements IStorage {
           }
           break;
         case 'RETURN':
-        case 'DAMAGED':
           if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
+          break;
+        case 'DAMAGED':
           break;
         case 'FREE_DISTRIBUTION':
         case 'FREE_SAMPLE':
@@ -700,8 +703,9 @@ export class DatabaseStorage implements IStorage {
           }
           break;
         case 'RETURN':
-        case 'DAMAGED':
           await updateInventoryInTx(quantity);
+          break;
+        case 'DAMAGED':
           break;
         case 'FREE_DISTRIBUTION':
         case 'FREE_SAMPLE':
