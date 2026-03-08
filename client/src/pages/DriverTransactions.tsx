@@ -288,6 +288,7 @@ export default function DriverTransactionsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [debtDateFrom, setDebtDateFrom] = useState('');
   const [debtDateTo, setDebtDateTo] = useState('');
+  const [isCumulativeBalanceOpen, setIsCumulativeBalanceOpen] = useState(false);
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
   
   // حالة إغلاق الرحلة
@@ -743,6 +744,34 @@ export default function DriverTransactionsPage() {
     .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
   const cumulativeBalance = allTotalSales - allPaidToBakery - allCreditSales;
 
+  const dailyBalanceBreakdown = (() => {
+    const dateMap = new Map<string, { cashSales: number; creditSales: number; paidToBakery: number; expenses: number }>();
+    allDriverTransactions.forEach(t => {
+      if (!t.createdAt) return;
+      const date = format(new Date(t.createdAt), 'yyyy-MM-dd');
+      const entry = dateMap.get(date) || { cashSales: 0, creditSales: 0, paidToBakery: 0, expenses: 0 };
+      const amount = parseFloat(t.totalAmount || '0');
+      if (t.type === 'CASH_SALE') entry.cashSales += amount;
+      else if (t.type === 'CREDIT_SALE') entry.creditSales += amount;
+      else if ((t.type as string) === 'EXPENSE') entry.expenses += amount;
+      dateMap.set(date, entry);
+    });
+    cashDeposits.filter(d => d.status === 'CONFIRMED').forEach(d => {
+      const date = d.depositDate || '';
+      if (!date) return;
+      const entry = dateMap.get(date) || { cashSales: 0, creditSales: 0, paidToBakery: 0, expenses: 0 };
+      entry.paidToBakery += parseFloat(d.amount || '0');
+      dateMap.set(date, entry);
+    });
+    const sorted = Array.from(dateMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    let running = 0;
+    return sorted.map(([date, data]) => {
+      const dailyNet = data.cashSales - data.paidToBakery;
+      running += dailyNet;
+      return { date, ...data, dailyNet, cumulative: running };
+    });
+  })();
+
   const driverName = users.find(u => u.id === driverId)?.name || '';
 
   const handleExportCSV = () => {
@@ -1176,6 +1205,16 @@ export default function DriverTransactionsPage() {
                   <span className="text-emerald-600">المدفوع: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
                   <span className="text-yellow-600">الآجل: <strong>-{allCreditSales.toFixed(2)}</strong></span>
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-lg"
+                  onClick={() => setIsCumulativeBalanceOpen(true)}
+                  data-testid="button-open-cumulative-balance"
+                >
+                  <Calendar className="h-4 w-4 ml-1" />
+                  التفاصيل
+                </Button>
                 <Button 
                   size="sm"
                   className="bg-green-600 hover:bg-green-700 text-white rounded-lg"
@@ -2916,6 +2955,59 @@ export default function DriverTransactionsPage() {
           )}
         </DialogContent>
       </Dialog>
+      <Sheet open={isCumulativeBalanceOpen} onOpenChange={setIsCumulativeBalanceOpen}>
+        <SheetContent side="left" className="w-[480px] sm:max-w-[480px] p-0 overflow-y-auto" dir="rtl">
+          <SheetHeader className="sticky top-0 bg-white z-10 p-4 border-b">
+            <SheetTitle className="text-right flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-blue-600" />
+              رصيد المندوب التراكمي
+            </SheetTitle>
+            <SheetDescription className="text-right text-xs">
+              تفاصيل الرصيد اليومي والتراكمي - {driverName}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="p-4">
+            <Card className={`mb-4 ${cumulativeBalance >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
+              <CardContent className="pt-4 pb-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">الرصيد التراكمي الحالي</p>
+                <p className={`text-3xl font-bold ${cumulativeBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                  {cumulativeBalance.toFixed(2)} <span className="text-sm">ر.س</span>
+                </p>
+              </CardContent>
+            </Card>
+            {dailyBalanceBreakdown.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">لا توجد بيانات</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50">
+                    <TableHead className="text-right font-bold text-xs">التاريخ</TableHead>
+                    <TableHead className="text-right font-bold text-xs">النقدي</TableHead>
+                    <TableHead className="text-right font-bold text-xs">المدفوع</TableHead>
+                    <TableHead className="text-right font-bold text-xs">الصافي</TableHead>
+                    <TableHead className="text-right font-bold text-xs">التراكمي</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailyBalanceBreakdown.map((row) => (
+                    <TableRow key={row.date} className="text-sm">
+                      <TableCell className="font-medium text-xs">{row.date}</TableCell>
+                      <TableCell className="text-green-600 text-xs">{row.cashSales.toFixed(2)}</TableCell>
+                      <TableCell className="text-orange-600 text-xs">{row.paidToBakery > 0 ? `-${row.paidToBakery.toFixed(2)}` : '0.00'}</TableCell>
+                      <TableCell className={`font-bold text-xs ${row.dailyNet >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                        {row.dailyNet.toFixed(2)}
+                      </TableCell>
+                      <TableCell className={`font-bold text-xs ${row.cumulative >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        {row.cumulative.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </AdminLayout>
   );
 }
