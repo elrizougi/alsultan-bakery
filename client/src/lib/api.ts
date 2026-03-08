@@ -192,6 +192,16 @@ export const api = {
     return res.json();
   },
 
+  upsertDriverInventory: async (driverId: string, productId: string, quantity: number): Promise<DriverInventory> => {
+    const res = await fetch(`/api/driver-inventory/${driverId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId, quantity }),
+    });
+    if (!res.ok) throw new Error('Failed to update inventory');
+    return res.json();
+  },
+
   getDriverBalance: async (driverId: string): Promise<DriverBalance> => {
     const res = await fetch(`/api/driver-balance/${driverId}`);
     return res.json();

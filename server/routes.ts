@@ -617,6 +617,19 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/driver-inventory/:driverId", async (req, res) => {
+    try {
+      const { productId, quantity } = req.body;
+      if (!productId || quantity === undefined || quantity < 0) {
+        return res.status(400).json({ message: "بيانات غير صحيحة" });
+      }
+      const result = await storage.upsertDriverInventory(req.params.driverId, productId, quantity);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // ============ DRIVER BALANCE ============
   app.get("/api/driver-balance/:driverId", async (req, res) => {
     try {

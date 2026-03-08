@@ -343,6 +343,11 @@ export default function DriverTransactionsPage() {
   const [isBreadDetailsSidebarOpen, setIsBreadDetailsSidebarOpen] = useState(false);
   const [editingOrderItem, setEditingOrderItem] = useState<{ orderId: string; itemId: string; productId: string; quantity: number; receivedQuantity: number } | null>(null);
   const [editOrderItemQty, setEditOrderItemQty] = useState<string>("");
+  const [editingInventoryItem, setEditingInventoryItem] = useState<{ productId: string; quantity: number } | null>(null);
+  const [editInventoryQty, setEditInventoryQty] = useState<string>("");
+  const [addingInventoryProduct, setAddingInventoryProduct] = useState(false);
+  const [newInventoryProductId, setNewInventoryProductId] = useState<string>("");
+  const [newInventoryQty, setNewInventoryQty] = useState<string>("");
   
   const [formData, setFormData] = useState<Partial<InsertTransaction> & { customerId?: string }>({
     type: "CASH_SALE",
@@ -2461,6 +2466,156 @@ export default function DriverTransactionsPage() {
             </SheetDescription>
           </SheetHeader>
           <div className="p-4 space-y-4">
+            <Card className="border-green-200 bg-green-50/50" data-testid="inventory-section">
+              <CardHeader className="py-3 px-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-green-700 flex items-center gap-1">
+                    <Package className="h-4 w-4" /> المخزون الحالي
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1 border-green-300 text-green-700 hover:bg-green-100"
+                    onClick={() => {
+                      setAddingInventoryProduct(true);
+                      setNewInventoryProductId("");
+                      setNewInventoryQty("");
+                    }}
+                    data-testid="button-add-inventory"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> إضافة منتج
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 pt-0 space-y-2">
+                {inventory.length === 0 && !addingInventoryProduct && (
+                  <p className="text-xs text-muted-foreground text-center py-3">لا يوجد مخزون حالي</p>
+                )}
+                {inventory.map(item => (
+                  <div key={item.id} className="flex items-center justify-between py-1.5 px-2 bg-green-50 rounded-md text-sm" data-testid={`inventory-item-${item.productId}`}>
+                    {editingInventoryItem?.productId === item.productId ? (
+                      <div className="flex items-center gap-2 w-full">
+                        <span className="font-medium flex-1">{getProductName(item.productId)}</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          className="w-20 h-7 text-sm"
+                          value={editInventoryQty}
+                          onChange={(e) => setEditInventoryQty(e.target.value)}
+                          autoFocus
+                          data-testid="input-edit-inventory-qty"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-green-600"
+                          onClick={async () => {
+                            const qty = parseInt(editInventoryQty);
+                            if (isNaN(qty) || qty < 0) return;
+                            try {
+                              await api.upsertDriverInventory(driverId, item.productId, qty);
+                              queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+                              toast({ title: "تم تعديل المخزون" });
+                              setEditingInventoryItem(null);
+                            } catch {
+                              toast({ title: "حدث خطأ", variant: "destructive" });
+                            }
+                          }}
+                          data-testid="button-save-inventory-edit"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-red-500"
+                          onClick={() => setEditingInventoryItem(null)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{getProductName(item.productId)}</span>
+                          <Badge className="bg-green-100 text-green-700 text-xs">{item.quantity}</Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-blue-500 hover:text-blue-700"
+                          onClick={() => {
+                            setEditingInventoryItem({ productId: item.productId, quantity: item.quantity });
+                            setEditInventoryQty(String(item.quantity));
+                          }}
+                          data-testid={`btn-edit-inventory-${item.productId}`}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {addingInventoryProduct && (
+                  <div className="p-2 border border-green-200 rounded-md bg-white space-y-2" data-testid="add-inventory-form">
+                    <Select value={newInventoryProductId} onValueChange={setNewInventoryProductId}>
+                      <SelectTrigger className="h-8 text-sm" data-testid="select-inventory-product">
+                        <SelectValue placeholder="اختر المنتج" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products
+                          .filter(p => !inventory.some(i => i.productId === p.id))
+                          .map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="الكمية"
+                      className="h-8 text-sm"
+                      value={newInventoryQty}
+                      onChange={(e) => setNewInventoryQty(e.target.value)}
+                      data-testid="input-new-inventory-qty"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setAddingInventoryProduct(false)}
+                      >
+                        إلغاء
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-green-600 hover:bg-green-700"
+                        disabled={!newInventoryProductId || !newInventoryQty}
+                        onClick={async () => {
+                          const qty = parseInt(newInventoryQty);
+                          if (isNaN(qty) || qty < 0 || !newInventoryProductId) return;
+                          try {
+                            await api.upsertDriverInventory(driverId, newInventoryProductId, qty);
+                            queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
+                            toast({ title: "تم إضافة المنتج للمخزون" });
+                            setAddingInventoryProduct(false);
+                            setNewInventoryProductId("");
+                            setNewInventoryQty("");
+                          } catch {
+                            toast({ title: "حدث خطأ", variant: "destructive" });
+                          }
+                        }}
+                        data-testid="button-save-new-inventory"
+                      >
+                        إضافة
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {(() => {
               const receivedOrders = orders
                 .filter(o => o.customerId === driverId && (o.status === 'ASSIGNED' || o.status === 'DELIVERED' || o.status === 'CLOSED'))
