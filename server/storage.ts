@@ -734,8 +734,6 @@ export class DatabaseStorage implements IStorage {
       const [debt] = await tx.select().from(customerDebts).where(eq(customerDebts.id, id));
       if (!debt) return undefined;
       
-      const [updated] = await tx.update(customerDebts).set({ isPaid }).where(eq(customerDebts.id, id)).returning();
-      
       const updateBalanceInTx = async (driverId: string, amount: string) => {
         const [existing] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, driverId));
         const currentBalance = existing ? parseFloat(existing.cashBalance) : 0;
@@ -755,6 +753,12 @@ export class DatabaseStorage implements IStorage {
         const remainingAmount = parseFloat(debt.amount) - parseFloat(debt.paidAmount || "0");
         await updateBalanceInTx(debt.driverId, (-remainingAmount).toFixed(2));
       }
+      
+      const updateData: { isPaid: boolean; paidAmount?: string } = { isPaid };
+      if (isPaid) {
+        updateData.paidAmount = debt.amount;
+      }
+      const [updated] = await tx.update(customerDebts).set(updateData).where(eq(customerDebts.id, id)).returning();
       
       return updated;
     });

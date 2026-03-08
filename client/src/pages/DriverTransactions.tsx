@@ -178,6 +178,7 @@ export default function DriverTransactionsPage() {
     mutationFn: ({ id, isPaid }: { id: string; isPaid: boolean }) => api.updateCustomerDebt(id, isPaid),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["driver-debts"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-debts"] });
       queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
       toast({ title: "تم تحديث حالة الدين" });
     },
