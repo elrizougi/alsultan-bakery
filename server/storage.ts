@@ -470,25 +470,42 @@ export class DatabaseStorage implements IStorage {
     const { type, driverId, customerId, productId, quantity } = transaction;
     const totalAmount = transaction.totalAmount || "0";
     
+    const typesRequiringInventory = ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'DAMAGED', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
+    if (typesRequiringInventory.includes(type)) {
+      const [existing] = await db.select().from(driverInventory)
+        .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)));
+      
+      if (!existing || existing.quantity <= 0) {
+        throw new Error('INSUFFICIENT_INVENTORY');
+      }
+      if (existing.quantity < quantity) {
+        throw new Error('INSUFFICIENT_INVENTORY_QTY:' + existing.quantity);
+      }
+    }
+    if (type === 'DRIVER_DEBT' && quantity > 0) {
+      const [existing] = await db.select().from(driverInventory)
+        .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)));
+      if (!existing || existing.quantity < quantity) {
+        throw new Error('INSUFFICIENT_INVENTORY');
+      }
+    }
+    
     return await db.transaction(async (tx) => {
-      // إنشاء العملية
       const [newTransaction] = await tx.insert(transactions).values(transaction).returning();
       
-      // Helper function for inventory update within transaction
       const updateInventoryInTx = async (qtyChange: number) => {
         const [existing] = await tx.select().from(driverInventory)
           .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)));
         
         if (existing) {
           await tx.update(driverInventory)
-            .set({ quantity: existing.quantity + qtyChange })
+            .set({ quantity: Math.max(0, existing.quantity + qtyChange) })
             .where(eq(driverInventory.id, existing.id));
         } else if (qtyChange > 0) {
           await tx.insert(driverInventory).values({ driverId, productId, quantity: qtyChange });
         }
       };
       
-      // Helper function for balance update within transaction
       const updateBalanceInTx = async (amount: string) => {
         const [existing] = await tx.select().from(driverBalance).where(eq(driverBalance.driverId, driverId));
         const currentBalance = existing ? parseFloat(existing.cashBalance) : 0;
@@ -501,7 +518,6 @@ export class DatabaseStorage implements IStorage {
         }
       };
       
-      // معالجة أنواع العمليات المختلفة
       switch (type) {
         case 'CASH_SALE':
           await updateInventoryInTx(-quantity);

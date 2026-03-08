@@ -743,13 +743,21 @@ export async function registerRoutes(
         return res.status(400).json({ message: "البيع الآجل يتطلب تحديد العميل" });
       }
       
-      // استخدام الدالة الذرية لإنشاء العملية مع جميع التحديثات
       const transaction = await storage.createTransactionWithUpdates(parsed);
       
       res.status(201).json(transaction);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "بيانات غير صالحة", errors: error.errors });
+      }
+      if (error instanceof Error) {
+        if (error.message === 'INSUFFICIENT_INVENTORY') {
+          return res.status(400).json({ message: "لا يوجد مخزون كافٍ لهذا المنتج. يجب إضافة مخزون أولاً من سجل الخبز." });
+        }
+        if (error.message.startsWith('INSUFFICIENT_INVENTORY_QTY:')) {
+          const available = error.message.split(':')[1];
+          return res.status(400).json({ message: `الكمية المطلوبة أكبر من المخزون المتاح (${available})` });
+        }
       }
       console.error("Transaction error:", error);
       res.status(500).json({ message: "خطأ في الخادم" });

@@ -116,8 +116,13 @@ export default function DriverTransactionsPage() {
       setIsCreateOpen(false);
       resetForm();
     },
-    onError: () => {
-      toast({ title: "حدث خطأ في تسجيل العملية", variant: "destructive" });
+    onError: (error: Error) => {
+      let msg = "حدث خطأ في تسجيل العملية";
+      try {
+        const parsed = JSON.parse(error.message.substring(error.message.indexOf('{')));
+        if (parsed.message) msg = parsed.message;
+      } catch {}
+      toast({ title: msg, variant: "destructive" });
     },
   });
 
