@@ -106,9 +106,10 @@ export default function DriverDailyReportPage() {
     const freeQty = dayTx.filter(t => t.type === 'FREE_DISTRIBUTION' || t.type === 'FREE_SAMPLE')
       .reduce((s, t) => s + t.quantity, 0);
 
-    // التالف يُخصم من المباع
-    const totalSoldQty = grossSoldQty - damagedQty;
-    const totalBread = grossSoldQty + returnedQty + freeQty;
+    // المباع = العدد الحقيقي من المبيعات
+    const totalSoldQty = grossSoldQty;
+    // المستلم = المباع + التالف
+    const totalBread = grossSoldQty + damagedQty + returnedQty + freeQty;
 
     const cashAmount = dayTx.filter(t => t.type === 'CASH_SALE')
       .reduce((s, t) => s + parseFloat(t.totalAmount || "0"), 0);

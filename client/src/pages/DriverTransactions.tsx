@@ -702,10 +702,10 @@ export default function DriverTransactionsPage() {
     .filter(t => t.type === 'FREE_DISTRIBUTION' || t.type === 'FREE_SAMPLE')
     .reduce((sum, t) => sum + t.quantity, 0);
 
-  // الخبز التالف يُخصم من المباع
-  const totalSoldBread = grossSoldBread - totalDamagedBread;
-  // المستلم = إجمالي المباع قبل خصم التالف
-  const totalLoadedBread = grossSoldBread;
+  // الخبز المباع = بيع نقدي + بيع آجل (العدد الحقيقي من المبيعات)
+  const totalSoldBread = grossSoldBread;
+  // المستلم = المباع + التالف
+  const totalLoadedBread = grossSoldBread + totalDamagedBread;
 
   const moghallafProduct = products.find(p => p.name === 'مغلف');
   const salesExcludingMoghallaf = transactions
