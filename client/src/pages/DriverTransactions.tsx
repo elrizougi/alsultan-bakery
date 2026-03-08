@@ -681,7 +681,7 @@ export default function DriverTransactionsPage() {
     .filter(t => t.type === 'FREE_DISTRIBUTION' || t.type === 'FREE_SAMPLE')
     .reduce((sum, t) => sum + t.quantity, 0);
 
-  const totalLoadedBread = totalSoldBread + totalReturnAndDamaged + totalFreeDistribution + totalCurrentInventory;
+  const totalLoadedBread = totalSoldBread + totalDamagedBread;
 
   const moghallafProduct = products.find(p => p.name === 'مغلف');
   const salesExcludingMoghallaf = transactions
