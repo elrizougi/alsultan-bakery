@@ -742,7 +742,10 @@ export default function DriverTransactionsPage() {
   const allPaidToBakery = cashDeposits
     .filter(d => d.status === 'CONFIRMED')
     .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
-  const cumulativeBalance = allTotalSales - allPaidToBakery - allCreditSales;
+  const allCollectedDebts = debts
+    .filter(d => d.driverId === driverId)
+    .reduce((sum, d) => sum + parseFloat(d.paidAmount || '0'), 0);
+  const cumulativeBalance = allTotalSales - allPaidToBakery - allCreditSales + allCollectedDebts;
 
   const dailyBalanceBreakdown = (() => {
     const dateMap = new Map<string, { cashSales: number; creditSales: number; paidToBakery: number; expenses: number }>();
@@ -1204,6 +1207,7 @@ export default function DriverTransactionsPage() {
                   <span className="text-gray-600">المبيعات: <strong className="text-gray-800">{allTotalSales.toFixed(2)}</strong></span>
                   <span className="text-emerald-600">المدفوع: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
                   <span className="text-yellow-600">الآجل: <strong>-{allCreditSales.toFixed(2)}</strong></span>
+                  {allCollectedDebts > 0 && <span className="text-cyan-600">محصّل: <strong>+{allCollectedDebts.toFixed(2)}</strong></span>}
                 </div>
                 <Button
                   size="sm"
@@ -2973,6 +2977,12 @@ export default function DriverTransactionsPage() {
                 <p className={`text-3xl font-bold ${cumulativeBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                   {cumulativeBalance.toFixed(2)} <span className="text-sm">ر.س</span>
                 </p>
+                <div className="flex justify-center gap-3 mt-2 text-xs">
+                  <span className="text-gray-600">المبيعات: <strong>{allTotalSales.toFixed(2)}</strong></span>
+                  <span className="text-orange-600">المدفوع: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
+                  <span className="text-yellow-600">الآجل: <strong>-{allCreditSales.toFixed(2)}</strong></span>
+                  {allCollectedDebts > 0 && <span className="text-cyan-600">محصّل: <strong>+{allCollectedDebts.toFixed(2)}</strong></span>}
+                </div>
               </CardContent>
             </Card>
             {dailyBalanceBreakdown.length === 0 ? (
