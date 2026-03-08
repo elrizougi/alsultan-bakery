@@ -249,7 +249,7 @@ export const api = {
     await apiRequest("POST", "/api/driver-load-inventory", { driverId, productId, quantity, mode });
   },
 
-  updateTransaction: async (id: string, updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction> => {
+  updateTransaction: async (id: string, updates: { type?: string; quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction> => {
     const res = await apiRequest("PATCH", `/api/transactions/${id}`, updates);
     return res.json();
   },

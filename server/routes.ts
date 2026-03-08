@@ -913,8 +913,16 @@ export async function registerRoutes(
 
   app.patch("/api/transactions/:id", async (req, res) => {
     try {
-      const { quantity, unitPrice, customerId, notes } = req.body;
+      const { type, quantity, unitPrice, customerId, notes } = req.body;
+      if (type === 'CREDIT_SALE' && !customerId) {
+        return res.status(400).json({ message: "العميل مطلوب للبيع الآجل" });
+      }
+      const validTypes = ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE', 'DAMAGED', 'EXPENSE', 'DRIVER_DEBT'];
+      if (type && !validTypes.includes(type)) {
+        return res.status(400).json({ message: "نوع العملية غير صالح" });
+      }
       const updated = await storage.updateTransactionWithUpdates(req.params.id, {
+        type,
         quantity,
         unitPrice,
         customerId,

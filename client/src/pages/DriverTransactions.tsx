@@ -141,10 +141,11 @@ export default function DriverTransactionsPage() {
   });
 
   const updateTransaction = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string } }) =>
+    mutationFn: ({ id, updates }: { id: string; updates: { type?: string; quantity?: number; unitPrice?: string; customerId?: string; notes?: string } }) =>
       api.updateTransaction(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["driver-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["all-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
       queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
       queryClient.invalidateQueries({ queryKey: ["driver-debts"] });
@@ -332,7 +333,7 @@ export default function DriverTransactionsPage() {
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [editForm, setEditForm] = useState({ quantity: 1, unitPrice: "", customerId: "", notes: "" });
+  const [editForm, setEditForm] = useState({ type: "" as string, quantity: 1, unitPrice: "", customerId: "", notes: "" });
   const [editCustomerSearchOpen, setEditCustomerSearchOpen] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [loadMode, setLoadMode] = useState<'load' | 'return'>('load');
@@ -1620,6 +1621,7 @@ export default function DriverTransactionsPage() {
                               onClick={() => {
                                 setEditingTransaction(tx);
                                 setEditForm({
+                                  type: tx.type,
                                   quantity: tx.quantity,
                                   unitPrice: tx.unitPrice || "",
                                   customerId: tx.customerId || "",
@@ -2294,18 +2296,41 @@ export default function DriverTransactionsPage() {
           {editingTransaction && (
             <div className="grid gap-4 py-4">
               <div className="p-3 bg-slate-50 rounded-lg space-y-1">
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                  <span>النوع:</span>
-                  <Badge className={`${transactionTypeLabels[editingTransaction.type]?.color} text-white`}>
-                    {transactionTypeLabels[editingTransaction.type]?.label}
-                  </Badge>
-                </div>
+                {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'DRIVER_DEBT' ? (
+                  <div className="grid gap-2">
+                    <Label>نوع العملية</Label>
+                    <Select
+                      value={editForm.type}
+                      onValueChange={(value) => setEditForm({ ...editForm, type: value })}
+                    >
+                      <SelectTrigger data-testid="select-edit-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(transactionTypeLabels)
+                          .filter(([key]) => !['EXPENSE', 'DRIVER_DEBT'].includes(key))
+                          .map(([key, { label, icon }]) => (
+                          <SelectItem key={key} value={key}>
+                            <span className="flex items-center gap-2">{icon} {label}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <span>النوع:</span>
+                    <Badge className={`${transactionTypeLabels[editingTransaction.type]?.color} text-white`}>
+                      {transactionTypeLabels[editingTransaction.type]?.label}
+                    </Badge>
+                  </div>
+                )}
                 <div className="text-sm text-muted-foreground">
                   المنتج: <span className="font-bold">{getProductName(editingTransaction.productId)}</span>
                 </div>
               </div>
 
-              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'DRIVER_DEBT' && (
+              {(editForm.type as string) !== 'EXPENSE' && (editForm.type as string) !== 'DRIVER_DEBT' && (
                 <div className="grid gap-2">
                   <Label>الكمية</Label>
                   <Input
@@ -2318,7 +2343,7 @@ export default function DriverTransactionsPage() {
                 </div>
               )}
 
-              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'DRIVER_DEBT' && (
+              {(editForm.type as string) !== 'EXPENSE' && (editForm.type as string) !== 'DRIVER_DEBT' && (
                 <div className="grid gap-2">
                   <Label>سعر الوحدة</Label>
                   <Input
@@ -2332,7 +2357,7 @@ export default function DriverTransactionsPage() {
                 </div>
               )}
 
-              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'DRIVER_DEBT' && (editingTransaction.type as string) !== 'RETURN' && (
+              {['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'].includes(editForm.type) && (
                 <div className="grid gap-2">
                   <Label>العميل</Label>
                   <Popover open={editCustomerSearchOpen} onOpenChange={setEditCustomerSearchOpen}>
@@ -2389,7 +2414,7 @@ export default function DriverTransactionsPage() {
                 />
               </div>
 
-              {(editingTransaction.type as string) !== 'EXPENSE' && (editingTransaction.type as string) !== 'DRIVER_DEBT' && editForm.unitPrice && (
+              {(editForm.type as string) !== 'EXPENSE' && (editForm.type as string) !== 'DRIVER_DEBT' && editForm.unitPrice && (
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-muted-foreground">
                     الإجمالي: <span className="font-bold text-blue-600">
@@ -2413,6 +2438,7 @@ export default function DriverTransactionsPage() {
                 updateTransaction.mutate({
                   id: editingTransaction.id,
                   updates: {
+                    type: editForm.type !== editingTransaction.type ? editForm.type : undefined,
                     quantity: editForm.quantity,
                     unitPrice: editForm.unitPrice,
                     customerId: editForm.customerId || undefined,

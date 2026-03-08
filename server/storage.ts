@@ -90,7 +90,7 @@ export interface IStorage {
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   findDuplicateTransaction(driverId: string, customerId: string, productId: string, type: string, quantity: number, totalAmount: string, createdAt?: Date): Promise<Transaction | undefined>;
   deleteTransactionWithUpdates(id: string): Promise<boolean>;
-  updateTransactionWithUpdates(id: string, updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction | undefined>;
+  updateTransactionWithUpdates(id: string, updates: { type?: string; quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction | undefined>;
 
   // Cash Deposits - تسليم المبالغ
   getAllCashDeposits(): Promise<CashDeposit[]>;
@@ -563,20 +563,24 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async updateTransactionWithUpdates(id: string, updates: { quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction | undefined> {
+  async updateTransactionWithUpdates(id: string, updates: { type?: string; quantity?: number; unitPrice?: string; customerId?: string; notes?: string }): Promise<Transaction | undefined> {
     return await db.transaction(async (tx) => {
       const [existing] = await tx.select().from(transactions).where(eq(transactions.id, id));
       if (!existing) return undefined;
 
-      const { type, driverId, productId } = existing;
+      const { driverId, productId } = existing;
+      const oldType = existing.type;
       const oldQuantity = existing.quantity;
       const oldTotalAmount = existing.totalAmount || "0";
       const oldCustomerId = existing.customerId;
 
+      const newType = updates.type ?? oldType;
       const newQuantity = updates.quantity ?? oldQuantity;
       const newUnitPrice = updates.unitPrice ?? existing.unitPrice;
       const newTotalAmount = (parseFloat(newUnitPrice || "0") * newQuantity).toFixed(2);
       const newCustomerId = updates.customerId ?? oldCustomerId;
+
+      const typeChanged = newType !== oldType;
 
       const updateInventoryInTx = async (qtyChange: number) => {
         const [inv] = await tx.select().from(driverInventory)
@@ -596,17 +600,16 @@ export class DatabaseStorage implements IStorage {
         }
       };
 
-      const quantityDiff = newQuantity - oldQuantity;
-      const amountDiff = parseFloat(newTotalAmount) - parseFloat(oldTotalAmount);
+      const typesAffectingInventory = ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
 
-      switch (type) {
-        case 'CASH_SALE':
-          if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
-          if (amountDiff !== 0) await updateBalanceInTx(amountDiff.toFixed(2));
-          break;
-        case 'CREDIT_SALE':
-          if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
-          if (amountDiff !== 0 || oldCustomerId !== newCustomerId) {
+      if (typeChanged) {
+        switch (oldType) {
+          case 'CASH_SALE':
+            await updateInventoryInTx(oldQuantity);
+            await updateBalanceInTx((-parseFloat(oldTotalAmount)).toFixed(2));
+            break;
+          case 'CREDIT_SALE': {
+            await updateInventoryInTx(oldQuantity);
             const allDebts = await tx.select().from(customerDebts)
               .where(and(
                 eq(customerDebts.customerId, oldCustomerId!),
@@ -615,35 +618,109 @@ export class DatabaseStorage implements IStorage {
                 eq(customerDebts.isPaid, false)
               ));
             if (allDebts.length > 0) {
-              await tx.update(customerDebts)
-                .set({ amount: newTotalAmount, customerId: newCustomerId })
-                .where(eq(customerDebts.id, allDebts[0].id));
+              await tx.delete(customerDebts).where(eq(customerDebts.id, allDebts[0].id));
             }
+            break;
           }
-          break;
-        case 'RETURN':
-          if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
-          break;
-        case 'DAMAGED':
-          break;
-        case 'FREE_DISTRIBUTION':
-        case 'FREE_SAMPLE':
-          if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
-          break;
-        case 'EXPENSE':
-          if (amountDiff !== 0) await updateBalanceInTx((-amountDiff).toFixed(2));
-          break;
-        case 'DRIVER_DEBT':
-          if (existing.quantity > 0) {
+          case 'FREE_DISTRIBUTION':
+          case 'FREE_SAMPLE':
+          case 'RETURN':
+            await updateInventoryInTx(oldQuantity);
+            break;
+          case 'DAMAGED':
+            break;
+          case 'EXPENSE':
+            await updateBalanceInTx(parseFloat(oldTotalAmount).toFixed(2));
+            break;
+          case 'DRIVER_DEBT':
+            if (existing.quantity > 0) {
+              await updateInventoryInTx(oldQuantity);
+            } else {
+              await updateBalanceInTx(parseFloat(oldTotalAmount).toFixed(2));
+            }
+            break;
+        }
+
+        switch (newType) {
+          case 'CASH_SALE':
+            await updateInventoryInTx(-newQuantity);
+            await updateBalanceInTx(newTotalAmount);
+            break;
+          case 'CREDIT_SALE': {
+            await updateInventoryInTx(-newQuantity);
+            await tx.insert(customerDebts).values({
+              id: crypto.randomUUID(),
+              customerId: newCustomerId!,
+              driverId,
+              amount: newTotalAmount,
+              paidAmount: "0",
+              isPaid: false,
+              createdAt: existing.createdAt,
+            });
+            break;
+          }
+          case 'FREE_DISTRIBUTION':
+          case 'FREE_SAMPLE':
+          case 'RETURN':
+            await updateInventoryInTx(-newQuantity);
+            break;
+          case 'DAMAGED':
+            break;
+          case 'EXPENSE':
+            await updateBalanceInTx((-parseFloat(newTotalAmount)).toFixed(2));
+            break;
+        }
+      } else {
+        const quantityDiff = newQuantity - oldQuantity;
+        const amountDiff = parseFloat(newTotalAmount) - parseFloat(oldTotalAmount);
+
+        switch (oldType) {
+          case 'CASH_SALE':
             if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
-          } else {
+            if (amountDiff !== 0) await updateBalanceInTx(amountDiff.toFixed(2));
+            break;
+          case 'CREDIT_SALE':
+            if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
+            if (amountDiff !== 0 || oldCustomerId !== newCustomerId) {
+              const allDebts = await tx.select().from(customerDebts)
+                .where(and(
+                  eq(customerDebts.customerId, oldCustomerId!),
+                  eq(customerDebts.driverId, driverId),
+                  eq(customerDebts.amount, oldTotalAmount),
+                  eq(customerDebts.isPaid, false)
+                ));
+              if (allDebts.length > 0) {
+                await tx.update(customerDebts)
+                  .set({ amount: newTotalAmount, customerId: newCustomerId })
+                  .where(eq(customerDebts.id, allDebts[0].id));
+              }
+            }
+            break;
+          case 'RETURN':
+            if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
+            break;
+          case 'DAMAGED':
+            break;
+          case 'FREE_DISTRIBUTION':
+          case 'FREE_SAMPLE':
+            if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
+            break;
+          case 'EXPENSE':
             if (amountDiff !== 0) await updateBalanceInTx((-amountDiff).toFixed(2));
-          }
-          break;
+            break;
+          case 'DRIVER_DEBT':
+            if (existing.quantity > 0) {
+              if (quantityDiff !== 0) await updateInventoryInTx(-quantityDiff);
+            } else {
+              if (amountDiff !== 0) await updateBalanceInTx((-amountDiff).toFixed(2));
+            }
+            break;
+        }
       }
 
       const [updated] = await tx.update(transactions)
         .set({
+          type: newType,
           quantity: newQuantity,
           unitPrice: newUnitPrice,
           totalAmount: newTotalAmount,
