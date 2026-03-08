@@ -105,6 +105,7 @@ export default function DriverTransactionsPage() {
     enabled: !!driverId,
   });
 
+  const [isSubmittingMultiple, setIsSubmittingMultiple] = useState(false);
   const createTransaction = useMutation({
     mutationFn: api.createTransaction,
     onSuccess: () => {
@@ -112,9 +113,6 @@ export default function DriverTransactionsPage() {
       queryClient.invalidateQueries({ queryKey: ["driver-inventory"] });
       queryClient.invalidateQueries({ queryKey: ["driver-balance"] });
       queryClient.invalidateQueries({ queryKey: ["driver-debts"] });
-      toast({ title: "تم تسجيل العملية بنجاح" });
-      setIsCreateOpen(false);
-      resetForm();
     },
     onError: (error: Error) => {
       let msg = "حدث خطأ في تسجيل العملية";
@@ -344,6 +342,9 @@ export default function DriverTransactionsPage() {
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerLocationUrl, setNewCustomerLocationUrl] = useState("");
   const [customPrice, setCustomPrice] = useState<string>("");
+  const [productItems, setProductItems] = useState<Array<{productId: string, quantity: number, customPrice: string}>>([
+    { productId: "", quantity: 1, customPrice: "" }
+  ]);
   const [expenseAmount, setExpenseAmount] = useState<string>("");
   const [expenseDescription, setExpenseDescription] = useState<string>("");
   const [expenseReceiptFile, setExpenseReceiptFile] = useState<File | null>(null);
@@ -378,6 +379,7 @@ export default function DriverTransactionsPage() {
       notes: "",
     });
     setCustomPrice("");
+    setProductItems([{ productId: "", quantity: 1, customPrice: "" }]);
     setExpenseAmount("");
     setExpenseDescription("");
     setDebtSubType("cash");
@@ -460,7 +462,7 @@ export default function DriverTransactionsPage() {
         const unitPrice = product?.price || "0";
         const totalAmount = (parseFloat(unitPrice) * qty).toFixed(2);
 
-        createTransaction.mutate({
+        createTransaction.mutateAsync({
           type: 'DRIVER_DEBT' as TransactionType,
           driverId: driverId,
           productId: formData.productId,
@@ -470,7 +472,7 @@ export default function DriverTransactionsPage() {
           totalAmount,
           notes: `فرق خبز: ${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
           createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
-        });
+        }).then(() => { toast({ title: "تم تسجيل العملية بنجاح" }); setIsCreateOpen(false); resetForm(); });
       } else {
         const amount = parseFloat(expenseAmount);
         if (!amount || amount <= 0) {
@@ -483,7 +485,7 @@ export default function DriverTransactionsPage() {
           return;
         }
 
-        createTransaction.mutate({
+        createTransaction.mutateAsync({
           type: 'DRIVER_DEBT' as TransactionType,
           driverId: driverId,
           productId: defaultProduct.id,
@@ -493,7 +495,7 @@ export default function DriverTransactionsPage() {
           totalAmount: amount.toFixed(2),
           notes: `فرق نقدي: ${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
           createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
-        });
+        }).then(() => { toast({ title: "تم تسجيل العملية بنجاح" }); setIsCreateOpen(false); resetForm(); });
       }
       return;
     }
@@ -545,7 +547,7 @@ export default function DriverTransactionsPage() {
         setIsUploadingReceipt(false);
       }
 
-      createTransaction.mutate({
+      createTransaction.mutateAsync({
         type: 'EXPENSE' as TransactionType,
         driverId: driverId,
         productId: defaultProduct.id,
@@ -556,15 +558,29 @@ export default function DriverTransactionsPage() {
         notes: `${expenseDescription}${formData.notes ? ' - ' + formData.notes : ''}`,
         receiptImage: receiptUrl || null,
         createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
-      });
+      }).then(() => { toast({ title: "تم تسجيل العملية بنجاح" }); setIsCreateOpen(false); resetForm(); });
       setExpenseReceiptFile(null);
       setExpenseReceiptPreview("");
       return;
     }
 
-    if (!formData.productId || !formData.type) {
-      toast({ title: "يرجى تعبئة جميع الحقول المطلوبة", variant: "destructive" });
+    if (!formData.type) {
+      toast({ title: "يرجى اختيار نوع العملية", variant: "destructive" });
       return;
+    }
+
+    const validItems = productItems.filter(item => item.productId && item.quantity >= 1);
+    if (validItems.length === 0) {
+      toast({ title: "يرجى إضافة منتج واحد على الأقل", variant: "destructive" });
+      return;
+    }
+
+    for (const item of validItems) {
+      if (item.customPrice && (isNaN(parseFloat(item.customPrice)) || parseFloat(item.customPrice) < 0)) {
+        const pName = products.find(p => p.id === item.productId)?.name || "";
+        toast({ title: `السعر غير صالح للمنتج: ${pName}`, variant: "destructive" });
+        return;
+      }
     }
 
     const noCustomerTypes: string[] = ['RETURN'];
@@ -573,14 +589,6 @@ export default function DriverTransactionsPage() {
       toast({ title: "يرجى اختيار العميل أو إضافة عميل جديد", variant: "destructive" });
       return;
     }
-
-    const product = products.find(p => p.id === formData.productId);
-    if (!product) return;
-
-    const requestedQuantity = formData.quantity || 1;
-
-    const unitPrice = customPrice ? customPrice : product.price;
-    const totalAmount = (parseFloat(unitPrice) * requestedQuantity).toFixed(2);
 
     let customerId = formData.customerId;
     if (noCustomerTypes.includes(formData.type as string) && !customerId) {
@@ -592,21 +600,43 @@ export default function DriverTransactionsPage() {
       customerId = defaultCustomer.id;
     }
 
-    const doSubmit = () => {
-      createTransaction.mutate({
-        type: formData.type as TransactionType,
-        driverId: driverId,
-        productId: formData.productId,
-        quantity: requestedQuantity,
-        customerId: customerId!,
-        unitPrice,
-        totalAmount,
-        notes: formData.notes,
-        createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
-      });
+    const submitAllItems = async () => {
+      setIsSubmittingMultiple(true);
+      let successCount = 0;
+      let failCount = 0;
+      for (const item of validItems) {
+        const product = products.find(p => p.id === item.productId);
+        if (!product) continue;
+        const unitPrice = item.customPrice ? item.customPrice : product.price;
+        const totalAmount = (parseFloat(unitPrice) * item.quantity).toFixed(2);
+        
+        try {
+          await createTransaction.mutateAsync({
+            type: formData.type as TransactionType,
+            driverId: driverId,
+            productId: item.productId,
+            quantity: item.quantity,
+            customerId: customerId!,
+            unitPrice,
+            totalAmount,
+            notes: formData.notes,
+            createdAt: new Date(selectedDate + 'T12:00:00').toISOString(),
+          });
+          successCount++;
+        } catch {
+          failCount++;
+        }
+      }
+      setIsSubmittingMultiple(false);
+      if (successCount > 0) {
+        toast({ title: `تم تسجيل ${successCount} عملية بنجاح${failCount > 0 ? ` (فشل ${failCount})` : ''}` });
+        setIsCreateOpen(false);
+        resetForm();
+      }
     };
 
-    checkDuplicateAndSubmit({ type: formData.type as string, customerId: customerId!, productId: formData.productId, quantity: requestedQuantity }, doSubmit);
+    const firstItem = validItems[0];
+    checkDuplicateAndSubmit({ type: formData.type as string, customerId: customerId!, productId: firstItem.productId, quantity: firstItem.quantity }, submitAllItems);
   };
 
   const handleSubmitDeposit = () => {
@@ -1662,7 +1692,7 @@ export default function DriverTransactionsPage() {
       </div>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md" dir="rtl">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-right">عملية جديدة</DialogTitle>
           </DialogHeader>
@@ -1873,36 +1903,6 @@ export default function DriverTransactionsPage() {
               </>
             ) : (
               <>
-                <div className="grid gap-2">
-                  <Label>المنتج *</Label>
-                  <Select
-                    value={formData.productId}
-                    onValueChange={(value) => setFormData({ ...formData, productId: value })}
-                  >
-                    <SelectTrigger data-testid="select-product">
-                      <SelectValue placeholder="اختر المنتج" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} - {product.price} ر.س
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>الكمية *</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-                    data-testid="input-quantity"
-                  />
-                </div>
-
                 {(formData.type as string) !== 'RETURN' && (
                 <div className="grid gap-2">
                   <Label>العميل *</Label>
@@ -2002,16 +2002,115 @@ export default function DriverTransactionsPage() {
 
             {(formData.type as string) !== 'EXPENSE' && (formData.type as string) !== 'DRIVER_DEBT' && (
               <div className="grid gap-2">
-                <Label>السعر المخصص (اتركه فارغاً لاستخدام سعر المنتج)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  value={customPrice}
-                  onChange={(e) => setCustomPrice(e.target.value)}
-                  placeholder={formData.productId ? `سعر المنتج: ${products.find(p => p.id === formData.productId)?.price || 0} ر.س` : "اختر المنتج أولاً"}
-                  data-testid="input-custom-price"
-                />
+                <div className="flex items-center justify-between">
+                  <Label>المنتجات *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setProductItems([...productItems, { productId: "", quantity: 1, customPrice: "" }])}
+                    data-testid="button-add-product-item"
+                  >
+                    <Plus className="h-3 w-3" />
+                    إضافة منتج
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {productItems.map((item, index) => {
+                    const product = products.find(p => p.id === item.productId);
+                    const unitPrice = item.customPrice ? parseFloat(item.customPrice) : parseFloat(product?.price || "0");
+                    const itemTotal = unitPrice * item.quantity;
+                    return (
+                      <div key={index} className="p-3 bg-slate-50 rounded-lg space-y-2 relative">
+                        {productItems.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-1 left-1 h-6 w-6 text-red-400 hover:text-red-600"
+                            onClick={() => setProductItems(productItems.filter((_, i) => i !== index))}
+                            data-testid={`button-remove-product-${index}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                        <div className="grid gap-2">
+                          <Select
+                            value={item.productId}
+                            onValueChange={(value) => {
+                              const updated = [...productItems];
+                              updated[index] = { ...updated[index], productId: value };
+                              setProductItems(updated);
+                            }}
+                          >
+                            <SelectTrigger data-testid={`select-product-${index}`}>
+                              <SelectValue placeholder="اختر المنتج" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {products.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name} - {p.price} ر.س
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const updated = [...productItems];
+                                updated[index] = { ...updated[index], quantity: parseInt(e.target.value) || 1 };
+                                setProductItems(updated);
+                              }}
+                              placeholder="الكمية"
+                              data-testid={`input-quantity-${index}`}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              value={item.customPrice}
+                              onChange={(e) => {
+                                const updated = [...productItems];
+                                updated[index] = { ...updated[index], customPrice: e.target.value };
+                                setProductItems(updated);
+                              }}
+                              placeholder={product ? `${product.price}` : "السعر"}
+                              data-testid={`input-price-${index}`}
+                            />
+                          </div>
+                        </div>
+                        {item.productId && (
+                          <div className="text-xs text-muted-foreground flex justify-between">
+                            <span>السعر: {unitPrice.toFixed(2)} × {item.quantity}</span>
+                            <span className="font-bold text-primary">{itemTotal.toFixed(2)} ر.س</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {productItems.some(item => item.productId) && (
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm font-bold flex justify-between">
+                      <span>الإجمالي الكلي:</span>
+                      <span className="text-primary">
+                        {productItems.reduce((sum, item) => {
+                          const product = products.find(p => p.id === item.productId);
+                          const unitPrice = item.customPrice ? parseFloat(item.customPrice) : parseFloat(product?.price || "0");
+                          return sum + (unitPrice * item.quantity);
+                        }, 0).toFixed(2)} ر.س
+                      </span>
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2024,17 +2123,6 @@ export default function DriverTransactionsPage() {
                 data-testid="input-notes"
               />
             </div>
-
-            {(formData.type as string) !== 'EXPENSE' && (formData.type as string) !== 'DRIVER_DEBT' && formData.productId && (
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  المبلغ الإجمالي:{" "}
-                  <span className="font-bold text-primary">
-                    {(parseFloat(customPrice || products.find(p => p.id === formData.productId)?.price || "0") * (formData.quantity || 1)).toFixed(2)} ر.س
-                  </span>
-                </p>
-              </div>
-            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
@@ -2042,10 +2130,10 @@ export default function DriverTransactionsPage() {
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={createTransaction.isPending || isUploadingReceipt}
+              disabled={createTransaction.isPending || isUploadingReceipt || isSubmittingMultiple}
               data-testid="button-submit-transaction"
             >
-              {(createTransaction.isPending || isUploadingReceipt) ? <><Loader2 className="h-4 w-4 animate-spin ml-2" />{isUploadingReceipt ? "جاري رفع الصورة..." : "جاري الحفظ..."}</> : "حفظ العملية"}
+              {(createTransaction.isPending || isUploadingReceipt || isSubmittingMultiple) ? <><Loader2 className="h-4 w-4 animate-spin ml-2" />{isUploadingReceipt ? "جاري رفع الصورة..." : "جاري الحفظ..."}</> : "حفظ العملية"}
             </Button>
           </DialogFooter>
         </DialogContent>
