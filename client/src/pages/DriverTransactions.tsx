@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3, Download, Upload, ClipboardList, Calendar, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -2456,6 +2456,9 @@ export default function DriverTransactionsPage() {
               <ClipboardList className="h-5 w-5 text-blue-600" />
               سجل الخبز المستلم والمرتجع والتالف
             </SheetTitle>
+            <SheetDescription className="text-right text-xs">
+              تفاصيل الخبز المستلم والمرتجع والتالف بالأيام
+            </SheetDescription>
           </SheetHeader>
           <div className="p-4 space-y-4">
             {(() => {
