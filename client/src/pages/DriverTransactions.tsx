@@ -1543,12 +1543,17 @@ export default function DriverTransactionsPage() {
 
                     let paymentStatus: 'unpaid' | 'partial' | 'paid' | null = null;
                     if (tx.type === 'CREDIT_SALE' && tx.customerId) {
+                      const txAmount = parseFloat(tx.totalAmount || "0");
+                      const txDate = tx.createdAt ? format(new Date(tx.createdAt), 'yyyy-MM-dd') : '';
                       const matchingDebt = debts.find(d =>
                         d.customerId === tx.customerId &&
                         d.driverId === tx.driverId &&
-                        parseFloat(d.amount) === parseFloat(tx.totalAmount || "0") &&
-                        d.createdAt && tx.createdAt &&
-                        Math.abs(new Date(d.createdAt).getTime() - new Date(tx.createdAt).getTime()) < 60000
+                        parseFloat(d.amount) === txAmount &&
+                        d.createdAt && format(new Date(d.createdAt), 'yyyy-MM-dd') === txDate
+                      ) || debts.find(d =>
+                        d.customerId === tx.customerId &&
+                        d.driverId === tx.driverId &&
+                        parseFloat(d.amount) === txAmount
                       );
                       if (matchingDebt) {
                         const paid = parseFloat(matchingDebt.paidAmount || "0");
@@ -1557,16 +1562,7 @@ export default function DriverTransactionsPage() {
                         else if (paid > 0) paymentStatus = 'partial';
                         else paymentStatus = 'unpaid';
                       } else {
-                        const anyDebt = debts.find(d => d.customerId === tx.customerId && d.driverId === tx.driverId && parseFloat(d.amount) === parseFloat(tx.totalAmount || "0"));
-                        if (anyDebt) {
-                          const paid = parseFloat(anyDebt.paidAmount || "0");
-                          const total = parseFloat(anyDebt.amount);
-                          if (anyDebt.isPaid || paid >= total) paymentStatus = 'paid';
-                          else if (paid > 0) paymentStatus = 'partial';
-                          else paymentStatus = 'unpaid';
-                        } else {
-                          paymentStatus = 'unpaid';
-                        }
+                        paymentStatus = 'unpaid';
                       }
                     }
 
