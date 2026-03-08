@@ -2048,13 +2048,33 @@ export default function DriverTransactionsPage() {
                               <SelectValue placeholder="اختر المنتج" />
                             </SelectTrigger>
                             <SelectContent>
-                              {products.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                  {p.name} - {p.price} ر.س
-                                </SelectItem>
-                              ))}
+                              {products.map((p) => {
+                                const inv = inventory.find(i => i.productId === p.id);
+                                const stock = inv?.quantity ?? 0;
+                                return (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.name} - {p.price} ر.س (المخزون: {stock})
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
+                          {item.productId && (() => {
+                            const inv = inventory.find(i => i.productId === item.productId);
+                            const stock = inv?.quantity ?? 0;
+                            return (
+                              <div className={`text-xs flex items-center gap-1 ${stock <= 0 ? 'text-red-500' : stock < 10 ? 'text-amber-500' : 'text-green-600'}`}>
+                                <Package className="h-3 w-3" />
+                                المخزون المتوفر: <span className="font-bold">{stock}</span>
+                                {item.quantity > stock && stock > 0 && (
+                                  <span className="text-red-500 mr-1">(الكمية المطلوبة أكبر من المخزون)</span>
+                                )}
+                                {stock <= 0 && (
+                                  <span className="text-red-500 mr-1">(لا يوجد مخزون)</span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="flex gap-2 items-center">
                           <div className="flex-1">
