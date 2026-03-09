@@ -47,6 +47,7 @@ Preferred communication style: Simple, everyday language.
 - **Cash Deposits**: Driver-to-bakery cash deposit tracking with confirmation workflow
 - **Expense Categories**: Dynamic bakery expense categories (user-managed, stored in `expense_categories` table)
 - **Bakery Expenses**: General bakery expenses (rent, salaries, etc.) linked to dynamic categories
+- **Driver Daily Images**: Per-driver per-day image uploads (up to 50MB each, stored in uploads/driver-images/)
 
 ### Reports
 - **Daily Withdrawal Report** (`/daily-withdrawal-report`): Daily bread withdrawal report per customer showing quantities per product type (white, brown, medium, super, wrapped), returns, financial calculations (amounts, paid, remaining). Supports print and Excel export (Excel restricted from SUB_ADMIN).

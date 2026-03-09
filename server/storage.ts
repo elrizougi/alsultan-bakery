@@ -14,6 +14,7 @@ import {
   cashDeposits, type CashDeposit, type InsertCashDeposit,
   bakeryExpenses, type BakeryExpense, type InsertBakeryExpense,
   expenseCategories, type ExpenseCategoryRecord, type InsertExpenseCategory,
+  driverDailyImages, type DriverDailyImage, type InsertDriverDailyImage,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -113,6 +114,11 @@ export interface IStorage {
   createBakeryExpense(expense: InsertBakeryExpense): Promise<BakeryExpense>;
   updateBakeryExpense(id: string, expense: Partial<InsertBakeryExpense>): Promise<BakeryExpense | undefined>;
   deleteBakeryExpense(id: string): Promise<boolean>;
+
+  // Driver Daily Images - صور المندوب اليومية
+  getDriverDailyImages(driverId: string, imageDate: string): Promise<DriverDailyImage[]>;
+  createDriverDailyImage(image: InsertDriverDailyImage): Promise<DriverDailyImage>;
+  deleteDriverDailyImage(id: string): Promise<DriverDailyImage | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1013,6 +1019,22 @@ export class DatabaseStorage implements IStorage {
   async deleteBakeryExpense(id: string): Promise<boolean> {
     const result = await db.delete(bakeryExpenses).where(eq(bakeryExpenses.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Driver Daily Images
+  async getDriverDailyImages(driverId: string, imageDate: string): Promise<DriverDailyImage[]> {
+    return await db.select().from(driverDailyImages)
+      .where(and(eq(driverDailyImages.driverId, driverId), eq(driverDailyImages.imageDate, imageDate)));
+  }
+
+  async createDriverDailyImage(image: InsertDriverDailyImage): Promise<DriverDailyImage> {
+    const [created] = await db.insert(driverDailyImages).values(image).returning();
+    return created;
+  }
+
+  async deleteDriverDailyImage(id: string): Promise<DriverDailyImage | undefined> {
+    const [deleted] = await db.delete(driverDailyImages).where(eq(driverDailyImages.id, id)).returning();
+    return deleted;
   }
 }
 

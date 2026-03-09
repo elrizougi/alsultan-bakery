@@ -194,3 +194,15 @@ export const bakeryExpenses = pgTable("bakery_expenses", {
 export const insertBakeryExpenseSchema = createInsertSchema(bakeryExpenses).omit({ id: true, createdAt: true });
 export type InsertBakeryExpense = z.infer<typeof insertBakeryExpenseSchema>;
 export type BakeryExpense = typeof bakeryExpenses.$inferSelect;
+
+export const driverDailyImages = pgTable("driver_daily_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").references(() => users.id).notNull(),
+  imageDate: text("image_date").notNull(),
+  imagePath: text("image_path").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDriverDailyImageSchema = createInsertSchema(driverDailyImages).omit({ id: true, createdAt: true });
+export type InsertDriverDailyImage = z.infer<typeof insertDriverDailyImageSchema>;
+export type DriverDailyImage = typeof driverDailyImages.$inferSelect;

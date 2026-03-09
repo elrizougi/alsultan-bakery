@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3, Download, Upload, ClipboardList, Calendar, X } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3, Download, Upload, ClipboardList, Calendar, X, Camera, Image as ImageIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -98,6 +98,58 @@ export default function DriverTransactionsPage() {
     queryFn: () => api.getDriverCustomerDebts(driverId),
     enabled: !!driverId,
   });
+
+  const { data: driverDailyImages = [], refetch: refetchImages } = useQuery({
+    queryKey: ["driver-daily-images", driverId, selectedDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/driver-daily-images/${driverId}/${selectedDate}`);
+      return res.json();
+    },
+    enabled: !!driverId && !!selectedDate,
+  });
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "حجم الملف كبير جداً", description: "الحد الأقصى 50 ميجابايت", variant: "destructive" });
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("driverId", driverId);
+      formData.append("imageDate", selectedDate);
+      const res = await fetch("/api/driver-daily-images", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "خطأ في الرفع");
+      }
+      toast({ title: "تم رفع الصورة بنجاح" });
+      refetchImages();
+    } catch (err: any) {
+      toast({ title: "خطأ في رفع الصورة", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteImage = async (imageId: string) => {
+    try {
+      const res = await fetch(`/api/driver-daily-images/${imageId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast({ title: "تم حذف الصورة" });
+      refetchImages();
+    } catch {
+      toast({ title: "خطأ في حذف الصورة", variant: "destructive" });
+    }
+  };
 
   const { data: cashDeposits = [] } = useQuery({
     queryKey: ["driver-cash-deposits", driverId],
@@ -1540,6 +1592,73 @@ export default function DriverTransactionsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {driverId && (
+          <Card className="border-slate-100">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <Camera className="h-5 w-5" />
+                  صور المندوب اليومية
+                </CardTitle>
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={imageInputRef}
+                    className="hidden"
+                    onChange={handleImageUpload}
+                    data-testid="input-driver-image"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    className="gap-1"
+                    data-testid="button-upload-driver-image"
+                  >
+                    {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    رفع صورة
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {driverDailyImages.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4 text-sm">لا توجد صور لهذا اليوم</p>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {driverDailyImages.map((img: any) => (
+                    <div key={img.id} className="relative group" data-testid={`driver-image-${img.id}`}>
+                      <img
+                        src={img.imagePath}
+                        alt="صورة المندوب"
+                        className="h-28 w-28 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition"
+                        onClick={() => setViewingImage(img.imagePath)}
+                      />
+                      <button
+                        onClick={() => handleDeleteImage(img.id)}
+                        className="absolute -top-2 -left-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition"
+                        data-testid={`button-delete-image-${img.id}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {viewingImage && (
+          <Dialog open={!!viewingImage} onOpenChange={() => setViewingImage(null)}>
+            <DialogContent className="max-w-3xl p-2">
+              <img src={viewingImage} alt="صورة المندوب" className="w-full h-auto rounded-lg" />
+            </DialogContent>
+          </Dialog>
+        )}
 
         <Card className="border-slate-100">
           <CardHeader>

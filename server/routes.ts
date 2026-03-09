@@ -12,6 +12,32 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+const driverImagesDir = path.join(process.cwd(), "uploads", "driver-images");
+if (!fs.existsSync(driverImagesDir)) {
+  fs.mkdirSync(driverImagesDir, { recursive: true });
+}
+
+const driverImageStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, driverImagesDir),
+  filename: (_req, file, cb) => {
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
+});
+
+const uploadDriverImage = multer({
+  storage: driverImageStorage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|gif|webp|bmp|heic|heif)$/i;
+    if (allowed.test(path.extname(file.originalname))) {
+      cb(null, true);
+    } else {
+      cb(new Error("نوع الملف غير مدعوم. الأنواع المسموحة: JPG, PNG, GIF, WebP, BMP, HEIC"));
+    }
+  },
+});
+
 const receiptStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
   filename: (_req, file, cb) => {
@@ -1182,6 +1208,52 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       console.error("Delete bakery expense error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  // ============ DRIVER DAILY IMAGES ============
+  app.get("/api/driver-daily-images/:driverId/:imageDate", async (req, res) => {
+    try {
+      const images = await storage.getDriverDailyImages(req.params.driverId, req.params.imageDate);
+      res.json(images);
+    } catch (error) {
+      console.error("Get driver daily images error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/driver-daily-images", uploadDriverImage.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "لم يتم اختيار صورة" });
+      }
+      const { driverId, imageDate } = req.body;
+      if (!driverId || !imageDate) {
+        return res.status(400).json({ message: "بيانات ناقصة" });
+      }
+      const imagePath = `/uploads/driver-images/${req.file.filename}`;
+      const image = await storage.createDriverDailyImage({ driverId, imageDate, imagePath });
+      res.json(image);
+    } catch (error: any) {
+      console.error("Upload driver daily image error:", error);
+      res.status(500).json({ message: error.message || "خطأ في رفع الصورة" });
+    }
+  });
+
+  app.delete("/api/driver-daily-images/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteDriverDailyImage(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "الصورة غير موجودة" });
+      }
+      const fullPath = path.join(process.cwd(), deleted.imagePath);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete driver daily image error:", error);
       res.status(500).json({ message: "خطأ في الخادم" });
     }
   });
