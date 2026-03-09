@@ -48,6 +48,9 @@ Preferred communication style: Simple, everyday language.
 - **Expense Categories**: Dynamic bakery expense categories (user-managed, stored in `expense_categories` table)
 - **Bakery Expenses**: General bakery expenses (rent, salaries, etc.) linked to dynamic categories
 
+### Reports
+- **Daily Withdrawal Report** (`/daily-withdrawal-report`): Daily bread withdrawal report per customer showing quantities per product type (white, brown, medium, super, wrapped), returns, financial calculations (amounts, paid, remaining). Supports print and Excel export (Excel restricted from SUB_ADMIN).
+
 ### Removed Tables (cleaned up)
 - dispatch_runs, run_orders, returns, return_items, order_modifications, order_modification_items (empty/unused legacy tables)
 

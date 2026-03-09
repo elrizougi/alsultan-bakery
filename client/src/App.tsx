@@ -16,6 +16,7 @@ import CashDepositsPage from "@/pages/CashDeposits";
 import DriverDailyReportPage from "@/pages/DriverDailyReport";
 import MyCustomersPage from "@/pages/MyCustomers";
 import BakeryExpensesPage from "@/pages/BakeryExpenses";
+import DailyWithdrawalReportPage from "@/pages/DailyWithdrawalReport";
 
 function Router() {
   return (
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/driver-daily-report" component={DriverDailyReportPage} />
       <Route path="/my-customers" component={MyCustomersPage} />
       <Route path="/bakery-expenses" component={BakeryExpensesPage} />
+      <Route path="/daily-withdrawal-report" component={DailyWithdrawalReportPage} />
       <Route component={NotFound} />
     </Switch>
   );
