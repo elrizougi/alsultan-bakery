@@ -85,7 +85,7 @@ export default function DailyWithdrawalReportPage() {
       .filter(t => t.type === 'DAMAGED')
       .reduce((sum, t) => sum + (t.quantity || 0), 0);
 
-    const totalBread = whiteBread + brownBread + medium + superBread + wrapped - returned;
+    const totalBread = whiteBread + brownBread + medium + superBread + wrapped;
     const grossBread = whiteBread + brownBread + medium + superBread + wrapped;
     const damagedPercent = grossBread > 0 ? (returned / grossBread) * 100 : 0;
 
