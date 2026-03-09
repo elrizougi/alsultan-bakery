@@ -62,7 +62,7 @@ export default function DailyWithdrawalReportPage() {
   });
 
   const salesAndReturns = dayTransactions.filter(t =>
-    ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'].includes(t.type as string)
+    ['CASH_SALE', 'CREDIT_SALE', 'DAMAGED', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'].includes(t.type as string)
   );
 
   const saleTypes = ['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
@@ -82,7 +82,7 @@ export default function DailyWithdrawalReportPage() {
     const wrapped = getQty(wrappedProduct?.id, saleTypes);
 
     const returned = txns
-      .filter(t => t.type === 'RETURN')
+      .filter(t => t.type === 'DAMAGED')
       .reduce((sum, t) => sum + (t.quantity || 0), 0);
 
     const totalBread = whiteBread + brownBread + medium + superBread + wrapped - returned;
