@@ -21,7 +21,7 @@ COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 
-RUN mkdir -p /app/uploads/receipts \
+RUN mkdir -p /app/uploads/receipts /app/uploads/driver-images \
     && chown -R node:node /app/uploads
 
 ENV NODE_ENV=production
