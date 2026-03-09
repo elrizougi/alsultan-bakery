@@ -189,7 +189,7 @@ export default function DailyWithdrawalReportPage() {
 
   const handleExportExcel = () => {
     const driverName = selectedDriverId === 'all' ? 'جميع المندوبين' : (drivers.find(d => d.id === selectedDriverId)?.name || '');
-    const headers = ['م', 'الاسم', 'خبز ابيض', 'خبز بر', 'وسط', 'سوبر', 'مغلف', 'الراجع', 'اجمالي الخبز', 'مبلغ ابيض', 'مبلغ مغلف', 'اجمالي المبلغ', 'المبلغ المدفوع', 'الباقي'];
+    const headers = ['م', 'الاسم', 'خبز ابيض', 'خبز بر', 'وسط', 'شاورما صغير', 'مغلف', 'الراجع', 'اجمالي الخبز', 'مبلغ ابيض', 'مبلغ مغلف', 'اجمالي المبلغ', 'المبلغ المدفوع', 'الباقي'];
     let csv = '\uFEFF';
     csv += `تقرير سحب الخبز اليومي - ${selectedDate} ${driverName ? '- ' + driverName : ''}\n\n`;
     csv += headers.join(',') + '\n';
@@ -279,7 +279,7 @@ export default function DailyWithdrawalReportPage() {
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">خبز ابيض</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">خبز بر</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">وسط</TableHead>
-                    <TableHead className="text-center font-bold border-l whitespace-nowrap">سوبر</TableHead>
+                    <TableHead className="text-center font-bold border-l whitespace-nowrap">شاورما صغير</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">مغلف</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">الراجع</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">اجمالي الخبز</TableHead>
