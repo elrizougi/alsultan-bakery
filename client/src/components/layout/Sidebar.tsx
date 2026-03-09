@@ -14,7 +14,8 @@ import {
   Send,
   UserCheck,
   Receipt,
-  ClipboardList
+  ClipboardList,
+  Clipboard
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useStore } from "@/lib/store";
@@ -29,6 +30,7 @@ export function Sidebar({ className }: SidebarProps) {
     { icon: LayoutDashboard, label: "الرئيسية", href: "/" },
     { icon: FileText, label: "التقرير اليومي", href: "/driver-daily-report" },
     { icon: ClipboardList, label: "تقرير سحب الخبز", href: "/daily-withdrawal-report" },
+    { icon: Clipboard, label: "ورقة المندوب", href: "/rep-print-sheet" },
     { icon: Wallet, label: "العمليات الميدانية", href: "/driver-transactions" },
     { icon: UserCheck, label: "عملائي", href: "/my-customers" },
     { icon: Send, label: "تسليم المبالغ", href: "/cash-deposits" },

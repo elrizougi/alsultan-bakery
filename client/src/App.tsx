@@ -17,6 +17,7 @@ import DriverDailyReportPage from "@/pages/DriverDailyReport";
 import MyCustomersPage from "@/pages/MyCustomers";
 import BakeryExpensesPage from "@/pages/BakeryExpenses";
 import DailyWithdrawalReportPage from "@/pages/DailyWithdrawalReport";
+import RepPrintSheetPage from "@/pages/RepPrintSheet";
 
 function Router() {
   return (
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/my-customers" component={MyCustomersPage} />
       <Route path="/bakery-expenses" component={BakeryExpensesPage} />
       <Route path="/daily-withdrawal-report" component={DailyWithdrawalReportPage} />
+      <Route path="/rep-print-sheet" component={RepPrintSheetPage} />
       <Route component={NotFound} />
     </Switch>
   );
