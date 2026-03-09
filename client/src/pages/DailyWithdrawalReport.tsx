@@ -199,7 +199,7 @@ export default function DailyWithdrawalReportPage() {
   const handleExportExcel = () => {
     const driverName = selectedDriverId === 'all' ? 'جميع المندوبين' : (drivers.find(d => d.id === selectedDriverId)?.name || '');
     const nameLabel = isAllDrivers ? 'المندوب' : 'اسم العميل';
-    const headers = ['م', nameLabel, 'خبز ابيض', 'خبز بر', 'وسط', 'شاورما صغير', 'مغلف', 'الراجع', 'نسبة التالف %', 'اجمالي الخبز', 'معدل السعر', 'مبلغ ابيض', 'مبلغ مغلف', 'اجمالي المبلغ', 'المبلغ المدفوع', 'الباقي'];
+    const headers = ['م', nameLabel, 'خبز ابيض', 'خبز بر', 'وسط', 'شاورما', 'مغلف', 'الراجع', 'نسبة التالف %', 'اجمالي الخبز', 'معدل السعر', 'مبلغ ابيض', 'مبلغ مغلف', 'اجمالي المبلغ', 'المبلغ المدفوع', 'الباقي'];
     let csv = '\uFEFF';
     csv += `تقرير سحب الخبز اليومي - ${selectedDate} ${driverName ? '- ' + driverName : ''}\n\n`;
     csv += headers.join(',') + '\n';
@@ -292,7 +292,7 @@ export default function DailyWithdrawalReportPage() {
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">خبز ابيض</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">خبز بر</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">وسط</TableHead>
-                    <TableHead className="text-center font-bold border-l whitespace-nowrap">شاورما صغير</TableHead>
+                    <TableHead className="text-center font-bold border-l whitespace-nowrap">شاورما</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">مغلف</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">الراجع</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">اجمالي الخبز</TableHead>
@@ -324,7 +324,7 @@ export default function DailyWithdrawalReportPage() {
                           <TableCell className="text-center border-l">{r.wrapped || ''}</TableCell>
                           <TableCell className="text-center border-l">
                             <div>{r.returned || ''}</div>
-                            {r.damagedPercent > 0 && <div className="text-[10px] text-red-500">{r.damagedPercent.toFixed(1)}%</div>}
+                            {r.damagedPercent > 0 && <div className="text-[7px] leading-tight text-red-500">{r.damagedPercent.toFixed(1)}%</div>}
                           </TableCell>
                           <TableCell className="text-center border-l font-bold">{r.totalBread}</TableCell>
                           <TableCell className="text-center border-l">{r.avgPrice ? fmt(r.avgPrice) : ''}</TableCell>
@@ -345,7 +345,7 @@ export default function DailyWithdrawalReportPage() {
                         <TableCell className="text-center border-l">{totals.wrapped}</TableCell>
                         <TableCell className="text-center border-l">
                           <div>{totals.returned}</div>
-                          {(() => { const g = totals.whiteBread + totals.brownBread + totals.medium + totals.superBread + totals.wrapped; return g > 0 ? <div className="text-[10px] text-red-500">{((totals.returned / g) * 100).toFixed(1)}%</div> : null; })()}
+                          {(() => { const g = totals.whiteBread + totals.brownBread + totals.medium + totals.superBread + totals.wrapped; return g > 0 ? <div className="text-[7px] leading-tight text-red-500">{((totals.returned / g) * 100).toFixed(1)}%</div> : null; })()}
                         </TableCell>
                         <TableCell className="text-center border-l">{totals.totalBread}</TableCell>
                         <TableCell className="text-center border-l">{totals.totalBread > 0 ? fmt(totals.totalAmount / totals.totalBread) : ''}</TableCell>
