@@ -1599,7 +1599,7 @@ export default function DriverTransactionsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                   <Camera className="h-5 w-5" />
-                  صور المندوب اليومية
+                  ورقة المبيعات اليومية
                 </CardTitle>
                 <div>
                   <input
