@@ -86,6 +86,8 @@ export default function DailyWithdrawalReportPage() {
       .reduce((sum, t) => sum + (t.quantity || 0), 0);
 
     const totalBread = whiteBread + brownBread + medium + superBread + wrapped - returned;
+    const grossBread = whiteBread + brownBread + medium + superBread + wrapped;
+    const damagedPercent = grossBread > 0 ? (returned / grossBread) * 100 : 0;
 
     const whiteAmount = txns
       .filter(t => t.productId === whiteProduct?.id && saleTypes.includes(t.type as string))
@@ -114,7 +116,9 @@ export default function DailyWithdrawalReportPage() {
     const paidAmount = cashPaid + debtPaidToday + partialPaidToday;
     const remaining = totalAmount - paidAmount;
 
-    return { whiteBread, brownBread, medium, superBread, wrapped, returned, totalBread, whiteAmount, wrappedAmount, totalAmount, paidAmount, remaining };
+    const avgPrice = totalBread > 0 ? totalAmount / totalBread : 0;
+
+    return { whiteBread, brownBread, medium, superBread, wrapped, returned, damagedPercent, totalBread, whiteAmount, wrappedAmount, totalAmount, paidAmount, remaining, avgPrice };
   };
 
   const reportRows = isAllDrivers
@@ -195,14 +199,17 @@ export default function DailyWithdrawalReportPage() {
   const handleExportExcel = () => {
     const driverName = selectedDriverId === 'all' ? 'جميع المندوبين' : (drivers.find(d => d.id === selectedDriverId)?.name || '');
     const nameLabel = isAllDrivers ? 'المندوب' : 'اسم العميل';
-    const headers = ['م', nameLabel, 'خبز ابيض', 'خبز بر', 'وسط', 'شاورما صغير', 'مغلف', 'الراجع', 'اجمالي الخبز', 'مبلغ ابيض', 'مبلغ مغلف', 'اجمالي المبلغ', 'المبلغ المدفوع', 'الباقي'];
+    const headers = ['م', nameLabel, 'خبز ابيض', 'خبز بر', 'وسط', 'شاورما صغير', 'مغلف', 'الراجع', 'نسبة التالف %', 'اجمالي الخبز', 'معدل السعر', 'مبلغ ابيض', 'مبلغ مغلف', 'اجمالي المبلغ', 'المبلغ المدفوع', 'الباقي'];
     let csv = '\uFEFF';
     csv += `تقرير سحب الخبز اليومي - ${selectedDate} ${driverName ? '- ' + driverName : ''}\n\n`;
     csv += headers.join(',') + '\n';
     reportRows.forEach((r, i) => {
-      csv += [i + 1, r.name, r.whiteBread, r.brownBread, r.medium, r.superBread, r.wrapped, r.returned, r.totalBread, fmt(r.whiteAmount), fmt(r.wrappedAmount), fmt(r.totalAmount), fmt(r.paidAmount), fmt(r.remaining)].join(',') + '\n';
+      csv += [i + 1, r.name, r.whiteBread, r.brownBread, r.medium, r.superBread, r.wrapped, r.returned, r.damagedPercent > 0 ? r.damagedPercent.toFixed(1) : '', r.totalBread, r.avgPrice ? fmt(r.avgPrice) : '', fmt(r.whiteAmount), fmt(r.wrappedAmount), fmt(r.totalAmount), fmt(r.paidAmount), fmt(r.remaining)].join(',') + '\n';
     });
-    csv += ['', 'المجموع', totals.whiteBread, totals.brownBread, totals.medium, totals.superBread, totals.wrapped, totals.returned, totals.totalBread, fmt(totals.whiteAmount), fmt(totals.wrappedAmount), fmt(totals.totalAmount), fmt(totals.paidAmount), fmt(totals.remaining)].join(',') + '\n';
+    const totalGross = totals.whiteBread + totals.brownBread + totals.medium + totals.superBread + totals.wrapped;
+    const totalDmgPct = totalGross > 0 ? ((totals.returned / totalGross) * 100).toFixed(1) : '';
+    const totalAvgPrice = totals.totalBread > 0 ? fmt(totals.totalAmount / totals.totalBread) : '';
+    csv += ['', 'المجموع', totals.whiteBread, totals.brownBread, totals.medium, totals.superBread, totals.wrapped, totals.returned, totalDmgPct, totals.totalBread, totalAvgPrice, fmt(totals.whiteAmount), fmt(totals.wrappedAmount), fmt(totals.totalAmount), fmt(totals.paidAmount), fmt(totals.remaining)].join(',') + '\n';
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -279,7 +286,7 @@ export default function DailyWithdrawalReportPage() {
                     <TableHead className="text-center font-bold border-l whitespace-nowrap" rowSpan={2}>م</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap" rowSpan={2}>{isAllDrivers ? 'المندوب' : 'اسم العميل'}</TableHead>
                     <TableHead className="text-center font-bold border-l" colSpan={7}>معدل سحب الخبز</TableHead>
-                    <TableHead className="text-center font-bold" colSpan={5}>الحساب المالي</TableHead>
+                    <TableHead className="text-center font-bold" colSpan={6}>الحساب المالي</TableHead>
                   </TableRow>
                   <TableRow className="bg-slate-50">
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">خبز ابيض</TableHead>
@@ -289,6 +296,7 @@ export default function DailyWithdrawalReportPage() {
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">مغلف</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">الراجع</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">اجمالي الخبز</TableHead>
+                    <TableHead className="text-center font-bold border-l whitespace-nowrap">معدل السعر</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">مبلغ ابيض</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">مبلغ مغلف</TableHead>
                     <TableHead className="text-center font-bold border-l whitespace-nowrap">اجمالي المبلغ</TableHead>
@@ -299,7 +307,7 @@ export default function DailyWithdrawalReportPage() {
                 <TableBody>
                   {reportRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
                         لا توجد عمليات مسجلة لهذا اليوم
                       </TableCell>
                     </TableRow>
@@ -314,8 +322,12 @@ export default function DailyWithdrawalReportPage() {
                           <TableCell className="text-center border-l">{r.medium || ''}</TableCell>
                           <TableCell className="text-center border-l">{r.superBread || ''}</TableCell>
                           <TableCell className="text-center border-l">{r.wrapped || ''}</TableCell>
-                          <TableCell className="text-center border-l">{r.returned || ''}</TableCell>
+                          <TableCell className="text-center border-l">
+                            <div>{r.returned || ''}</div>
+                            {r.damagedPercent > 0 && <div className="text-[10px] text-red-500">{r.damagedPercent.toFixed(1)}%</div>}
+                          </TableCell>
                           <TableCell className="text-center border-l font-bold">{r.totalBread}</TableCell>
+                          <TableCell className="text-center border-l">{r.avgPrice ? fmt(r.avgPrice) : ''}</TableCell>
                           <TableCell className="text-center border-l">{r.whiteAmount ? fmt(r.whiteAmount) : ''}</TableCell>
                           <TableCell className="text-center border-l">{r.wrappedAmount ? fmt(r.wrappedAmount) : ''}</TableCell>
                           <TableCell className="text-center border-l font-bold">{fmt(r.totalAmount)}</TableCell>
@@ -331,8 +343,12 @@ export default function DailyWithdrawalReportPage() {
                         <TableCell className="text-center border-l">{totals.medium}</TableCell>
                         <TableCell className="text-center border-l">{totals.superBread}</TableCell>
                         <TableCell className="text-center border-l">{totals.wrapped}</TableCell>
-                        <TableCell className="text-center border-l">{totals.returned}</TableCell>
+                        <TableCell className="text-center border-l">
+                          <div>{totals.returned}</div>
+                          {(() => { const g = totals.whiteBread + totals.brownBread + totals.medium + totals.superBread + totals.wrapped; return g > 0 ? <div className="text-[10px] text-red-500">{((totals.returned / g) * 100).toFixed(1)}%</div> : null; })()}
+                        </TableCell>
                         <TableCell className="text-center border-l">{totals.totalBread}</TableCell>
+                        <TableCell className="text-center border-l">{totals.totalBread > 0 ? fmt(totals.totalAmount / totals.totalBread) : ''}</TableCell>
                         <TableCell className="text-center border-l">{fmt(totals.whiteAmount)}</TableCell>
                         <TableCell className="text-center border-l">{fmt(totals.wrappedAmount)}</TableCell>
                         <TableCell className="text-center border-l">{fmt(totals.totalAmount)}</TableCell>
