@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, TrendingUp, TrendingDown, ArrowDownCircle, Banknote, ChevronDown, ChevronUp } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, ArrowDownCircle, Banknote, ChevronDown, ChevronUp, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCallback } from "react";
 
 type Transaction = {
   id: string;
@@ -183,6 +184,88 @@ export default function DriverCumulativeBalancePage() {
     );
   }, [driverSummaries]);
 
+  const handlePrint = useCallback(() => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    printWindow.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>رصيد المندوب التراكمي</title>
+<style>
+@page { size: A4; margin: 10mm; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; direction: rtl; font-size: 11px; color: #111; }
+.print-title { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 8px; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.summary-card { border: 1px solid #ddd; border-radius: 6px; padding: 6px 8px; text-align: center; }
+.summary-card .label { font-size: 9px; color: #666; margin-bottom: 2px; }
+.summary-card .value { font-size: 13px; font-weight: bold; }
+.driver-section { margin-bottom: 14px; page-break-inside: avoid; }
+.driver-header { display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; font-weight: bold; font-size: 12px; }
+.driver-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 6px; }
+.driver-stat { text-align: center; padding: 3px; border: 1px solid #e2e8f0; border-radius: 4px; }
+.driver-stat .stat-label { font-size: 8px; color: #888; }
+.driver-stat .stat-value { font-size: 10px; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; font-size: 9px; }
+th { background: #f8fafc; font-weight: bold; padding: 4px 3px; border: 1px solid #d1d5db; text-align: center; white-space: nowrap; }
+td { padding: 3px; border: 1px solid #d1d5db; text-align: center; }
+.text-blue { color: #1d4ed8; }
+.text-amber { color: #b45309; }
+.text-emerald { color: #047857; }
+.text-red { color: #b91c1c; }
+.text-orange { color: #c2410c; }
+.text-indigo { color: #4338ca; }
+.text-bold { font-weight: bold; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+.badge-positive { background: #dbeafe; color: #1e40af; }
+.badge-negative { background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+<div class="print-title">رصيد المندوب التراكمي</div>
+<div class="summary-grid">
+  <div class="summary-card"><div class="label">إجمالي المبيعات</div><div class="value text-blue">${fmt(grandTotals.totalSales)} ر.س</div></div>
+  <div class="summary-card"><div class="label">المدفوع للمخبز</div><div class="value text-emerald">${fmt(grandTotals.totalPaidToBakery)} ر.س</div></div>
+  <div class="summary-card"><div class="label">ديون غير مسددة</div><div class="value text-orange">${fmt(grandTotals.unpaidDebts)} ر.س</div></div>
+  <div class="summary-card"><div class="label">الرصيد التراكمي</div><div class="value ${grandTotals.cumulativeBalance >= 0 ? 'text-indigo' : 'text-red'}">${fmt(grandTotals.cumulativeBalance)} ر.س</div></div>
+</div>
+${driverSummaries.map(s => `
+<div class="driver-section">
+  <div class="driver-header">
+    <span>${s.driver.name}</span>
+    <span class="badge ${s.cumulativeBalance >= 0 ? 'badge-positive' : 'badge-negative'}">${fmt(s.cumulativeBalance)} ر.س</span>
+  </div>
+  <div class="driver-stats">
+    <div class="driver-stat"><div class="stat-label">المبيعات النقدية</div><div class="stat-value text-blue">${fmt(s.totalCashSales)}</div></div>
+    <div class="driver-stat"><div class="stat-label">المبيعات الآجلة</div><div class="stat-value text-amber">${fmt(s.totalCreditSales)}</div></div>
+    <div class="driver-stat"><div class="stat-label">المدفوع للمخبز</div><div class="stat-value text-emerald">${fmt(s.totalPaidToBakery)}</div></div>
+    <div class="driver-stat"><div class="stat-label">ديون غير مسددة</div><div class="stat-value text-orange">${fmt(s.unpaidDebts)}</div></div>
+    <div class="driver-stat"><div class="stat-label">المصروفات</div><div class="stat-value text-red">${fmt(s.totalExpenses)}</div></div>
+    <div class="driver-stat"><div class="stat-label">الخبز المباع</div><div class="stat-value">${s.totalBreadSold}</div></div>
+  </div>
+  ${s.dailyRows.length > 0 ? `<table>
+    <thead><tr>
+      <th>التاريخ</th><th>الخبز المباع</th><th>نقدي</th><th>آجل</th><th>إجمالي المبيعات</th><th>المدفوع للمخبز</th><th>المصروفات</th><th>ديون غير مسددة</th><th>الرصيد التراكمي</th>
+    </tr></thead>
+    <tbody>${s.dailyRows.map(r => `<tr>
+      <td>${r.date}</td>
+      <td>${r.breadSold || ''}</td>
+      <td class="text-blue">${r.cashSales ? fmt(r.cashSales) : ''}</td>
+      <td class="text-amber">${r.creditSales ? fmt(r.creditSales) : ''}</td>
+      <td class="text-bold">${r.totalSales ? fmt(r.totalSales) : ''}</td>
+      <td class="text-emerald">${r.paidToBakery ? fmt(r.paidToBakery) : ''}</td>
+      <td class="text-red">${r.expenses ? fmt(r.expenses) : ''}</td>
+      <td class="text-orange">${r.creditUnpaid ? fmt(r.creditUnpaid) : ''}</td>
+      <td class="text-bold ${r.cumulative >= 0 ? 'text-indigo' : 'text-red'}">${fmt(r.cumulative)}</td>
+    </tr>`).join('')}</tbody>
+  </table>` : '<p style="text-align:center;color:#999;font-size:10px;">لا توجد بيانات</p>'}
+</div>`).join('')}
+</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 300);
+  }, [driverSummaries, grandTotals]);
+
   return (
     <AdminLayout>
       <div className="p-4 md:p-6 space-y-4">
@@ -191,17 +274,23 @@ export default function DriverCumulativeBalancePage() {
             <Wallet className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold" data-testid="text-page-title">رصيد المندوب التراكمي</h1>
           </div>
-          <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-            <SelectTrigger className="w-[200px]" data-testid="select-driver-filter">
-              <SelectValue placeholder="اختر المندوب" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع المندوبين</SelectItem>
-              {drivers.map(d => (
-                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+              <SelectTrigger className="w-[200px]" data-testid="select-driver-filter">
+                <SelectValue placeholder="اختر المندوب" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع المندوبين</SelectItem>
+                {drivers.map(d => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={handlePrint} data-testid="btn-print">
+              <Printer className="h-4 w-4 ml-1" />
+              طباعة
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
