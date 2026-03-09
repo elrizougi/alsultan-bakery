@@ -51,11 +51,13 @@ export default function DailyWithdrawalReportPage() {
   const whitePrice = whiteProduct ? parseFloat(whiteProduct.price) : 0;
   const wrappedPrice = wrappedProduct ? parseFloat(wrappedProduct.price) : 0;
 
+  const isAllDrivers = selectedDriverId === 'all';
+
   const dayTransactions = transactions.filter(t => {
     if (!t.createdAt) return false;
     const txDate = format(new Date(t.createdAt), 'yyyy-MM-dd');
     if (txDate !== selectedDate) return false;
-    if (selectedDriverId !== 'all' && t.driverId !== selectedDriverId) return false;
+    if (!isAllDrivers && t.driverId !== selectedDriverId) return false;
     return true;
   });
 
@@ -63,20 +65,15 @@ export default function DailyWithdrawalReportPage() {
     ['CASH_SALE', 'CREDIT_SALE', 'RETURN', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'].includes(t.type as string)
   );
 
-  const customerIds = [...new Set(salesAndReturns.map(t => t.customerId).filter(Boolean))];
+  const saleTypes = ['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
 
-  const reportRows = customerIds.map(custId => {
-    const custTransactions = salesAndReturns.filter(t => t.customerId === custId);
-    const customer = customers.find(c => c.id === custId);
-
+  const computeRowFromTransactions = (txns: any[], debtsFilter: (d: any) => boolean) => {
     const getQty = (productId: string | undefined, types: string[]) => {
       if (!productId) return 0;
-      return custTransactions
+      return txns
         .filter(t => t.productId === productId && types.includes(t.type as string))
         .reduce((sum, t) => sum + (t.quantity || 0), 0);
     };
-
-    const saleTypes = ['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
 
     const whiteBread = getQty(whiteProduct?.id, saleTypes);
     const brownBread = getQty(brownProduct?.id, saleTypes);
@@ -84,60 +81,68 @@ export default function DailyWithdrawalReportPage() {
     const superBread = getQty(superProduct?.id, saleTypes);
     const wrapped = getQty(wrappedProduct?.id, saleTypes);
 
-    const returned = custTransactions
+    const returned = txns
       .filter(t => t.type === 'RETURN')
       .reduce((sum, t) => sum + (t.quantity || 0), 0);
 
     const totalBread = whiteBread + brownBread + medium + superBread + wrapped - returned;
 
-    const whiteAmount = custTransactions
+    const whiteAmount = txns
       .filter(t => t.productId === whiteProduct?.id && saleTypes.includes(t.type as string))
       .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
 
-    const wrappedAmount = custTransactions
+    const wrappedAmount = txns
       .filter(t => t.productId === wrappedProduct?.id && saleTypes.includes(t.type as string))
       .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
 
-    const totalAmount = custTransactions
+    const totalAmount = txns
       .filter(t => saleTypes.includes(t.type as string))
       .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
 
-    const cashPaid = custTransactions
+    const cashPaid = txns
       .filter(t => t.type === 'CASH_SALE')
       .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
 
-    const custDebtsToday = allDebts.filter((d: any) =>
-      d.customerId === custId &&
-      d.createdAt && format(new Date(d.createdAt), 'yyyy-MM-dd') === selectedDate &&
-      (selectedDriverId === 'all' || d.driverId === selectedDriverId)
-    );
-    const debtPaidToday = custDebtsToday
+    const filteredDebts = allDebts.filter(debtsFilter);
+    const debtPaidToday = filteredDebts
       .filter((d: any) => d.isPaid)
       .reduce((sum: number, d: any) => sum + parseFloat(d.paidAmount || '0'), 0);
-    const partialPaidToday = custDebtsToday
+    const partialPaidToday = filteredDebts
       .filter((d: any) => !d.isPaid && parseFloat(d.paidAmount || '0') > 0)
       .reduce((sum: number, d: any) => sum + parseFloat(d.paidAmount || '0'), 0);
 
     const paidAmount = cashPaid + debtPaidToday + partialPaidToday;
     const remaining = totalAmount - paidAmount;
 
-    return {
-      customerId: custId,
-      customerName: customer?.name || '-',
-      whiteBread,
-      brownBread,
-      medium,
-      superBread,
-      wrapped,
-      returned,
-      totalBread,
-      whiteAmount,
-      wrappedAmount,
-      totalAmount,
-      paidAmount,
-      remaining,
-    };
-  }).filter(r => r.totalBread > 0 || r.totalAmount > 0);
+    return { whiteBread, brownBread, medium, superBread, wrapped, returned, totalBread, whiteAmount, wrappedAmount, totalAmount, paidAmount, remaining };
+  };
+
+  const reportRows = isAllDrivers
+    ? (() => {
+        const driverIds = [...new Set(salesAndReturns.map(t => t.driverId).filter(Boolean))];
+        return driverIds.map(drvId => {
+          const driverTxns = salesAndReturns.filter(t => t.driverId === drvId);
+          const driver = drivers.find(d => d.id === drvId);
+          const row = computeRowFromTransactions(driverTxns, (d: any) =>
+            d.driverId === drvId &&
+            d.createdAt && format(new Date(d.createdAt), 'yyyy-MM-dd') === selectedDate
+          );
+          return { id: drvId!, name: driver?.name || '-', ...row };
+        }).filter(r => r.totalBread > 0 || r.totalAmount > 0);
+      })()
+    : (() => {
+        const customerIds = [...new Set(salesAndReturns.map(t => t.customerId).filter(Boolean))];
+        return customerIds.map(custId => {
+          const custTxns = salesAndReturns.filter(t => t.customerId === custId);
+          const customer = customers.find(c => c.id === custId);
+          const row = computeRowFromTransactions(custTxns, (d: any) =>
+            d.customerId === custId &&
+            d.driverId === selectedDriverId &&
+            d.createdAt && format(new Date(d.createdAt), 'yyyy-MM-dd') === selectedDate
+          );
+          return { id: custId!, name: customer?.name || '-', ...row };
+        }).filter(r => r.totalBread > 0 || r.totalAmount > 0);
+      })();
 
   const totals = reportRows.reduce((acc, r) => ({
     whiteBread: acc.whiteBread + r.whiteBread,
@@ -189,12 +194,13 @@ export default function DailyWithdrawalReportPage() {
 
   const handleExportExcel = () => {
     const driverName = selectedDriverId === 'all' ? 'جميع المندوبين' : (drivers.find(d => d.id === selectedDriverId)?.name || '');
-    const headers = ['م', 'الاسم', 'خبز ابيض', 'خبز بر', 'وسط', 'شاورما صغير', 'مغلف', 'الراجع', 'اجمالي الخبز', 'مبلغ ابيض', 'مبلغ مغلف', 'اجمالي المبلغ', 'المبلغ المدفوع', 'الباقي'];
+    const nameLabel = isAllDrivers ? 'المندوب' : 'اسم العميل';
+    const headers = ['م', nameLabel, 'خبز ابيض', 'خبز بر', 'وسط', 'شاورما صغير', 'مغلف', 'الراجع', 'اجمالي الخبز', 'مبلغ ابيض', 'مبلغ مغلف', 'اجمالي المبلغ', 'المبلغ المدفوع', 'الباقي'];
     let csv = '\uFEFF';
     csv += `تقرير سحب الخبز اليومي - ${selectedDate} ${driverName ? '- ' + driverName : ''}\n\n`;
     csv += headers.join(',') + '\n';
     reportRows.forEach((r, i) => {
-      csv += [i + 1, r.customerName, r.whiteBread, r.brownBread, r.medium, r.superBread, r.wrapped, r.returned, r.totalBread, fmt(r.whiteAmount), fmt(r.wrappedAmount), fmt(r.totalAmount), fmt(r.paidAmount), fmt(r.remaining)].join(',') + '\n';
+      csv += [i + 1, r.name, r.whiteBread, r.brownBread, r.medium, r.superBread, r.wrapped, r.returned, r.totalBread, fmt(r.whiteAmount), fmt(r.wrappedAmount), fmt(r.totalAmount), fmt(r.paidAmount), fmt(r.remaining)].join(',') + '\n';
     });
     csv += ['', 'المجموع', totals.whiteBread, totals.brownBread, totals.medium, totals.superBread, totals.wrapped, totals.returned, totals.totalBread, fmt(totals.whiteAmount), fmt(totals.wrappedAmount), fmt(totals.totalAmount), fmt(totals.paidAmount), fmt(totals.remaining)].join(',') + '\n';
 
@@ -271,7 +277,7 @@ export default function DailyWithdrawalReportPage() {
                 <TableHeader>
                   <TableRow className="bg-slate-50">
                     <TableHead className="text-center font-bold border-l whitespace-nowrap" rowSpan={2}>م</TableHead>
-                    <TableHead className="text-center font-bold border-l whitespace-nowrap" rowSpan={2}>الاسم</TableHead>
+                    <TableHead className="text-center font-bold border-l whitespace-nowrap" rowSpan={2}>{isAllDrivers ? 'المندوب' : 'اسم العميل'}</TableHead>
                     <TableHead className="text-center font-bold border-l" colSpan={7}>معدل سحب الخبز</TableHead>
                     <TableHead className="text-center font-bold" colSpan={5}>الحساب المالي</TableHead>
                   </TableRow>
@@ -300,9 +306,9 @@ export default function DailyWithdrawalReportPage() {
                   ) : (
                     <>
                       {reportRows.map((r, i) => (
-                        <TableRow key={r.customerId} data-testid={`row-report-${r.customerId}`}>
+                        <TableRow key={r.id} data-testid={`row-report-${r.id}`}>
                           <TableCell className="text-center border-l font-medium">{i + 1}</TableCell>
-                          <TableCell className="text-right border-l font-bold whitespace-nowrap">{r.customerName}</TableCell>
+                          <TableCell className="text-right border-l font-bold whitespace-nowrap">{r.name}</TableCell>
                           <TableCell className="text-center border-l">{r.whiteBread || ''}</TableCell>
                           <TableCell className="text-center border-l">{r.brownBread || ''}</TableCell>
                           <TableCell className="text-center border-l">{r.medium || ''}</TableCell>
