@@ -50,7 +50,8 @@ Preferred communication style: Simple, everyday language.
 - **Driver Daily Images**: Per-driver per-day image uploads (up to 50MB each, stored in uploads/driver-images/)
 
 ### Reports
-- **Daily Withdrawal Report** (`/daily-withdrawal-report`): Daily bread withdrawal report per customer showing quantities per product type (white, brown, medium, super, wrapped), returns, financial calculations (amounts, paid, remaining). Supports print and Excel export (Excel restricted from SUB_ADMIN).
+- **Daily Withdrawal Report** (`/daily-withdrawal-report`): Daily bread withdrawal report per customer showing quantities per product type (white, brown, medium, شاورما, wrapped), returns, financial calculations (amounts, paid, remaining). Supports print and Excel export (Excel restricted from SUB_ADMIN).
+- **Driver Cumulative Balance** (`/driver-cumulative-balance`): Shows cumulative balance for all drivers across all days. Displays total sales (cash + credit), amounts paid to bakery, unpaid debts, expenses, bread sold count, and running cumulative balance. Expandable daily breakdown per driver.
 
 ### Removed Tables (cleaned up)
 - dispatch_runs, run_orders, returns, return_items, order_modifications, order_modification_items (empty/unused legacy tables)

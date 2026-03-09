@@ -15,7 +15,8 @@ import {
   UserCheck,
   Receipt,
   ClipboardList,
-  Clipboard
+  Clipboard,
+  BarChart3
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useStore } from "@/lib/store";
@@ -33,6 +34,7 @@ export function Sidebar({ className }: SidebarProps) {
     { icon: Clipboard, label: "ورقة المندوب", href: "/rep-print-sheet" },
     { icon: Wallet, label: "العمليات الميدانية", href: "/driver-transactions" },
     { icon: UserCheck, label: "عملائي", href: "/my-customers" },
+    { icon: BarChart3, label: "رصيد المندوب التراكمي", href: "/driver-cumulative-balance" },
     { icon: Send, label: "تسليم المبالغ", href: "/cash-deposits" },
     { icon: Receipt, label: "مصروفات المخبز", href: "/bakery-expenses" },
     { icon: Package, label: "خبز في الصالة", href: "/inventory" },

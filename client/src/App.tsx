@@ -18,6 +18,7 @@ import MyCustomersPage from "@/pages/MyCustomers";
 import BakeryExpensesPage from "@/pages/BakeryExpenses";
 import DailyWithdrawalReportPage from "@/pages/DailyWithdrawalReport";
 import RepPrintSheetPage from "@/pages/RepPrintSheet";
+import DriverCumulativeBalancePage from "@/pages/DriverCumulativeBalance";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/bakery-expenses" component={BakeryExpensesPage} />
       <Route path="/daily-withdrawal-report" component={DailyWithdrawalReportPage} />
       <Route path="/rep-print-sheet" component={RepPrintSheetPage} />
+      <Route path="/driver-cumulative-balance" component={DriverCumulativeBalancePage} />
       <Route component={NotFound} />
     </Switch>
   );
