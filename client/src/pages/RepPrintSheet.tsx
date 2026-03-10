@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Printer, Loader2 } from "lucide-react";
-import { useCustomers, useUsers, useRoutes } from "@/hooks/useData";
+import { useCustomers, useUsers, useRoutes, useProducts } from "@/hooks/useData";
+import { useQuery } from "@tanstack/react-query";
 
 const MIN_ROWS = 25;
 
@@ -15,6 +16,24 @@ export default function RepPrintSheetPage() {
   const { data: customers = [] } = useCustomers();
   const { data: users = [], isLoading } = useUsers();
   const { data: routes = [] } = useRoutes();
+  const { data: products = [] } = useProducts();
+
+  const { data: allCustomerPrices = [] } = useQuery({
+    queryKey: ['customer-prices-all'],
+    queryFn: async () => {
+      const res = await fetch('/api/customer-prices/all');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const whiteProduct = products.find(p => p.name.includes('ابيض'));
+
+  const getCustomerPrice = (customerId: string) => {
+    if (!whiteProduct) return '0.8';
+    const cp = allCustomerPrices.find((p: any) => p.customerId === customerId && p.productId === whiteProduct.id);
+    return cp ? cp.price : '0.8';
+  };
 
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
 
@@ -144,15 +163,18 @@ export default function RepPrintSheetPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from({ length: rightTableRows }).map((_, i) => (
-                        <tr key={i}>
-                          <td className="col-name">{driverCustomers[i]?.name || ''}</td>
-                          <td className="col-num">&nbsp;</td>
-                          <td className="col-num">&nbsp;</td>
-                          <td className="col-num">&nbsp;</td>
-                          <td className="col-num">&nbsp;</td>
-                        </tr>
-                      ))}
+                      {Array.from({ length: rightTableRows }).map((_, i) => {
+                        const customer = driverCustomers[i];
+                        return (
+                          <tr key={i}>
+                            <td className="col-name">{customer?.name || ''}</td>
+                            <td className="col-num">&nbsp;</td>
+                            <td className="col-num">{customer ? getCustomerPrice(customer.id) : ''}</td>
+                            <td className="col-num">&nbsp;</td>
+                            <td className="col-num">&nbsp;</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
 

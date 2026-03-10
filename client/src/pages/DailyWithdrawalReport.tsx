@@ -36,15 +36,6 @@ export default function DailyWithdrawalReportPage() {
     queryFn: api.getAllCustomerDebts,
   });
 
-  const { data: allCustomerPrices = [] } = useQuery({
-    queryKey: ['customer-prices-all'],
-    queryFn: async () => {
-      const res = await fetch('/api/customer-prices/all');
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
-
   const productMap: Record<string, { name: string; price: number }> = {};
   products.forEach(p => {
     productMap[p.id] = { name: p.name, price: parseFloat(p.price || '0') };
