@@ -75,7 +75,13 @@ export default function RepPrintSheetPage() {
       </html>
     `);
     printWindow.document.close();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+    const img = printWindow.document.querySelector('.logo-img') as HTMLImageElement;
+    if (img && !img.complete) {
+      img.onload = () => { printWindow.print(); printWindow.close(); };
+      img.onerror = () => { printWindow.print(); printWindow.close(); };
+    } else {
+      setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+    }
   };
 
   if (isLoading) {
