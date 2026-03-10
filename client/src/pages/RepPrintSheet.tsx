@@ -132,6 +132,11 @@ export default function RepPrintSheetPage() {
             <style dangerouslySetInnerHTML={{ __html: printStyles }} />
             <div ref={printRef}>
               <div className="print-sheet">
+                {/* Logo */}
+                <div className="logo-section">
+                  <img src="https://invoice.alsultan.cloud/raghif-logo.png" alt="شعار" className="logo-img" />
+                  <div className="logo-title">مخابز السلطان</div>
+                </div>
                 {/* Header */}
                 <div className="sheet-header">
                   <div className="header-row">
@@ -252,6 +257,23 @@ const printStyles = `
     font-size: 11px;
     direction: rtl;
     color: #000;
+  }
+
+  .logo-section {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .logo-img {
+    height: 60px;
+    margin: 0 auto;
+    display: block;
+  }
+
+  .logo-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 2px;
   }
 
   .sheet-header {
