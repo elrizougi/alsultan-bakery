@@ -183,7 +183,6 @@ export default function RepPrintSheetPage() {
                     <thead>
                       <tr>
                         <th className="col-num">المباع</th>
-                        <th className="col-num">السعر</th>
                         <th className="col-num">المبلغ</th>
                         <th className="col-num">راجع</th>
                         <th className="col-notes">ملاحظـــــــات</th>
@@ -192,7 +191,6 @@ export default function RepPrintSheetPage() {
                     <tbody>
                       {Array.from({ length: rightTableRows }).map((_, i) => (
                         <tr key={i}>
-                          <td className="col-num">&nbsp;</td>
                           <td className="col-num">&nbsp;</td>
                           <td className="col-num">&nbsp;</td>
                           <td className="col-num">&nbsp;</td>
