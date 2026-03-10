@@ -142,7 +142,7 @@ export default function RepPrintSheetPage() {
                   <div className="header-row">
                     <div className="qty-boxes">
                       <div className="qty-box"><span className="qty-label">الكمية الصباحية</span><span className="qty-value">&nbsp;</span></div>
-                      <div className="qty-box"><span className="qty-label">خط السير</span><span className="qty-value">{driverRoute?.name || '________'}</span></div>
+                      <span className="header-label" style={{marginTop: '4px'}}>خط السير / <strong>{driverRoute?.name || '________'}</strong></span>
                     </div>
                     <span>&nbsp;</span>
                     <div className="qty-boxes">
