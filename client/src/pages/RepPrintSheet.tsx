@@ -211,9 +211,11 @@ export default function RepPrintSheetPage() {
                       <tr>
                         <td className="bread-label">ابيض</td>
                         <td className="bread-label">بر</td>
+                        <td className="bread-label">الخبز الراجع</td>
                         <td className="bread-label">الخبز التالف</td>
                       </tr>
                       <tr>
+                        <td className="bread-value">&nbsp;</td>
                         <td className="bread-value">&nbsp;</td>
                         <td className="bread-value">&nbsp;</td>
                         <td className="bread-value">&nbsp;</td>
