@@ -29,6 +29,13 @@
       "when": 1773045571339,
       "tag": "0003_unknown_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773136900000,
+      "tag": "0004_customer_prices",
+      "breakpoints": true
     }
   ]
 }
