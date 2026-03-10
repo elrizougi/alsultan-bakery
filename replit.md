@@ -43,6 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **Transactions**: Field operations log (CASH_SALE, CREDIT_SALE, RETURN, FREE_DISTRIBUTION, FREE_SAMPLE, DAMAGED, EXPENSE). EXPENSE transactions support optional receipt image upload (receiptImage field, stored in uploads/receipts/)
 - **Driver Inventory**: Per-driver product stock tracking
 - **Driver Balance**: Per-driver cash balance tracking
+- **Customer Prices**: Per-customer per-product pricing overrides (priority: custom form price > customer price > product default price)
 - **Customer Debts**: Credit sale debt tracking with partial payment support
 - **Cash Deposits**: Driver-to-bakery cash deposit tracking with confirmation workflow
 - **Expense Categories**: Dynamic bakery expense categories (user-managed, stored in `expense_categories` table)

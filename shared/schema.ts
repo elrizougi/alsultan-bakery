@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, pgEnum, boolean, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -194,6 +194,19 @@ export const bakeryExpenses = pgTable("bakery_expenses", {
 export const insertBakeryExpenseSchema = createInsertSchema(bakeryExpenses).omit({ id: true, createdAt: true });
 export type InsertBakeryExpense = z.infer<typeof insertBakeryExpenseSchema>;
 export type BakeryExpense = typeof bakeryExpenses.$inferSelect;
+
+export const customerPrices = pgTable("customer_prices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+}, (table) => [
+  unique().on(table.customerId, table.productId),
+]);
+
+export const insertCustomerPriceSchema = createInsertSchema(customerPrices).omit({ id: true });
+export type InsertCustomerPrice = z.infer<typeof insertCustomerPriceSchema>;
+export type CustomerPrice = typeof customerPrices.$inferSelect;
 
 export const driverDailyImages = pgTable("driver_daily_images", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

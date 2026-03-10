@@ -371,6 +371,54 @@ export async function registerRoutes(
     }
   });
 
+  // ============ CUSTOMER PRICES - أسعار خاصة للعملاء ============
+  app.get("/api/customer-prices/all", async (req, res) => {
+    try {
+      const allPrices = await storage.getAllCustomerPrices();
+      res.json(allPrices);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.get("/api/customer-prices/:customerId", async (req, res) => {
+    try {
+      const prices = await storage.getCustomerPrices(req.params.customerId);
+      res.json(prices);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/customer-prices", async (req, res) => {
+    try {
+      const { customerId, productId, price } = req.body;
+      if (!customerId || !productId || price === undefined || price === null || price === "") {
+        return res.status(400).json({ message: "البيانات غير مكتملة" });
+      }
+      const numPrice = parseFloat(price);
+      if (isNaN(numPrice) || numPrice < 0) {
+        return res.status(400).json({ message: "السعر غير صالح" });
+      }
+      const result = await storage.setCustomerPrice({ customerId, productId, price: numPrice.toFixed(2) });
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.delete("/api/customer-prices/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteCustomerPrice(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "السعر غير موجود" });
+      }
+      res.json({ message: "تم حذف السعر" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // ============ ORDERS ============
   app.get("/api/orders", async (req, res) => {
     try {

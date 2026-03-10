@@ -1,6 +1,6 @@
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useStore } from "@/lib/store";
-import { useCustomers, useRoutes, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useUsers } from "@/hooks/useData";
+import { useCustomers, useRoutes, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useUsers, useProducts } from "@/hooks/useData";
 import {
   Table,
   TableBody,
@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2, Upload, Download, Search } from "lucide-react";
+import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2, Upload, Download, Search, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useRef } from "react";
 import {
@@ -40,6 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Customer } from "@/lib/api";
 
 interface CustomerFormData {
@@ -57,10 +58,12 @@ export default function CustomersPage() {
   const { data: customers = [], isLoading } = useCustomers();
   const { data: routes = [] } = useRoutes();
   const { data: users = [] } = useUsers();
+  const { data: products = [] } = useProducts();
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const deleteCustomer = useDeleteCustomer();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -70,6 +73,20 @@ export default function CustomersPage() {
   const [filterRouteId, setFilterRouteId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pricesCustomer, setPricesCustomer] = useState<Customer | null>(null);
+  const [newPriceProductId, setNewPriceProductId] = useState<string>("");
+  const [newPriceValue, setNewPriceValue] = useState<string>("");
+
+  const { data: customerPrices = [], refetch: refetchPrices } = useQuery({
+    queryKey: ["customer-prices", pricesCustomer?.id],
+    queryFn: async () => {
+      if (!pricesCustomer) return [];
+      const res = await fetch(`/api/customer-prices/${pricesCustomer.id}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!pricesCustomer,
+  });
   const [formData, setFormData] = useState<CustomerFormData>({
     name: "",
     address: "",
@@ -513,6 +530,15 @@ export default function CustomersPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => setPricesCustomer(customer)}
+                          title="أسعار خاصة"
+                          data-testid={`button-prices-customer-${customer.id}`}
+                        >
+                          <DollarSign className="h-4 w-4 text-amber-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => openEditForm(customer)}
                           data-testid={`button-edit-customer-${customer.id}`}
                         >
@@ -660,6 +686,121 @@ export default function CustomersPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={!!pricesCustomer} onOpenChange={(open) => { if (!open) { setPricesCustomer(null); setNewPriceProductId(""); setNewPriceValue(""); } }}>
+          <DialogContent className="sm:max-w-[550px]" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="text-right">
+                أسعار خاصة - {pricesCustomer?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">المنتج</Label>
+                  <Select value={newPriceProductId} onValueChange={setNewPriceProductId}>
+                    <SelectTrigger data-testid="select-price-product">
+                      <SelectValue placeholder="اختر المنتج" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} ({p.price} ر.س)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-28 space-y-1">
+                  <Label className="text-xs">السعر</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={newPriceValue}
+                    onChange={(e) => setNewPriceValue(e.target.value)}
+                    placeholder="السعر"
+                    data-testid="input-customer-price"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  className="mb-0"
+                  disabled={!newPriceProductId || !newPriceValue}
+                  onClick={async () => {
+                    if (!pricesCustomer || !newPriceProductId || !newPriceValue) return;
+                    try {
+                      const res = await fetch("/api/customer-prices", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ customerId: pricesCustomer.id, productId: newPriceProductId, price: newPriceValue }),
+                      });
+                      if (!res.ok) throw new Error("failed");
+                      toast({ title: "تم حفظ السعر" });
+                      setNewPriceProductId("");
+                      setNewPriceValue("");
+                      refetchPrices();
+                      queryClient.invalidateQueries({ queryKey: ["customer-prices-all"] });
+                    } catch {
+                      toast({ title: "حدث خطأ", variant: "destructive" });
+                    }
+                  }}
+                  data-testid="button-save-customer-price"
+                >
+                  حفظ
+                </Button>
+              </div>
+
+              {customerPrices.length > 0 ? (
+                <Table className="text-right">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-right">المنتج</TableHead>
+                      <TableHead className="text-right">السعر الأصلي</TableHead>
+                      <TableHead className="text-right">سعر العميل</TableHead>
+                      <TableHead className="text-right">إجراء</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerPrices.map((cp: any) => {
+                      const product = products.find(p => p.id === cp.productId);
+                      return (
+                        <TableRow key={cp.id}>
+                          <TableCell>{product?.name || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground">{product?.price || "-"} ر.س</TableCell>
+                          <TableCell className="font-bold text-amber-700">{cp.price} ر.س</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/customer-prices/${cp.id}`, { method: "DELETE" });
+                                  if (!res.ok) throw new Error("failed");
+                                  toast({ title: "تم حذف السعر" });
+                                  refetchPrices();
+                                  queryClient.invalidateQueries({ queryKey: ["customer-prices-all"] });
+                                } catch {
+                                  toast({ title: "حدث خطأ", variant: "destructive" });
+                                }
+                              }}
+                              data-testid={`button-delete-price-${cp.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">لا توجد أسعار خاصة لهذا العميل</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

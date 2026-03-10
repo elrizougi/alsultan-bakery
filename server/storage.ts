@@ -15,6 +15,7 @@ import {
   bakeryExpenses, type BakeryExpense, type InsertBakeryExpense,
   expenseCategories, type ExpenseCategoryRecord, type InsertExpenseCategory,
   driverDailyImages, type DriverDailyImage, type InsertDriverDailyImage,
+  customerPrices, type CustomerPrice, type InsertCustomerPrice,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -119,6 +120,12 @@ export interface IStorage {
   getDriverDailyImages(driverId: string, imageDate: string): Promise<DriverDailyImage[]>;
   createDriverDailyImage(image: InsertDriverDailyImage): Promise<DriverDailyImage>;
   deleteDriverDailyImage(id: string): Promise<DriverDailyImage | undefined>;
+
+  // Customer Prices - أسعار خاصة للعملاء
+  getAllCustomerPrices(): Promise<CustomerPrice[]>;
+  getCustomerPrices(customerId: string): Promise<CustomerPrice[]>;
+  setCustomerPrice(data: InsertCustomerPrice): Promise<CustomerPrice>;
+  deleteCustomerPrice(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1035,6 +1042,34 @@ export class DatabaseStorage implements IStorage {
   async deleteDriverDailyImage(id: string): Promise<DriverDailyImage | undefined> {
     const [deleted] = await db.delete(driverDailyImages).where(eq(driverDailyImages.id, id)).returning();
     return deleted;
+  }
+
+  async getAllCustomerPrices(): Promise<CustomerPrice[]> {
+    return await db.select().from(customerPrices);
+  }
+
+  async getCustomerPrices(customerId: string): Promise<CustomerPrice[]> {
+    return await db.select().from(customerPrices).where(eq(customerPrices.customerId, customerId));
+  }
+
+  async setCustomerPrice(data: InsertCustomerPrice): Promise<CustomerPrice> {
+    const existing = await db.select().from(customerPrices).where(
+      and(eq(customerPrices.customerId, data.customerId), eq(customerPrices.productId, data.productId))
+    );
+    if (existing.length > 0) {
+      const [updated] = await db.update(customerPrices)
+        .set({ price: data.price })
+        .where(eq(customerPrices.id, existing[0].id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(customerPrices).values(data).returning();
+    return created;
+  }
+
+  async deleteCustomerPrice(id: string): Promise<boolean> {
+    const result = await db.delete(customerPrices).where(eq(customerPrices.id, id)).returning();
+    return result.length > 0;
   }
 }
 

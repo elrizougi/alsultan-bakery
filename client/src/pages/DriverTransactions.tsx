@@ -55,6 +55,15 @@ export default function DriverTransactionsPage() {
   const { data: products = [] } = useProducts();
   const { data: customers = [] } = useCustomers();
   const { data: orders = [] } = useOrders();
+
+  const { data: allCustomerPrices = [] } = useQuery({
+    queryKey: ["customer-prices-all"],
+    queryFn: async () => {
+      const res = await fetch("/api/customer-prices/all");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
   
   // طلبات السائق التي تحتاج تأكيد استلام
   const pendingOrders = orders.filter(o => o.customerId === driverId && o.status === 'CONFIRMED');
@@ -659,7 +668,8 @@ export default function DriverTransactionsPage() {
       for (const item of validItems) {
         const product = products.find(p => p.id === item.productId);
         if (!product) continue;
-        const unitPrice = item.customPrice ? item.customPrice : product.price;
+        const customerPrice = allCustomerPrices.find((cp: any) => cp.customerId === customerId && cp.productId === item.productId);
+        const unitPrice = item.customPrice ? item.customPrice : (customerPrice ? customerPrice.price : product.price);
         const totalAmount = (parseFloat(unitPrice) * item.quantity).toFixed(2);
         
         try {
@@ -2138,7 +2148,8 @@ export default function DriverTransactionsPage() {
                 <div className="space-y-3">
                   {productItems.map((item, index) => {
                     const product = products.find(p => p.id === item.productId);
-                    const unitPrice = item.customPrice ? parseFloat(item.customPrice) : parseFloat(product?.price || "0");
+                    const customerPrice = allCustomerPrices.find((cp: any) => cp.customerId === formData.customerId && cp.productId === item.productId);
+                    const unitPrice = item.customPrice ? parseFloat(item.customPrice) : (customerPrice ? parseFloat(customerPrice.price) : parseFloat(product?.price || "0"));
                     const itemTotal = unitPrice * item.quantity;
                     return (
                       <div key={index} className="p-3 bg-slate-50 rounded-lg space-y-2 relative">
@@ -2221,7 +2232,7 @@ export default function DriverTransactionsPage() {
                                 updated[index] = { ...updated[index], customPrice: e.target.value };
                                 setProductItems(updated);
                               }}
-                              placeholder={product ? `${product.price}` : "السعر"}
+                              placeholder={customerPrice ? `${customerPrice.price} (سعر العميل)` : (product ? `${product.price}` : "السعر")}
                               data-testid={`input-price-${index}`}
                             />
                           </div>
