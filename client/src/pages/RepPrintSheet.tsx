@@ -158,10 +158,10 @@ export default function RepPrintSheetPage() {
                     <thead>
                       <tr>
                         <th className="col-name">اسـم العميل</th>
-                        <th className="col-num">المباع</th>
+                        <th className="col-num">صباح</th>
                         <th className="col-num">السعر</th>
                         <th className="col-num">المبلغ</th>
-                        <th className="col-num">راجع</th>
+                        <th className="col-num">الخبز التالف</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -184,9 +184,9 @@ export default function RepPrintSheetPage() {
                   <table className="sheet-table left-table">
                     <thead>
                       <tr>
-                        <th className="col-num">المباع</th>
+                        <th className="col-num">مساء</th>
                         <th className="col-num">المبلغ</th>
-                        <th className="col-num">راجع</th>
+                        <th className="col-num">الخبز التالف</th>
                         <th className="col-notes">ملاحظـــــــات</th>
                       </tr>
                     </thead>
@@ -211,7 +211,7 @@ export default function RepPrintSheetPage() {
                       <tr>
                         <td className="bread-label">ابيض</td>
                         <td className="bread-label">بر</td>
-                        <td className="bread-label">راجع</td>
+                        <td className="bread-label">الخبز التالف</td>
                       </tr>
                       <tr>
                         <td className="bread-value">&nbsp;</td>
