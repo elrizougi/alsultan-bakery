@@ -139,9 +139,9 @@ export default function RepPrintSheetPage() {
                 </div>
                 {/* Header */}
                 <div className="sheet-header">
+                  <div className="driver-name-center">المندوب / <strong>{selectedDriver?.name || '________'}</strong></div>
                   <div className="header-row">
                     <span className="header-label">التاريخ /&emsp;&emsp;/&emsp;&emsp;/ 2026</span>
-                    <span className="header-center">المندوب / <strong>{selectedDriver?.name || '________'}</strong></span>
                     <span className="header-label">&nbsp;</span>
                   </div>
                   <div className="header-row">
@@ -274,6 +274,13 @@ const printStyles = `
     font-size: 18px;
     font-weight: bold;
     margin-top: 2px;
+  }
+
+  .driver-name-center {
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 4px;
   }
 
   .sheet-header {
