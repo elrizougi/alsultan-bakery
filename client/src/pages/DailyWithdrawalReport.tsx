@@ -36,15 +36,6 @@ export default function DailyWithdrawalReportPage() {
     queryFn: api.getAllCustomerDebts,
   });
 
-  const { data: allCustomerPrices = [] } = useQuery({
-    queryKey: ['customer-prices-all'],
-    queryFn: async () => {
-      const res = await fetch('/api/customer-prices/all');
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
-
   const productMap: Record<string, { name: string; price: number }> = {};
   products.forEach(p => {
     productMap[p.id] = { name: p.name, price: parseFloat(p.price || '0') };
@@ -76,7 +67,7 @@ export default function DailyWithdrawalReportPage() {
 
   const saleTypes = ['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
 
-  const computeRowFromTransactions = (txns: any[], debtsFilter: (d: any) => boolean, customerId?: string) => {
+  const computeRowFromTransactions = (txns: any[], debtsFilter: (d: any) => boolean) => {
     const getQty = (productId: string | undefined, types: string[]) => {
       if (!productId) return 0;
       return txns
@@ -125,14 +116,8 @@ export default function DailyWithdrawalReportPage() {
     const paidAmount = cashPaid + debtPaidToday + partialPaidToday;
     const remaining = totalAmount - paidAmount;
 
-    let unitPrice = 0;
-    if (customerId && whiteProduct) {
-      const cp = allCustomerPrices.find((p: any) => p.customerId === customerId && p.productId === whiteProduct.id);
-      unitPrice = cp ? parseFloat(cp.price) : parseFloat(whiteProduct.price);
-    } else {
-      const whiteSaleTxn = txns.find(t => t.productId === whiteProduct?.id && saleTypes.includes(t.type as string));
-      unitPrice = whiteSaleTxn ? parseFloat(whiteSaleTxn.unitPrice || '0') : 0;
-    }
+    const whiteSaleTxn = txns.find(t => t.productId === whiteProduct?.id && saleTypes.includes(t.type as string));
+    const unitPrice = whiteSaleTxn ? parseFloat(whiteSaleTxn.unitPrice || '0') : 0;
 
     return { whiteBread, brownBread, medium, superBread, wrapped, returned, damagedPercent, totalBread, whiteAmount, wrappedAmount, totalAmount, paidAmount, remaining, unitPrice };
   };
@@ -159,7 +144,7 @@ export default function DailyWithdrawalReportPage() {
             d.customerId === custId &&
             d.driverId === selectedDriverId &&
             d.createdAt && format(new Date(d.createdAt), 'yyyy-MM-dd') === selectedDate
-          , custId);
+          );
           return { id: custId!, name: customer?.name || '-', ...row };
         }).filter(r => r.totalBread > 0 || r.totalAmount > 0);
       })();
