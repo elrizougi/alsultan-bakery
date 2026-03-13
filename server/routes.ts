@@ -1,8 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrderSchema, insertOrderItemSchema, insertRouteSchema, insertTransactionSchema, insertExpenseCategorySchema, insertBakeryExpenseSchema } from "@shared/schema";
+import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrderSchema, insertOrderItemSchema, insertRouteSchema, insertTransactionSchema, insertExpenseCategorySchema, insertBakeryExpenseSchema,
+  transactions as transactionsTable, customers as customersTable, customerDebts as customerDebtsTable,
+  cashDeposits as cashDepositsTable, bakeryExpenses as bakeryExpensesTable,
+  driverInventory as driverInventoryTable, driverBalance as driverBalanceTable,
+} from "@shared/schema";
 import { z } from "zod";
+import { gte } from "drizzle-orm";
+import { db } from "./db";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -1321,6 +1327,79 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       console.error("Delete driver daily image error:", error);
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  // ============ INCREMENTAL DATA LOAD ============
+  app.get("/api/incremental", async (req, res) => {
+    try {
+      const since = req.query.since ? new Date(req.query.since as string) : null;
+      const tables = (req.query.tables as string || "").split(",").filter(Boolean);
+
+      const result: Record<string, any[]> = {};
+
+      const shouldInclude = (table: string) => tables.length === 0 || tables.includes(table);
+
+      if (shouldInclude("transactions")) {
+        if (since) {
+          result.transactions = await db.select().from(transactionsTable).where(gte(transactionsTable.updatedAt, since));
+        } else {
+          result.transactions = await storage.getAllTransactions();
+        }
+      }
+
+      if (shouldInclude("customers")) {
+        if (since) {
+          result.customers = await db.select().from(customersTable).where(gte(customersTable.updatedAt, since));
+        } else {
+          result.customers = await storage.getAllCustomers();
+        }
+      }
+
+      if (shouldInclude("customer_debts")) {
+        if (since) {
+          result.customer_debts = await db.select().from(customerDebtsTable).where(gte(customerDebtsTable.updatedAt, since));
+        } else {
+          result.customer_debts = await storage.getAllCustomerDebts();
+        }
+      }
+
+      if (shouldInclude("cash_deposits")) {
+        if (since) {
+          result.cash_deposits = await db.select().from(cashDepositsTable).where(gte(cashDepositsTable.updatedAt, since));
+        } else {
+          result.cash_deposits = await storage.getAllCashDeposits();
+        }
+      }
+
+      if (shouldInclude("bakery_expenses")) {
+        if (since) {
+          result.bakery_expenses = await db.select().from(bakeryExpensesTable).where(gte(bakeryExpensesTable.updatedAt, since));
+        } else {
+          result.bakery_expenses = await storage.getBakeryExpenses();
+        }
+      }
+
+      if (shouldInclude("driver_inventory")) {
+        if (since) {
+          result.driver_inventory = await db.select().from(driverInventoryTable).where(gte(driverInventoryTable.updatedAt, since));
+        } else {
+          result.driver_inventory = await db.select().from(driverInventoryTable);
+        }
+      }
+
+      if (shouldInclude("driver_balance")) {
+        if (since) {
+          result.driver_balance = await db.select().from(driverBalanceTable).where(gte(driverBalanceTable.updatedAt, since));
+        } else {
+          result.driver_balance = await db.select().from(driverBalanceTable);
+        }
+      }
+
+      res.json({ data: result, timestamp: new Date().toISOString() });
+    } catch (error) {
+      console.error("Incremental load error:", error);
       res.status(500).json({ message: "خطأ في الخادم" });
     }
   });

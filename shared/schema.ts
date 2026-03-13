@@ -58,9 +58,10 @@ export const customers = pgTable("customers", {
   routeId: varchar("route_id").references(() => routes.id),
   driverId: varchar("driver_id").references(() => users.id),
   phone: text("phone").default(""),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true });
+export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, updatedAt: true });
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
 
@@ -96,9 +97,10 @@ export const driverInventory = pgTable("driver_inventory", {
   driverId: varchar("driver_id").references(() => users.id).notNull(),
   productId: varchar("product_id").references(() => products.id).notNull(),
   quantity: integer("quantity").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertDriverInventorySchema = createInsertSchema(driverInventory).omit({ id: true });
+export const insertDriverInventorySchema = createInsertSchema(driverInventory).omit({ id: true, updatedAt: true });
 export type InsertDriverInventory = z.infer<typeof insertDriverInventorySchema>;
 export type DriverInventory = typeof driverInventory.$inferSelect;
 
@@ -107,9 +109,10 @@ export const driverBalance = pgTable("driver_balance", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   driverId: varchar("driver_id").references(() => users.id).notNull().unique(),
   cashBalance: decimal("cash_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertDriverBalanceSchema = createInsertSchema(driverBalance).omit({ id: true });
+export const insertDriverBalanceSchema = createInsertSchema(driverBalance).omit({ id: true, updatedAt: true });
 export type InsertDriverBalance = z.infer<typeof insertDriverBalanceSchema>;
 export type DriverBalance = typeof driverBalance.$inferSelect;
 
@@ -121,10 +124,11 @@ export const customerDebts = pgTable("customer_debts", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   isPaid: boolean("is_paid").notNull().default(false),
 });
 
-export const insertCustomerDebtSchema = createInsertSchema(customerDebts).omit({ id: true, createdAt: true });
+export const insertCustomerDebtSchema = createInsertSchema(customerDebts).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertCustomerDebt = z.infer<typeof insertCustomerDebtSchema>;
 export type CustomerDebt = typeof customerDebts.$inferSelect;
 
@@ -139,11 +143,12 @@ export const transactions = pgTable("transactions", {
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull().default("0"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   notes: text("notes"),
   receiptImage: text("receipt_image"),
 });
 
-export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true });
+export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, updatedAt: true });
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 export type TransactionType = 'CASH_SALE' | 'CREDIT_SALE' | 'RETURN' | 'FREE_DISTRIBUTION' | 'FREE_SAMPLE' | 'DAMAGED' | 'EXPENSE' | 'DRIVER_DEBT';
@@ -158,12 +163,13 @@ export const cashDeposits = pgTable("cash_deposits", {
   status: depositStatusEnum("status").notNull().default("PENDING"),
   depositDate: text("deposit_date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   confirmedAt: timestamp("confirmed_at"),
   confirmedBy: varchar("confirmed_by").references(() => users.id),
   notes: text("notes"),
 });
 
-export const insertCashDepositSchema = createInsertSchema(cashDeposits).omit({ id: true, createdAt: true, confirmedAt: true });
+export const insertCashDepositSchema = createInsertSchema(cashDeposits).omit({ id: true, createdAt: true, updatedAt: true, confirmedAt: true });
 export type InsertCashDeposit = z.infer<typeof insertCashDepositSchema>;
 export type CashDeposit = typeof cashDeposits.$inferSelect;
 export type DepositStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
@@ -187,11 +193,12 @@ export const bakeryExpenses = pgTable("bakery_expenses", {
   description: text("description").notNull(),
   expenseDate: text("expense_date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdBy: varchar("created_by").references(() => users.id),
   receiptImage: text("receipt_image"),
 });
 
-export const insertBakeryExpenseSchema = createInsertSchema(bakeryExpenses).omit({ id: true, createdAt: true });
+export const insertBakeryExpenseSchema = createInsertSchema(bakeryExpenses).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertBakeryExpense = z.infer<typeof insertBakeryExpenseSchema>;
 export type BakeryExpense = typeof bakeryExpenses.$inferSelect;
 

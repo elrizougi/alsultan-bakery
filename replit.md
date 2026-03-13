@@ -55,6 +55,13 @@ Preferred communication style: Simple, everyday language.
 - **Driver Cumulative Balance** (`/driver-cumulative-balance`): Shows cumulative balance for all drivers across all days. Displays total sales (cash + credit), amounts paid to bakery, unpaid debts, expenses, bread sold count, and running cumulative balance. Expandable daily breakdown per driver.
 - **Bakery Cash Vault** (`/bakery-cash-vault`): Cash flow audit page showing all income (confirmed driver deposits) and expenses (bakery expenses + driver expenses). Date range filter, type filter, print support. Shows period totals and all-time vault balance.
 
+### Incremental Data Load
+- **Endpoint**: `GET /api/incremental?since=<ISO_timestamp>&tables=<comma_separated>`
+- **Tables supported**: `transactions`, `customers`, `customer_debts`, `cash_deposits`, `bakery_expenses`, `driver_inventory`, `driver_balance`
+- **`updatedAt` column**: Added to all 7 tables above. Auto-set on insert (DEFAULT NOW()) and auto-updated on every UPDATE via PostgreSQL triggers (`update_updated_at_column`)
+- **Migration**: `migrations/0005_updated_at.sql` (adds columns + triggers, safe with IF NOT EXISTS)
+- **Usage**: First call without `since` → full data + `timestamp`. Subsequent calls with `since=<previous_timestamp>` → only changed records
+
 ### Removed Tables (cleaned up)
 - dispatch_runs, run_orders, returns, return_items, order_modifications, order_modification_items (empty/unused legacy tables)
 

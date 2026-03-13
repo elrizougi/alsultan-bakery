@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, gte } from "drizzle-orm";
 import {
   users, type User, type InsertUser,
   products, type Product, type InsertProduct,
@@ -241,7 +241,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
-    const [updated] = await db.update(customers).set(customer).where(eq(customers.id, id)).returning();
+    const [updated] = await db.update(customers).set({ ...customer, updatedAt: new Date() }).where(eq(customers.id, id)).returning();
     return updated;
   }
 
@@ -392,7 +392,7 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.getDriverInventoryItem(driverId, productId);
     if (existing) {
       const [updated] = await db.update(driverInventory)
-        .set({ quantity })
+        .set({ quantity, updatedAt: new Date() })
         .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)))
         .returning();
       return updated;
@@ -407,7 +407,7 @@ export class DatabaseStorage implements IStorage {
     if (existing) {
       const newQuantity = Math.max(0, existing.quantity + quantityChange);
       const [updated] = await db.update(driverInventory)
-        .set({ quantity: newQuantity })
+        .set({ quantity: newQuantity, updatedAt: new Date() })
         .where(and(eq(driverInventory.driverId, driverId), eq(driverInventory.productId, productId)))
         .returning();
       return updated;
@@ -428,7 +428,7 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.getDriverBalance(driverId);
     if (existing) {
       const [updated] = await db.update(driverBalance)
-        .set({ cashBalance })
+        .set({ cashBalance, updatedAt: new Date() })
         .where(eq(driverBalance.driverId, driverId))
         .returning();
       return updated;
@@ -464,7 +464,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCustomerDebt(id: string, isPaid: boolean): Promise<CustomerDebt | undefined> {
-    const [updated] = await db.update(customerDebts).set({ isPaid }).where(eq(customerDebts.id, id)).returning();
+    const [updated] = await db.update(customerDebts).set({ isPaid, updatedAt: new Date() }).where(eq(customerDebts.id, id)).returning();
     return updated;
   }
 
@@ -936,7 +936,7 @@ export class DatabaseStorage implements IStorage {
     const [deposit] = await db.select().from(cashDeposits).where(eq(cashDeposits.id, id));
     if (!deposit) return undefined;
     const [updated] = await db.update(cashDeposits)
-      .set(data)
+      .set({ ...data, updatedAt: new Date() })
       .where(eq(cashDeposits.id, id))
       .returning();
     return updated;
@@ -1039,7 +1039,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateBakeryExpense(id: string, expense: Partial<InsertBakeryExpense>): Promise<BakeryExpense | undefined> {
-    const [updated] = await db.update(bakeryExpenses).set(expense).where(eq(bakeryExpenses.id, id)).returning();
+    const [updated] = await db.update(bakeryExpenses).set({ ...expense, updatedAt: new Date() }).where(eq(bakeryExpenses.id, id)).returning();
     return updated;
   }
 
