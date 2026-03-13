@@ -79,6 +79,7 @@ export default function CustomersPage() {
   const [deleteStep, setDeleteStep] = useState<'idle' | 'loading' | 'warning'>('idle');
   const [relatedCounts, setRelatedCounts] = useState<{ transactions: number; debts: number; prices: number } | null>(null);
   const [transferTargetId, setTransferTargetId] = useState<string>("");
+  const [transferSearch, setTransferSearch] = useState<string>("");
 
   const { data: customerPrices = [], refetch: refetchPrices } = useQuery({
     queryKey: ["customer-prices", pricesCustomer?.id],
@@ -328,6 +329,7 @@ export default function CustomersPage() {
     setCustomerToDelete(customer);
     setDeleteStep('loading');
     setTransferTargetId("");
+    setTransferSearch("");
     try {
       const res = await fetch(`/api/customers/${customer.id}/related-counts`);
       const counts = await res.json();
@@ -367,6 +369,7 @@ export default function CustomersPage() {
       setDeleteStep('idle');
       setRelatedCounts(null);
       setTransferTargetId("");
+      setTransferSearch("");
     } catch (error) {
       toast({ title: "حدث خطأ في نقل العمليات", variant: "destructive" });
     }
@@ -727,7 +730,7 @@ export default function CustomersPage() {
         </AlertDialog>
 
         {/* Delete Warning Dialog - Has related data */}
-        <Dialog open={!!customerToDelete && deleteStep === 'warning'} onOpenChange={(open) => { if (!open) { setCustomerToDelete(null); setDeleteStep('idle'); setRelatedCounts(null); setTransferTargetId(""); } }}>
+        <Dialog open={!!customerToDelete && deleteStep === 'warning'} onOpenChange={(open) => { if (!open) { setCustomerToDelete(null); setDeleteStep('idle'); setRelatedCounts(null); setTransferTargetId(""); setTransferSearch(""); } }}>
           <DialogContent className="sm:max-w-[500px]" dir="rtl">
             <DialogHeader>
               <DialogTitle className="text-right text-destructive">تحذير - حذف العميل "{customerToDelete?.name}"</DialogTitle>
@@ -750,23 +753,45 @@ export default function CustomersPage() {
 
               <div className="border rounded-lg p-4 space-y-3">
                 <p className="font-bold text-right">الخيار 1: نقل العمليات لعميل آخر ثم حذف</p>
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Label className="text-right block mb-1">اختر العميل المستلم</Label>
-                    <Select value={transferTargetId} onValueChange={setTransferTargetId}>
-                      <SelectTrigger data-testid="select-transfer-target">
-                        <SelectValue placeholder="اختر عميل..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.filter(c => c.id !== customerToDelete?.id).map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-2">
+                  <Label className="text-right block">ابحث واختر العميل المستلم</Label>
+                  <div className="relative">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="اكتب اسم العميل للبحث..."
+                      value={transferSearch}
+                      onChange={(e) => { setTransferSearch(e.target.value); setTransferTargetId(""); }}
+                      className="pr-9 text-right"
+                      data-testid="input-transfer-search"
+                    />
+                  </div>
+                  {transferTargetId && (
+                    <div className="bg-green-50 border border-green-300 rounded p-2 text-right text-sm text-green-800">
+                      تم اختيار: <strong>{customers.find(c => c.id === transferTargetId)?.name}</strong>
+                    </div>
+                  )}
+                  <div className="max-h-40 overflow-y-auto border rounded">
+                    {customers
+                      .filter(c => c.id !== customerToDelete?.id && (transferSearch === "" || c.name.includes(transferSearch)))
+                      .map(c => (
+                        <div
+                          key={c.id}
+                          onClick={() => { setTransferTargetId(c.id); setTransferSearch(c.name); }}
+                          className={`px-3 py-2 text-right cursor-pointer hover:bg-accent text-sm border-b last:border-b-0 ${transferTargetId === c.id ? 'bg-primary/10 font-bold' : ''}`}
+                          data-testid={`transfer-option-${c.id}`}
+                        >
+                          {c.name}
+                        </div>
+                      ))
+                    }
+                    {customers.filter(c => c.id !== customerToDelete?.id && (transferSearch === "" || c.name.includes(transferSearch))).length === 0 && (
+                      <div className="px-3 py-2 text-center text-sm text-muted-foreground">لا توجد نتائج</div>
+                    )}
                   </div>
                   <Button
                     onClick={handleTransferAndDelete}
                     disabled={!transferTargetId}
+                    className="w-full"
                     data-testid="button-transfer-and-delete"
                   >
                     نقل وحذف
@@ -787,7 +812,7 @@ export default function CustomersPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setCustomerToDelete(null); setDeleteStep('idle'); setRelatedCounts(null); setTransferTargetId(""); }}>
+              <Button variant="outline" onClick={() => { setCustomerToDelete(null); setDeleteStep('idle'); setRelatedCounts(null); setTransferTargetId(""); setTransferSearch(""); }}>
                 إلغاء
               </Button>
             </DialogFooter>
