@@ -76,6 +76,9 @@ export default function CustomersPage() {
   const [pricesCustomer, setPricesCustomer] = useState<Customer | null>(null);
   const [newPriceProductId, setNewPriceProductId] = useState<string>("");
   const [newPriceValue, setNewPriceValue] = useState<string>("");
+  const [deleteStep, setDeleteStep] = useState<'idle' | 'loading' | 'warning'>('idle');
+  const [relatedCounts, setRelatedCounts] = useState<{ transactions: number; debts: number; prices: number } | null>(null);
+  const [transferTargetId, setTransferTargetId] = useState<string>("");
 
   const { data: customerPrices = [], refetch: refetchPrices } = useQuery({
     queryKey: ["customer-prices", pricesCustomer?.id],
@@ -321,15 +324,51 @@ export default function CustomersPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (customerToDelete) {
-      try {
-        await deleteCustomer.mutateAsync(customerToDelete.id);
-        toast({ title: "تم حذف العميل" });
-        setCustomerToDelete(null);
-      } catch (error) {
-        toast({ title: "حدث خطأ في حذف العميل", variant: "destructive" });
+  const handleDeleteClick = async (customer: Customer) => {
+    setCustomerToDelete(customer);
+    setDeleteStep('loading');
+    setTransferTargetId("");
+    try {
+      const res = await fetch(`/api/customers/${customer.id}/related-counts`);
+      const counts = await res.json();
+      setRelatedCounts(counts);
+      if (counts.transactions === 0 && counts.debts === 0 && counts.prices === 0) {
+        setDeleteStep('idle');
+      } else {
+        setDeleteStep('warning');
       }
+    } catch {
+      setRelatedCounts(null);
+      setDeleteStep('idle');
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!customerToDelete) return;
+    try {
+      await deleteCustomer.mutateAsync(customerToDelete.id);
+      toast({ title: "تم حذف العميل وجميع بياناته" });
+      setCustomerToDelete(null);
+      setDeleteStep('idle');
+      setRelatedCounts(null);
+    } catch (error) {
+      toast({ title: "حدث خطأ في حذف العميل", variant: "destructive" });
+    }
+  };
+
+  const handleTransferAndDelete = async () => {
+    if (!customerToDelete || !transferTargetId) return;
+    try {
+      await fetch(`/api/customers/${customerToDelete.id}/transfer/${transferTargetId}`, { method: 'POST' });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      toast({ title: "تم نقل العمليات وحذف العميل" });
+      setCustomerToDelete(null);
+      setDeleteStep('idle');
+      setRelatedCounts(null);
+      setTransferTargetId("");
+    } catch (error) {
+      toast({ title: "حدث خطأ في نقل العمليات", variant: "destructive" });
     }
   };
 
@@ -548,7 +587,7 @@ export default function CustomersPage() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => setCustomerToDelete(customer)}
+                          onClick={() => handleDeleteClick(customer)}
                           data-testid={`button-delete-customer-${customer.id}`}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -665,8 +704,8 @@ export default function CustomersPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!customerToDelete} onOpenChange={(open) => !open && setCustomerToDelete(null)}>
+        {/* Delete Confirmation Dialog - No related data */}
+        <AlertDialog open={!!customerToDelete && deleteStep === 'idle'} onOpenChange={(open) => { if (!open) { setCustomerToDelete(null); setDeleteStep('idle'); } }}>
           <AlertDialogContent dir="rtl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-right">حذف العميل</AlertDialogTitle>
@@ -675,8 +714,8 @@ export default function CustomersPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex flex-row-reverse gap-2">
-              <AlertDialogAction 
-                onClick={handleDelete}
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 data-testid="button-confirm-delete-customer"
               >
@@ -686,6 +725,74 @@ export default function CustomersPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Delete Warning Dialog - Has related data */}
+        <Dialog open={!!customerToDelete && deleteStep === 'warning'} onOpenChange={(open) => { if (!open) { setCustomerToDelete(null); setDeleteStep('idle'); setRelatedCounts(null); setTransferTargetId(""); } }}>
+          <DialogContent className="sm:max-w-[500px]" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="text-right text-destructive">تحذير - حذف العميل "{customerToDelete?.name}"</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-right space-y-2">
+                <p className="font-bold text-amber-800">هذا العميل مرتبط بالبيانات التالية:</p>
+                <ul className="text-sm text-amber-700 list-disc list-inside space-y-1">
+                  {relatedCounts && relatedCounts.transactions > 0 && (
+                    <li>{relatedCounts.transactions} عملية (بيع، إرجاع، إلخ)</li>
+                  )}
+                  {relatedCounts && relatedCounts.debts > 0 && (
+                    <li>{relatedCounts.debts} سجل دين</li>
+                  )}
+                  {relatedCounts && relatedCounts.prices > 0 && (
+                    <li>{relatedCounts.prices} سعر خاص</li>
+                  )}
+                </ul>
+              </div>
+
+              <div className="border rounded-lg p-4 space-y-3">
+                <p className="font-bold text-right">الخيار 1: نقل العمليات لعميل آخر ثم حذف</p>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Label className="text-right block mb-1">اختر العميل المستلم</Label>
+                    <Select value={transferTargetId} onValueChange={setTransferTargetId}>
+                      <SelectTrigger data-testid="select-transfer-target">
+                        <SelectValue placeholder="اختر عميل..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.filter(c => c.id !== customerToDelete?.id).map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={handleTransferAndDelete}
+                    disabled={!transferTargetId}
+                    data-testid="button-transfer-and-delete"
+                  >
+                    نقل وحذف
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border border-destructive rounded-lg p-4 space-y-3">
+                <p className="font-bold text-right text-destructive">الخيار 2: حذف العميل مع جميع بياناته نهائياً</p>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteConfirm}
+                  className="w-full"
+                  data-testid="button-force-delete-customer"
+                >
+                  حذف الكل نهائياً
+                </Button>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setCustomerToDelete(null); setDeleteStep('idle'); setRelatedCounts(null); setTransferTargetId(""); }}>
+                إلغاء
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={!!pricesCustomer} onOpenChange={(open) => { if (!open) { setPricesCustomer(null); setNewPriceProductId(""); setNewPriceValue(""); } }}>
           <DialogContent className="sm:max-w-[550px]" dir="rtl">

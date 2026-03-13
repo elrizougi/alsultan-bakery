@@ -245,6 +245,23 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async getCustomerRelatedCounts(id: string): Promise<{ transactions: number; debts: number; prices: number }> {
+    const [txCount] = await db.select({ count: sql<number>`count(*)::int` }).from(transactions).where(eq(transactions.customerId, id));
+    const [debtCount] = await db.select({ count: sql<number>`count(*)::int` }).from(customerDebts).where(eq(customerDebts.customerId, id));
+    const [priceCount] = await db.select({ count: sql<number>`count(*)::int` }).from(customerPrices).where(eq(customerPrices.customerId, id));
+    return {
+      transactions: txCount?.count || 0,
+      debts: debtCount?.count || 0,
+      prices: priceCount?.count || 0,
+    };
+  }
+
+  async transferCustomerData(fromId: string, toId: string): Promise<void> {
+    await db.update(transactions).set({ customerId: toId }).where(eq(transactions.customerId, fromId));
+    await db.update(customerDebts).set({ customerId: toId }).where(eq(customerDebts.customerId, fromId));
+    await db.delete(customerPrices).where(eq(customerPrices.customerId, fromId));
+  }
+
   async deleteCustomer(id: string): Promise<boolean> {
     await db.delete(customerPrices).where(eq(customerPrices.customerId, id));
     await db.delete(customerDebts).where(eq(customerDebts.customerId, id));

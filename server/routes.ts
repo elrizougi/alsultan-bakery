@@ -359,6 +359,25 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/customers/:id/related-counts", async (req, res) => {
+    try {
+      const counts = await storage.getCustomerRelatedCounts(req.params.id);
+      res.json(counts);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
+  app.post("/api/customers/:id/transfer/:targetId", async (req, res) => {
+    try {
+      await storage.transferCustomerData(req.params.id, req.params.targetId);
+      const deleted = await storage.deleteCustomer(req.params.id);
+      res.json({ message: "تم نقل العمليات وحذف العميل" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   app.delete("/api/customers/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteCustomer(req.params.id);
