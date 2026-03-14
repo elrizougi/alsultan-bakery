@@ -12,7 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2, Upload, Download, Search, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -80,6 +80,19 @@ export default function CustomersPage() {
   const [relatedCounts, setRelatedCounts] = useState<{ transactions: number; debts: number; prices: number } | null>(null);
   const [transferTargetId, setTransferTargetId] = useState<string>("");
   const [transferSearch, setTransferSearch] = useState<string>("");
+  const [routeSearch, setRouteSearch] = useState<string>("");
+  const [showRouteDropdown, setShowRouteDropdown] = useState(false);
+  const routeDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (routeDropdownRef.current && !routeDropdownRef.current.contains(e.target as Node)) {
+        setShowRouteDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { data: customerPrices = [], refetch: refetchPrices } = useQuery({
     queryKey: ["customer-prices", pricesCustomer?.id],
@@ -121,6 +134,15 @@ export default function CustomersPage() {
       (c.phone && c.phone.includes(searchQuery)) ||
       (c.address && normalizeArabic(c.address).includes(normalizedQuery));
     return matchesDriver && matchesRoute && matchesSearch;
+  }).sort((a, b) => {
+    const aStartsWithNum = /^\d/.test(a.name);
+    const bStartsWithNum = /^\d/.test(b.name);
+    if (aStartsWithNum && !bStartsWithNum) return 1;
+    if (!aStartsWithNum && bStartsWithNum) return -1;
+    if (aStartsWithNum && bStartsWithNum) {
+      return parseFloat(a.name) - parseFloat(b.name);
+    }
+    return a.name.localeCompare(b.name, 'ar');
   });
 
   const downloadTemplate = () => {
@@ -279,11 +301,16 @@ export default function CustomersPage() {
       routeId: "",
       driverId: "",
     });
+    setRouteSearch("");
+    setShowRouteDropdown(false);
     setShowForm(true);
   };
 
   const openEditForm = (customer: Customer) => {
     setEditingCustomer(customer);
+    const selectedRoute = routes.find(r => r.id === customer.routeId);
+    setRouteSearch(selectedRoute?.name || "");
+    setShowRouteDropdown(false);
     setFormData({
       name: customer.name,
       address: customer.address,
@@ -654,20 +681,52 @@ export default function CustomersPage() {
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="route">خط التوزيع</Label>
-                  <Select onValueChange={(value) => setFormData({ ...formData, routeId: value === "none" ? "" : value })} value={formData.routeId || "none"}>
-                    <SelectTrigger className="text-right" data-testid="select-customer-route">
-                      <SelectValue placeholder="اختر الخط" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— بدون خط —</SelectItem>
-                      {routes.map(route => (
-                        <SelectItem key={route.id} value={route.id}>{route.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-2">
+                <Label htmlFor="route">خط التوزيع</Label>
+                <div className="relative" ref={routeDropdownRef}>
+                  <div className="relative">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="ابحث عن خط التوزيع..."
+                      value={routeSearch}
+                      onChange={(e) => { setRouteSearch(e.target.value); setShowRouteDropdown(true); }}
+                      onFocus={() => setShowRouteDropdown(true)}
+                      className="pr-9 text-right"
+                      data-testid="input-route-search"
+                    />
+                  </div>
+                  {formData.routeId && (
+                    <div className="bg-green-50 border border-green-300 rounded p-1.5 mt-1 text-right text-sm text-green-800 flex items-center justify-between">
+                      <span>تم اختيار: <strong>{routes.find(r => r.id === formData.routeId)?.name}</strong></span>
+                      <button type="button" className="text-red-500 hover:text-red-700 text-xs px-1" onClick={() => { setFormData({ ...formData, routeId: "" }); setRouteSearch(""); }}>✕</button>
+                    </div>
+                  )}
+                  {showRouteDropdown && (
+                    <div className="absolute z-50 w-full mt-1 max-h-40 overflow-y-auto border rounded bg-white shadow-lg">
+                      <div
+                        onClick={() => { setFormData({ ...formData, routeId: "" }); setRouteSearch(""); setShowRouteDropdown(false); }}
+                        className={`px-3 py-2 text-right cursor-pointer hover:bg-accent text-sm border-b ${!formData.routeId ? 'bg-primary/10 font-bold' : ''}`}
+                      >
+                        — بدون خط —
+                      </div>
+                      {routes
+                        .filter(r => !routeSearch || r.name.includes(routeSearch))
+                        .map(route => (
+                          <div
+                            key={route.id}
+                            onClick={() => { setFormData({ ...formData, routeId: route.id }); setRouteSearch(route.name); setShowRouteDropdown(false); }}
+                            className={`px-3 py-2 text-right cursor-pointer hover:bg-accent text-sm border-b last:border-b-0 ${formData.routeId === route.id ? 'bg-primary/10 font-bold' : ''}`}
+                            data-testid={`route-option-${route.id}`}
+                          >
+                            {route.name}
+                          </div>
+                        ))
+                      }
+                      {routes.filter(r => !routeSearch || r.name.includes(routeSearch)).length === 0 && (
+                        <div className="px-3 py-2 text-center text-sm text-muted-foreground">لا توجد نتائج</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
