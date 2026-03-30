@@ -106,16 +106,18 @@ export default function DailyWithdrawalReportPage() {
     queryFn: api.getAllCustomerDebts,
   });
 
-  const { data: adjustments = [], refetch: refetchAdjustments } = useQuery<AdjustmentRow[]>({
+  const { data: adjustments = [], refetch: refetchAdjustments, error: adjustmentsError } = useQuery<AdjustmentRow[], Error>({
     queryKey: ['report-adjustments', selectedDriverId, selectedDate],
     queryFn: async () => {
       if (selectedDriverId === 'all') return [];
       const res = await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`, { credentials: 'include' });
+      if (res.status === 401 || res.status === 403) throw new Error('auth');
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
     enabled: selectedDriverId !== 'all',
+    retry: false,
   });
 
   const { data: directSaleCustomer } = useQuery<DirectSaleCustomer | null>({
@@ -134,6 +136,13 @@ export default function DailyWithdrawalReportPage() {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     }
   }, [directSaleCustomer, customers, queryClient]);
+
+  // Handle 403/401 from read queries — session expired, force re-login
+  useEffect(() => {
+    if (adjustmentsError?.message === 'auth') {
+      handleAuthError();
+    }
+  }, [adjustmentsError, handleAuthError]);
 
   const productMap: Record<string, { name: string; price: number }> = {};
   products.forEach(p => {

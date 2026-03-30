@@ -57,6 +57,13 @@
       "when": 1774882900000,
       "tag": "0007_is_adjustment",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1774887000000,
+      "tag": "0008_direct_sale_unique",
+      "breakpoints": true
     }
   ]
 }
