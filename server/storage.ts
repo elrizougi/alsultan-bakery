@@ -129,6 +129,7 @@ export interface IStorage {
   deleteCustomerPrice(id: string): Promise<boolean>;
 
   // Report Adjustments - تعديلات التقرير
+  getDirectSaleCustomer(): Promise<Customer | null>;
   getOrCreateDirectSaleCustomer(): Promise<Customer>;
   getReportAdjustments(driverId: string, reportDate: string): Promise<ReportAdjustment[]>;
   saveReportAdjustments(driverId: string, reportDate: string, rows: { customerId: string; whiteBread: number; brownBread: number; medium: number; superBread: number; wrapped: number; returned: number; paidAmount: string; totalAmount: string }[]): Promise<ReportAdjustment[]>;
@@ -1100,6 +1101,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Report Adjustments
+  async getDirectSaleCustomer(): Promise<Customer | null> {
+    const existing = await db.select().from(customers).where(eq(customers.isDirectSale, true));
+    return existing.length > 0 ? existing[0] : null;
+  }
+
   async getOrCreateDirectSaleCustomer(): Promise<Customer> {
     const existing = await db.select().from(customers).where(eq(customers.isDirectSale, true));
     if (existing.length > 0) return existing[0];

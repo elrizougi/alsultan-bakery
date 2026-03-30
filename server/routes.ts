@@ -8,7 +8,7 @@ import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrde
   products as productsTable, reportAdjustments as reportAdjustmentsTable,
 } from "@shared/schema";
 import { z } from "zod";
-import { gte, and, eq } from "drizzle-orm";
+import { gte, lte, and, eq } from "drizzle-orm";
 import { db } from "./db";
 import multer from "multer";
 import path from "path";
@@ -1472,10 +1472,17 @@ export async function registerRoutes(
       const computeAmount = (wb: number, bb: number, med: number, sup: number, wrp: number) =>
         wb * prices.white + bb * prices.brown + med * prices.medium + sup * prices.super + wrp * prices.wrapped;
 
-      // 3. Get all bread sale transactions for this driver+date to compute totals
+      // 3. Get bread sale transactions for this driver+date to compute totals.
+      // Use DB-level date range (Saudi day = UTC+3) to limit scan, then confirm in-memory.
       const saleTypes = ['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
+      const utcDayStart = new Date(`${reportDate}T00:00:00.000+03:00`); // midnight SAT
+      const utcDayEnd   = new Date(`${reportDate}T23:59:59.999+03:00`); // end of day SAT
       const txns = await db.select().from(transactionsTable).where(
-        and(eq(transactionsTable.driverId, driverId))
+        and(
+          eq(transactionsTable.driverId, driverId),
+          gte(transactionsTable.createdAt, utcDayStart),
+          lte(transactionsTable.createdAt, utcDayEnd)
+        )
       );
       const dateTxns = txns.filter(t => {
         if (!t.createdAt || t.isAdjustment) return false;
@@ -1575,10 +1582,16 @@ export async function registerRoutes(
         });
         const cashSalePaid = origCashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
 
-        const allDebts = await db.select().from(customerDebtsTable);
+        const allDebts = await db.select().from(customerDebtsTable).where(
+          and(
+            eq(customerDebtsTable.driverId, driverId),
+            gte(customerDebtsTable.createdAt, utcDayStart),
+            lte(customerDebtsTable.createdAt, utcDayEnd)
+          )
+        );
         const dateDebtPaid = allDebts
           .filter(d => {
-            if (!d.createdAt || d.driverId !== driverId) return false;
+            if (!d.createdAt) return false;
             const dd = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
             return toSaudiDate(dd) === reportDate;
           })
@@ -1761,7 +1774,8 @@ export async function registerRoutes(
 
   app.get("/api/direct-sale-customer", async (req, res) => {
     try {
-      const customer = await storage.getOrCreateDirectSaleCustomer();
+      const customer = await storage.getDirectSaleCustomer();
+      if (!customer) return res.status(404).json({ message: "لم يُنشأ عميل بيع مباشر بعد" });
       res.json(customer);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب عميل بيع مباشر" });
