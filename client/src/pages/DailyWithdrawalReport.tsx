@@ -626,14 +626,18 @@ export default function DailyWithdrawalReportPage() {
                           </TableCell>
                           {(['whiteBread', 'brownBread', 'medium', 'superBread', 'wrapped', 'returned'] as const).map(field => (
                             <TableCell key={field} className="text-center border-l p-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={r[field] || ''}
-                                onChange={(e) => updateEditRow(r.id, field, parseInt(e.target.value) || 0)}
-                                className="w-14 h-7 text-center text-xs px-1"
-                                data-testid={`edit-${field}-${r.id}`}
-                              />
+                              {r.isDirectSale ? (
+                                <span className="text-xs text-gray-500 italic" data-testid={`edit-${field}-${r.id}`}>{r[field] || 0}</span>
+                              ) : (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={r[field] || ''}
+                                  onChange={(e) => updateEditRow(r.id, field, parseInt(e.target.value) || 0)}
+                                  className="w-14 h-7 text-center text-xs px-1"
+                                  data-testid={`edit-${field}-${r.id}`}
+                                />
+                              )}
                             </TableCell>
                           ))}
                           <TableCell className="text-center border-l font-bold text-xs">{rowTotal}</TableCell>

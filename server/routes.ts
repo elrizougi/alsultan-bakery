@@ -1348,7 +1348,8 @@ export async function registerRoutes(
 
       if (shouldInclude("transactions")) {
         if (since) {
-          result.transactions = await db.select().from(transactionsTable).where(gte(transactionsTable.updatedAt, since));
+          const rows = await db.select().from(transactionsTable).where(gte(transactionsTable.updatedAt, since));
+          result.transactions = rows.filter(t => !t.isAdjustment);
         } else {
           result.transactions = await storage.getAllTransactions();
         }
