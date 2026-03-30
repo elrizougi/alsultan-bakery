@@ -1351,7 +1351,8 @@ export async function registerRoutes(
           const rows = await db.select().from(transactionsTable).where(gte(transactionsTable.updatedAt, since));
           result.transactions = rows.filter(t => !t.isAdjustment);
         } else {
-          result.transactions = await storage.getAllTransactions();
+          const all = await storage.getAllTransactions();
+          result.transactions = all.filter(t => !t.isAdjustment);
         }
       }
 
