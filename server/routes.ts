@@ -802,7 +802,10 @@ export async function registerRoutes(
     try {
       const allTransactions = await storage.getAllTransactions();
       // Smart filter: when isAdjustment=true transactions exist for a (driverId, date) pair,
-      // exclude the original (isAdjustment=false) transactions for that same pair.
+      // exclude ONLY the original bread-sale types (CASH_SALE, CREDIT_SALE, FREE_DISTRIBUTION,
+      // FREE_SAMPLE, DAMAGED) for that pair. Non-bread types (EXPENSE, DRIVER_DEBT, etc.)
+      // are always preserved regardless.
+      const breadSaleTypes = new Set(['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE', 'DAMAGED']);
       const adjustedPairs = new Set<string>();
       for (const t of allTransactions) {
         if (t.isAdjustment) {
@@ -814,6 +817,7 @@ export async function registerRoutes(
         ? allTransactions
         : allTransactions.filter(t => {
             if (t.isAdjustment) return true;
+            if (!breadSaleTypes.has(t.type as string)) return true; // Always keep non-bread types
             const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt!);
             return !adjustedPairs.has(`${t.driverId}:${d.toISOString().slice(0, 10)}`);
           });
@@ -1597,13 +1601,11 @@ export async function registerRoutes(
           const unitPrice = parseFloat(product.price);
           const lineAmount = qty * unitPrice;
 
-          // Determine type: CASH_SALE if paid >= total, else CREDIT_SALE for credit portion
-          // Use CASH_SALE for simplicity (one line per product)
           await db.insert(transactionsTable).values({
             driverId,
             customerId: adjRow.customerId,
             productId: product.id,
-            type: rowCreditAmount > 0.001 ? 'CREDIT_SALE' : 'CASH_SALE',
+            type: 'CASH_SALE',
             quantity: qty,
             unitPrice: unitPrice.toFixed(2),
             totalAmount: lineAmount.toFixed(2),
@@ -1620,7 +1622,7 @@ export async function registerRoutes(
             customerId: adjRow.customerId,
             productId: whiteProduct.id,
             type: 'DAMAGED',
-            quantity: (adjRow as any).returned,
+            quantity: adjRow.returned,
             unitPrice: '0',
             totalAmount: '0',
             notes: 'adjustment',
