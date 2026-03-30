@@ -10,13 +10,21 @@ import { runMigrations } from "./migrate";
 const app = express();
 const httpServer = createServer(app);
 
+const isProduction = process.env.NODE_ENV === "production";
+const sessionSecret = process.env.SESSION_SECRET;
+if (isProduction && !sessionSecret) {
+  console.error("FATAL: SESSION_SECRET environment variable is required in production");
+  process.exit(1);
+}
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || "bakery-session-secret-2024",
+  secret: sessionSecret || "bakery-dev-session-secret-do-not-use-in-production",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    secure: isProduction,
     httpOnly: true,
+    sameSite: "lax",
     maxAge: 24 * 60 * 60 * 1000,
   },
 }));
@@ -29,7 +37,7 @@ declare module "http" {
 
 declare module "express-session" {
   interface SessionData {
-    userId: number;
+    userId: string;
     userRole: string;
   }
 }
