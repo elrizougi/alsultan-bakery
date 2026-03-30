@@ -53,6 +53,7 @@ export interface IStorage {
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<boolean>;
+  reorderCustomers(orders: { id: string; sortOrder: number }[]): Promise<void>;
 
   // Orders
   getAllOrders(): Promise<Order[]>;
@@ -276,6 +277,14 @@ export class DatabaseStorage implements IStorage {
     await db.delete(transactions).where(eq(transactions.customerId, id));
     const result = await db.delete(customers).where(eq(customers.id, id)).returning();
     return result.length > 0;
+  }
+
+  async reorderCustomers(orders: { id: string; sortOrder: number }[]): Promise<void> {
+    await Promise.all(
+      orders.map(({ id, sortOrder }) =>
+        db.update(customers).set({ sortOrder, updatedAt: new Date() }).where(eq(customers.id, id))
+      )
+    );
   }
 
   // Orders

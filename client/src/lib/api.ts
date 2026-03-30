@@ -30,6 +30,7 @@ export interface Customer {
   driverId?: string;
   phone: string;
   isDirectSale?: boolean;
+  sortOrder?: number;
 }
 
 export interface Route {

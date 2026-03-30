@@ -37,7 +37,7 @@ Preferred communication style: Simple, everyday language.
 ### Key Entities
 - **Users**: Authentication with role-based permissions (ADMIN, SUB_ADMIN, DRIVER, SALES). SUB_ADMIN has all ADMIN capabilities except CSV import/export.
 - **Products**: Bakery items with SKU, pricing, and stock tracking
-- **Customers**: Customer profiles with delivery addresses and route assignments
+- **Customers**: Customer profiles with delivery addresses and route assignments. `sortOrder` integer field controls display order per driver (drag-and-drop reordering in Customers page)
 - **Routes**: Delivery routes with assigned drivers
 - **Orders**: Customer orders with line items and status workflow (DRAFT → CONFIRMED → ASSIGNED → DELIVERED → CLOSED)
 - **Transactions**: Field operations log (CASH_SALE, CREDIT_SALE, RETURN, FREE_DISTRIBUTION, FREE_SAMPLE, DAMAGED, EXPENSE). EXPENSE transactions support optional receipt image upload (receiptImage field, stored in uploads/receipts/)

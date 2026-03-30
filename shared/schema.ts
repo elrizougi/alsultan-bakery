@@ -59,6 +59,7 @@ export const customers = pgTable("customers", {
   driverId: varchar("driver_id").references(() => users.id),
   phone: text("phone").default(""),
   isDirectSale: boolean("is_direct_sale").notNull().default(false),
+  sortOrder: integer("sort_order").default(0).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

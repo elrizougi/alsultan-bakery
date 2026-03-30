@@ -401,6 +401,17 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/customers/reorder", async (req, res) => {
+    try {
+      const { orders } = req.body as { orders: { id: string; sortOrder: number }[] };
+      if (!Array.isArray(orders)) return res.status(400).json({ message: "orders مطلوب" });
+      await storage.reorderCustomers(orders);
+      res.json({ message: "تم حفظ الترتيب" });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في الخادم" });
+    }
+  });
+
   // ============ CUSTOMER PRICES - أسعار خاصة للعملاء ============
   app.get("/api/customer-prices/all", async (req, res) => {
     try {

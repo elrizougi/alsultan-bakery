@@ -10,9 +10,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2, Upload, Download, Search, DollarSign } from "lucide-react";
+import { Users, UserPlus, Phone, MapPin, ExternalLink, Loader2, Edit2, Trash2, Upload, Download, Search, DollarSign, GripVertical, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +55,25 @@ interface CustomerFormData {
   driverId: string;
 }
 
+function SortableCustomerRow({ customer }: { customer: Customer }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: customer.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg mb-2 cursor-default select-none"
+    >
+      <span {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600">
+        <GripVertical className="h-5 w-5" />
+      </span>
+      <span className="flex-1 font-medium text-right">{customer.name}</span>
+      {customer.address && (
+        <span className="text-sm text-muted-foreground">{customer.address}</span>
+      )}
+    </div>
+  );
+}
+
 export default function CustomersPage() {
   const currentUser = useStore(state => state.user);
   const canExportCSV = currentUser?.role !== 'SUB_ADMIN';
@@ -83,6 +105,9 @@ export default function CustomersPage() {
   const [routeSearch, setRouteSearch] = useState<string>("");
   const [showRouteDropdown, setShowRouteDropdown] = useState(false);
   const routeDropdownRef = useRef<HTMLDivElement>(null);
+  const [isReorderOpen, setIsReorderOpen] = useState(false);
+  const [reorderList, setReorderList] = useState<Customer[]>([]);
+  const [isSavingReorder, setIsSavingReorder] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -115,6 +140,50 @@ export default function CustomersPage() {
 
   const drivers = users.filter(u => u.role === 'DRIVER' && u.isActive !== false);
 
+  const dndSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleOpenReorder = (driverId: string) => {
+    const driverCustomers = customers
+      .filter(c => !c.isDirectSale && c.driverId === driverId)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    setReorderList(driverCustomers);
+    setIsReorderOpen(true);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setReorderList(items => {
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const handleSaveReorder = async () => {
+    setIsSavingReorder(true);
+    try {
+      const orders = reorderList.map((c, idx) => ({ id: c.id, sortOrder: idx }));
+      const res = await fetch("/api/customers/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orders }),
+      });
+      if (!res.ok) throw new Error("فشل الحفظ");
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      setIsReorderOpen(false);
+      toast({ title: "تم حفظ الترتيب بنجاح" });
+    } catch {
+      toast({ title: "حدث خطأ أثناء الحفظ", variant: "destructive" });
+    } finally {
+      setIsSavingReorder(false);
+    }
+  };
+
   const normalizeArabic = (text: string) => {
     return text
       .toLowerCase()
@@ -135,6 +204,9 @@ export default function CustomersPage() {
       (c.address && normalizeArabic(c.address).includes(normalizedQuery));
     return matchesDriver && matchesRoute && matchesSearch;
   }).sort((a, b) => {
+    if (filterDriverId && filterDriverId !== "all") {
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    }
     const aStartsWithNum = /^\d/.test(a.name);
     const bStartsWithNum = /^\d/.test(b.name);
     if (aStartsWithNum && !bStartsWithNum) return 1;
@@ -532,6 +604,17 @@ export default function CustomersPage() {
               ))}
             </SelectContent>
           </Select>
+          {filterDriverId && filterDriverId !== "all" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleOpenReorder(filterDriverId)}
+              data-testid="btn-reorder-customers"
+              className="gap-1"
+            >
+              <ArrowUpDown className="h-4 w-4" /> ترتيب العملاء
+            </Button>
+          )}
           {((filterDriverId && filterDriverId !== "all") || (filterRouteId && filterRouteId !== "all")) && (
             <Button variant="ghost" size="sm" onClick={() => { setFilterDriverId(""); setFilterRouteId(""); }}>
               إزالة الفلتر
@@ -992,6 +1075,43 @@ export default function CustomersPage() {
             </div>
           </DialogContent>
         </Dialog>
+      {/* Reorder Customers Dialog */}
+      <Dialog open={isReorderOpen} onOpenChange={(open) => { if (!open) setIsReorderOpen(false); }}>
+        <DialogContent className="sm:max-w-[480px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right flex items-center gap-2">
+              <ArrowUpDown className="h-5 w-5" />
+              ترتيب عملاء المندوب
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground text-right">اسحب الصفوف لتغيير الترتيب ثم اضغط حفظ.</p>
+          <div className="max-h-[60vh] overflow-y-auto py-2">
+            {reorderList.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">لا يوجد عملاء لهذا المندوب</p>
+            ) : (
+              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={reorderList.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                  {reorderList.map((customer, idx) => (
+                    <div key={customer.id} className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-5 text-center">{idx + 1}</span>
+                      <div className="flex-1">
+                        <SortableCustomerRow customer={customer} />
+                      </div>
+                    </div>
+                  ))}
+                </SortableContext>
+              </DndContext>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsReorderOpen(false)} disabled={isSavingReorder}>إلغاء</Button>
+            <Button onClick={handleSaveReorder} disabled={isSavingReorder || reorderList.length === 0}>
+              {isSavingReorder ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ الترتيب"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       </div>
     </AdminLayout>
   );

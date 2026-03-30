@@ -784,7 +784,9 @@ export default function DriverTransactionsPage() {
   };
 
   const driverCustomers = customers.filter(c => !c.isDirectSale);
-  const batchCustomers = customers.filter(c => !c.isDirectSale && c.driverId === driverId);
+  const batchCustomers = customers
+    .filter(c => !c.isDirectSale && c.driverId === driverId)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   const batchProducts = [...products].sort((a, b) => {
     const aWhite = a.name.includes('ابيض') || a.name.includes('أبيض');
     const bWhite = b.name.includes('ابيض') || b.name.includes('أبيض');
