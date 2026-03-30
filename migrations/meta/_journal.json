@@ -43,6 +43,13 @@
       "when": 1773418200000,
       "tag": "0005_updated_at",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774882800000,
+      "tag": "0006_report_adjustments",
+      "breakpoints": true
     }
   ]
 }

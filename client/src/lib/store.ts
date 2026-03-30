@@ -30,6 +30,7 @@ export interface Customer {
   locationUrl?: string;
   routeId?: string;
   phone: string;
+  isDirectSale?: boolean;
 }
 
 export interface Route {

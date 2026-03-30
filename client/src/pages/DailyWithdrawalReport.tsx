@@ -15,6 +15,47 @@ import { useState, useRef, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 
+interface AdjustmentRow {
+  id: string;
+  driverId: string;
+  reportDate: string;
+  customerId: string;
+  whiteBread: number;
+  brownBread: number;
+  medium: number;
+  superBread: number;
+  wrapped: number;
+  returned: number;
+  paidAmount: string;
+  totalAmount: string;
+}
+
+interface DirectSaleCustomer {
+  id: string;
+  name: string;
+  isDirectSale: boolean;
+}
+
+interface ReportRow {
+  id: string;
+  name: string;
+  whiteBread: number;
+  brownBread: number;
+  medium: number;
+  superBread: number;
+  wrapped: number;
+  returned: number;
+  damagedPercent: number;
+  totalBread: number;
+  whiteAmount: number;
+  wrappedAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  remaining: number;
+  unitPrice: number;
+  isDirectSale?: boolean;
+}
+
 interface EditRow {
   id: string;
   name: string;
@@ -56,18 +97,19 @@ export default function DailyWithdrawalReportPage() {
     queryFn: api.getAllCustomerDebts,
   });
 
-  const { data: adjustments = [], refetch: refetchAdjustments } = useQuery<any[]>({
+  const { data: adjustments = [], refetch: refetchAdjustments } = useQuery<AdjustmentRow[]>({
     queryKey: ['report-adjustments', selectedDriverId, selectedDate],
     queryFn: async () => {
       if (selectedDriverId === 'all') return [];
       const res = await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`);
       if (!res.ok) return [];
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
     enabled: selectedDriverId !== 'all',
   });
 
-  const { data: directSaleCustomer } = useQuery<any>({
+  const { data: directSaleCustomer } = useQuery<DirectSaleCustomer | null>({
     queryKey: ['direct-sale-customer'],
     queryFn: async () => {
       const res = await fetch('/api/direct-sale-customer');
@@ -187,7 +229,7 @@ export default function DailyWithdrawalReportPage() {
             d.driverId === selectedDriverId &&
             d.createdAt && format(new Date(d.createdAt), 'yyyy-MM-dd') === selectedDate
           );
-          return { id: custId!, name: customer?.name || '-', isDirectSale: (customer as any)?.isDirectSale, ...row };
+          return { id: custId!, name: customer?.name || '-', isDirectSale: customer?.isDirectSale ?? false, ...row };
         }).filter(r => r.totalBread > 0 || r.totalAmount > 0);
       })();
 
@@ -209,7 +251,7 @@ export default function DailyWithdrawalReportPage() {
         return {
           id: adj.customerId,
           name: customer?.name || '-',
-          isDirectSale: (customer as any)?.isDirectSale,
+          isDirectSale: customer?.isDirectSale ?? false,
           whiteBread: wb,
           brownBread: bb,
           medium: med,
@@ -228,7 +270,14 @@ export default function DailyWithdrawalReportPage() {
       })
     : null;
 
-  const reportRows = adjReportRows || txReportRows;
+  // Sort: "بيع مباشر" always last
+  const sortRows = (rows: ReportRow[]) => [...rows].sort((a, b) => {
+    if (a.isDirectSale && !b.isDirectSale) return 1;
+    if (!a.isDirectSale && b.isDirectSale) return -1;
+    return 0;
+  });
+
+  const reportRows: ReportRow[] = sortRows(adjReportRows || txReportRows);
 
   const totals = reportRows.reduce((acc, r) => ({
     whiteBread: acc.whiteBread + r.whiteBread,
@@ -272,7 +321,7 @@ export default function DailyWithdrawalReportPage() {
       returned: r.returned,
       paidAmount: r.paidAmount,
       totalAmount: r.totalAmount,
-      isDirectSale: (r as any).isDirectSale,
+      isDirectSale: r.isDirectSale,
     }));
     // Add "بيع مباشر" row if not already present
     if (directSaleCustomer && !rows.find(r => r.id === directSaleCustomer.id)) {
@@ -641,11 +690,11 @@ export default function DailyWithdrawalReportPage() {
                     ) : (
                       <>
                         {reportRows.map((r, i) => (
-                          <TableRow key={r.id} className={(r as any).isDirectSale ? 'bg-amber-50' : ''} data-testid={`row-report-${r.id}`}>
+                          <TableRow key={r.id} className={r.isDirectSale ? 'bg-amber-50' : ''} data-testid={`row-report-${r.id}`}>
                             <TableCell className="text-center border-l font-medium">{i + 1}</TableCell>
                             <TableCell className="text-right border-l font-bold whitespace-nowrap">
                               {r.name}
-                              {(r as any).isDirectSale && <span className="mr-1 text-amber-600 text-[10px]">⭐</span>}
+                              {r.isDirectSale && <span className="mr-1 text-amber-600 text-[10px]">⭐</span>}
                             </TableCell>
                             <TableCell className="text-center border-l">{r.whiteBread || ''}</TableCell>
                             <TableCell className="text-center border-l">{r.brownBread || ''}</TableCell>

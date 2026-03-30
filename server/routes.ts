@@ -5,9 +5,10 @@ import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrde
   transactions as transactionsTable, customers as customersTable, customerDebts as customerDebtsTable,
   cashDeposits as cashDepositsTable, bakeryExpenses as bakeryExpensesTable,
   driverInventory as driverInventoryTable, driverBalance as driverBalanceTable,
+  products as productsTable,
 } from "@shared/schema";
 import { z } from "zod";
-import { gte } from "drizzle-orm";
+import { gte, and, eq } from "drizzle-orm";
 import { db } from "./db";
 import multer from "multer";
 import path from "path";
@@ -1416,18 +1417,122 @@ export async function registerRoutes(
 
   app.post("/api/report-adjustments", async (req, res) => {
     try {
-      const { driverId, reportDate, rows, totalPaidDelta } = req.body;
+      const { driverId, reportDate, rows } = req.body;
       if (!driverId || !reportDate || !Array.isArray(rows)) {
         return res.status(400).json({ message: "بيانات ناقصة" });
       }
-      // Ensure direct sale customer exists
-      await storage.getOrCreateDirectSaleCustomer();
-      // Save adjustments
-      const saved = await storage.saveReportAdjustments(driverId, reportDate, rows);
-      // Update driver balance if there's a paid amount change
-      if (typeof totalPaidDelta === 'number' && totalPaidDelta !== 0) {
-        await storage.updateDriverCashBalance(driverId, totalPaidDelta.toString());
+
+      // 1. Ensure "بيع مباشر" customer exists
+      const directSaleCustomer = await storage.getOrCreateDirectSaleCustomer();
+
+      // 2. Fetch products for server-side price computation
+      const allProducts = await db.select().from(productsTable);
+      const findByName = (kw: string) => allProducts.find(p => p.name.includes(kw));
+      const whiteProduct = findByName('ابيض');
+      const brownProduct = findByName('بر');
+      const mediumProduct = findByName('وسط');
+      const superProduct = allProducts.find(p => p.name.includes('شاورما') || p.name.includes('سوبر'));
+      const wrappedProduct = findByName('مغلف');
+      const prices = {
+        white: whiteProduct ? parseFloat(whiteProduct.price) : 0,
+        brown: brownProduct ? parseFloat(brownProduct.price) : 0,
+        medium: mediumProduct ? parseFloat(mediumProduct.price) : 0,
+        super: superProduct ? parseFloat(superProduct.price) : 0,
+        wrapped: wrappedProduct ? parseFloat(wrappedProduct.price) : 0,
+      };
+
+      const computeAmount = (wb: number, bb: number, med: number, sup: number, wrp: number) =>
+        wb * prices.white + bb * prices.brown + med * prices.medium + sup * prices.super + wrp * prices.wrapped;
+
+      // 3. Get all bread sale transactions for this driver+date to compute totals
+      const saleTypes = ['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
+      const txns = await db.select().from(transactionsTable).where(
+        and(eq(transactionsTable.driverId, driverId))
+      );
+      const dateTxns = txns.filter(t => {
+        if (!t.createdAt) return false;
+        const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
+        return d.toISOString().slice(0, 10) === reportDate && saleTypes.includes(t.type as string);
+      });
+
+      const getQty = (productId: string | undefined) => {
+        if (!productId) return 0;
+        return dateTxns.filter(t => t.productId === productId).reduce((s, t) => s + (t.quantity || 0), 0);
+      };
+      const txTotals = {
+        white: getQty(whiteProduct?.id),
+        brown: getQty(brownProduct?.id),
+        medium: getQty(mediumProduct?.id),
+        super: getQty(superProduct?.id),
+        wrapped: getQty(wrappedProduct?.id),
+      };
+
+      // 4. Filter out direct-sale customer from submitted rows; recompute totalAmount server-side
+      const customerRows = (rows as { customerId: string; whiteBread: number; brownBread: number; medium: number; superBread: number; wrapped: number; returned: number; paidAmount: number | string }[])
+        .filter(r => r.customerId !== directSaleCustomer.id)
+        .map(r => {
+          const wb = Number(r.whiteBread) || 0;
+          const bb = Number(r.brownBread) || 0;
+          const med = Number(r.medium) || 0;
+          const sup = Number(r.superBread) || 0;
+          const wrp = Number(r.wrapped) || 0;
+          const ret = Number(r.returned) || 0;
+          const paid = Math.max(0, parseFloat(String(r.paidAmount)) || 0);
+          const total = computeAmount(wb, bb, med, sup, wrp);
+          return { customerId: r.customerId, whiteBread: wb, brownBread: bb, medium: med, superBread: sup, wrapped: wrp, returned: ret, paidAmount: paid.toFixed(2), totalAmount: total.toFixed(2) };
+        });
+
+      // 5. Compute "بيع مباشر" quantities as difference between transactions totals and customer rows
+      const custSum = customerRows.reduce((acc, r) => ({
+        white: acc.white + r.whiteBread,
+        brown: acc.brown + r.brownBread,
+        medium: acc.medium + r.medium,
+        super: acc.super + r.superBread,
+        wrapped: acc.wrapped + r.wrapped,
+      }), { white: 0, brown: 0, medium: 0, super: 0, wrapped: 0 });
+
+      const dsWhite = Math.max(0, txTotals.white - custSum.white);
+      const dsBrown = Math.max(0, txTotals.brown - custSum.brown);
+      const dsMedium = Math.max(0, txTotals.medium - custSum.medium);
+      const dsSuper = Math.max(0, txTotals.super - custSum.super);
+      const dsWrapped = Math.max(0, txTotals.wrapped - custSum.wrapped);
+      const dsTotal = computeAmount(dsWhite, dsBrown, dsMedium, dsSuper, dsWrapped);
+
+      const allRows: Parameters<typeof storage.saveReportAdjustments>[2] = [...customerRows];
+      if (dsWhite + dsBrown + dsMedium + dsSuper + dsWrapped > 0) {
+        allRows.push({
+          customerId: directSaleCustomer.id,
+          whiteBread: dsWhite,
+          brownBread: dsBrown,
+          medium: dsMedium,
+          superBread: dsSuper,
+          wrapped: dsWrapped,
+          returned: 0,
+          paidAmount: "0",
+          totalAmount: dsTotal.toFixed(2),
+        });
       }
+
+      // 6. Compute paid delta server-side
+      const oldAdjustments = await storage.getReportAdjustments(driverId, reportDate);
+      let oldTotalPaid: number;
+      if (oldAdjustments.length > 0) {
+        // Use existing adjustments as baseline
+        oldTotalPaid = oldAdjustments.reduce((s, a) => s + parseFloat(a.paidAmount || '0'), 0);
+      } else {
+        // Use original transactions cash paid as baseline
+        const cashTxns = dateTxns.filter(t => t.type === 'CASH_SALE');
+        oldTotalPaid = cashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
+      }
+      const newTotalPaid = customerRows.reduce((s, r) => s + parseFloat(r.paidAmount), 0);
+      const paidDelta = newTotalPaid - oldTotalPaid;
+
+      // 7. Save adjustments and update balance
+      const saved = await storage.saveReportAdjustments(driverId, reportDate, allRows);
+      if (Math.abs(paidDelta) > 0.001) {
+        await storage.updateDriverCashBalance(driverId, paidDelta.toFixed(2));
+      }
+
       res.json(saved);
     } catch (error) {
       console.error("Report adjustment error:", error);
@@ -1437,7 +1542,25 @@ export async function registerRoutes(
 
   app.delete("/api/report-adjustments/:driverId/:date", async (req, res) => {
     try {
-      await storage.deleteReportAdjustments(req.params.driverId, req.params.date);
+      const { driverId, date } = req.params;
+      // Reverse the balance adjustment before deleting
+      const oldAdjustments = await storage.getReportAdjustments(driverId, date);
+      if (oldAdjustments.length > 0) {
+        const oldTotalPaid = oldAdjustments.reduce((s, a) => s + parseFloat(a.paidAmount || '0'), 0);
+        // Get original transaction-based paid
+        const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.driverId, driverId));
+        const cashTxns = txns.filter(t => {
+          if (!t.createdAt || t.type !== 'CASH_SALE') return false;
+          const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
+          return d.toISOString().slice(0, 10) === date;
+        });
+        const originalPaid = cashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
+        const reverseDelta = originalPaid - oldTotalPaid;
+        if (Math.abs(reverseDelta) > 0.001) {
+          await storage.updateDriverCashBalance(driverId, reverseDelta.toFixed(2));
+        }
+      }
+      await storage.deleteReportAdjustments(driverId, date);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "خطأ في حذف التعديلات" });
