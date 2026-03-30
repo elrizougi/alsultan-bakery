@@ -1449,6 +1449,9 @@ export async function registerRoutes(
     directSalePaidAmount: z.string().regex(/^\d+(\.\d{1,4})?$/).optional(),
   });
 
+  // Auth note: /api/report-adjustments write endpoints use server-side session (req.session.userRole).
+  // Other existing routes rely on the X-User-Role header pattern (legacy). These adjustment endpoints
+  // were added with the stricter session-based check to protect financially sensitive mutations.
   app.post("/api/report-adjustments", async (req, res) => {
     try {
       const parsed = reportAdjustmentBodySchema.safeParse(req.body);
