@@ -17,6 +17,12 @@ if (isProduction && !sessionSecret) {
   process.exit(1);
 }
 
+// Trust reverse proxy (nginx/traefik) in production so that
+// secure session cookies are set correctly when TLS is terminated upstream.
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
+
 app.use(session({
   secret: sessionSecret || "bakery-dev-session-secret-do-not-use-in-production",
   resave: false,
