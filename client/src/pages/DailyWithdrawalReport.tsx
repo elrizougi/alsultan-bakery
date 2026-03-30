@@ -397,10 +397,8 @@ export default function DailyWithdrawalReportPage() {
 
       const res = await fetch('/api/report-adjustments', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(currentUser?.role ? { 'x-user-role': currentUser.role } : {}),
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(body),
       });
 
@@ -425,7 +423,7 @@ export default function DailyWithdrawalReportPage() {
     try {
       const res = await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`, {
         method: 'DELETE',
-        headers: currentUser?.role ? { 'x-user-role': currentUser.role } : {},
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('فشل الحذف');
       await refetchAdjustments();

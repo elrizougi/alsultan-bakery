@@ -100,6 +100,10 @@ export async function registerRoutes(
       if (user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN') {
         return res.status(403).json({ message: "الدخول متاح فقط للمدير" });
       }
+
+      // Set server-side session
+      req.session.userId = user.id;
+      req.session.userRole = user.role;
       
       // Return user without password
       const { password: _, ...userWithoutPassword } = user;
@@ -1455,8 +1459,8 @@ export async function registerRoutes(
       if (driverId === 'all') {
         return res.status(400).json({ message: "يجب تحديد سائق محدد وليس 'الكل'" });
       }
-      const userRole = req.headers['x-user-role'] as string | undefined;
-      if (!userRole || (userRole !== 'ADMIN' && userRole !== 'SUB_ADMIN')) {
+      const sessionRole = req.session?.userRole;
+      if (!sessionRole || (sessionRole !== 'ADMIN' && sessionRole !== 'SUB_ADMIN')) {
         return res.status(403).json({ message: "غير مصرح بهذه العملية" });
       }
 
@@ -1724,8 +1728,8 @@ export async function registerRoutes(
       if (driverId === 'all') {
         return res.status(400).json({ message: "يجب تحديد سائق محدد وليس 'الكل'" });
       }
-      const userRoleDel = req.headers['x-user-role'] as string | undefined;
-      if (!userRoleDel || (userRoleDel !== 'ADMIN' && userRoleDel !== 'SUB_ADMIN')) {
+      const sessionRoleDel = req.session?.userRole;
+      if (!sessionRoleDel || (sessionRoleDel !== 'ADMIN' && sessionRoleDel !== 'SUB_ADMIN')) {
         return res.status(403).json({ message: "غير مصرح بهذه العملية" });
       }
 
