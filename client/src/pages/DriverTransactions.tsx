@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3, Download, Upload, ClipboardList, Calendar, X, Camera, Image as ImageIcon } from "lucide-react";
+import { Plus, Loader2, DollarSign, Package, ShoppingCart, Undo2, Gift, FileText, Check, UserPlus, CheckCircle, Edit3, Banknote, AlertTriangle, Users, Trash2, Truck, BarChart3, Download, Upload, ClipboardList, Calendar, X, Camera, Image as ImageIcon, TrendingUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -908,6 +908,10 @@ export default function DriverTransactionsPage() {
     .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
   const cumulativeBalance = allTotalSales - allPaidToBakery - allCreditSalesUnpaid;
 
+  // حساب الأرباح اليومية للمندوب
+  const dailyCost = grossSoldBread * 0.6;
+  const dailyProfit = totalSoldValue - dailyCost - totalExpenses;
+
   // ملخص الشهر الحالي يومياً (من بداية الشهر حتى اليوم المحدد)
   const monthDailySummary = (() => {
     const d = new Date(selectedDate);
@@ -1553,194 +1557,22 @@ export default function DriverTransactionsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-100 bg-amber-50 hover:shadow-md transition-shadow">
+          <Card className={`border-slate-100 hover:shadow-md transition-shadow ${dailyProfit >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-500 rounded-lg">
-                  <Package className="h-5 w-5 text-white" />
+                <div className={`p-2 rounded-lg ${dailyProfit >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}>
+                  <TrendingUp className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-amber-600">المخزون الحالي</p>
-                  <p className="text-xl font-bold text-amber-700" data-testid="text-current-inventory">{totalCurrentInventory}</p>
-                  <p className="text-xs text-amber-600/70">{totalCurrentInventoryValue.toFixed(2)} ر.س</p>
+                  <p className={`text-xs font-medium ${dailyProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>الأرباح اليومية</p>
+                  <p className={`text-xl font-bold ${dailyProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}`} data-testid="text-daily-profit">{dailyProfit.toFixed(2)} ر.س</p>
+                  <p className={`text-xs ${dailyProfit >= 0 ? 'text-emerald-600/70' : 'text-red-600/70'}`}>تكلفة: {dailyCost.toFixed(2)} | مصاريف: {totalExpenses.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-slate-100">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                تتبع المدفوعات اليومية
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                  <span className="text-sm font-medium text-blue-700">إجمالي المبيعات</span>
-                  <span className="text-lg font-bold text-blue-800" data-testid="text-daily-total-sales">{totalSoldValue.toFixed(2)} ر.س</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                  <span className="text-sm font-medium text-green-700">النقدي</span>
-                  <span className="text-lg font-bold text-green-800" data-testid="text-daily-cash-sales">{dailyCashSales.toFixed(2)} ر.س</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                  <span className="text-sm font-medium text-yellow-700">الآجل (غير مدفوع)</span>
-                  <span className="text-lg font-bold text-yellow-800" data-testid="text-daily-credit-sales">{dailyCreditSalesUnpaid.toFixed(2)} ر.س</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
-                  <span className="text-sm font-medium text-emerald-700">المدفوع للمخبز</span>
-                  <span className="text-lg font-bold text-emerald-800" data-testid="text-daily-paid-bakery">{dailyPaidToBakery.toFixed(2)} ر.س</span>
-                </div>
-                <div className={`flex justify-between items-center p-3 rounded-lg ${driverCashBalance >= 0 ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
-                  <span className={`text-sm font-medium ${driverCashBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>رصيد المندوب</span>
-                  <span className={`text-lg font-bold ${driverCashBalance >= 0 ? 'text-green-800' : 'text-red-800'}`} data-testid="text-driver-balance-summary">
-                    {driverCashBalance.toFixed(2)} ر.س
-                  </span>
-                </div>
-
-                {monthDailySummary.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-xs font-semibold text-muted-foreground mb-1">ملخص أيام الشهر الحالي</p>
-                    <div className="overflow-auto rounded border border-slate-200">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="bg-slate-50 text-slate-600">
-                            <th className="text-right py-1 px-2 font-medium">اليوم</th>
-                            <th className="text-right py-1 px-2 font-medium">إجمالي</th>
-                            <th className="text-right py-1 px-2 font-medium">مدفوع</th>
-                            <th className="text-right py-1 px-2 font-medium">متبقي</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {monthDailySummary.map((row, i) => (
-                            <tr
-                              key={row.date}
-                              className={`border-t border-slate-100 ${row.date === selectedDate ? 'bg-blue-50 font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
-                              data-testid={`row-month-summary-${row.date}`}
-                            >
-                              <td className="py-1 px-2 text-slate-700">{format(new Date(row.date), 'd/M')}</td>
-                              <td className="py-1 px-2 text-slate-800">{row.total.toFixed(2)}</td>
-                              <td className="py-1 px-2 text-green-700">{row.paid.toFixed(2)}</td>
-                              <td className={`py-1 px-2 ${row.remaining > 0 ? 'text-amber-600' : 'text-slate-400'}`}>{row.remaining.toFixed(2)}</td>
-                            </tr>
-                          ))}
-                          {monthDailySummary.length > 1 && (
-                            <tr className="border-t-2 border-slate-300 bg-slate-100 font-semibold">
-                              <td className="py-1 px-2 text-slate-700">المجموع</td>
-                              <td className="py-1 px-2 text-slate-800">{monthDailySummary.reduce((s, r) => s + r.total, 0).toFixed(2)}</td>
-                              <td className="py-1 px-2 text-green-700">{monthDailySummary.reduce((s, r) => s + r.paid, 0).toFixed(2)}</td>
-                              <td className="py-1 px-2 text-amber-600">{monthDailySummary.reduce((s, r) => s + r.remaining, 0).toFixed(2)}</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-100">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  الديون غير المدفوعة
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-muted-foreground">من:</label>
-                  <Input
-                    type="date"
-                    value={debtDateFrom}
-                    onChange={(e) => setDebtDateFrom(e.target.value)}
-                    className="w-40 text-sm"
-                    data-testid="input-debt-date-from"
-                  />
-                  <label className="text-sm text-muted-foreground">إلى:</label>
-                  <Input
-                    type="date"
-                    value={debtDateTo}
-                    onChange={(e) => setDebtDateTo(e.target.value)}
-                    className="w-40 text-sm"
-                    data-testid="input-debt-date-to"
-                  />
-                  {(debtDateFrom || debtDateTo) && (
-                    <Button size="sm" variant="ghost" onClick={() => { setDebtDateFrom(''); setDebtDateTo(''); }} data-testid="button-clear-debt-filter">
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {filteredUnpaidDebts.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">لا توجد ديون</p>
-              ) : (
-                <>
-                  <div className="mb-3 text-sm text-muted-foreground">
-                    إجمالي الديون المعروضة: <span className="font-bold text-red-600">{filteredUnpaidDebts.reduce((s, d) => s + parseFloat(d.amount) - parseFloat(d.paidAmount || "0"), 0).toFixed(2)} ر.س</span>
-                    <span className="mx-2">|</span>
-                    عدد: <span className="font-bold">{filteredUnpaidDebts.length}</span>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-right">التاريخ</TableHead>
-                        <TableHead className="text-right">العميل</TableHead>
-                        <TableHead className="text-right">المبلغ الكلي</TableHead>
-                        <TableHead className="text-right">المدفوع</TableHead>
-                        <TableHead className="text-right">الباقي</TableHead>
-                        <TableHead className="text-right">إجراء</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredUnpaidDebts.map((debt) => {
-                        const total = parseFloat(debt.amount);
-                        const paid = parseFloat(debt.paidAmount || "0");
-                        const remaining = total - paid;
-                        return (
-                          <TableRow key={debt.id} data-testid={`row-debt-${debt.id}`}>
-                            <TableCell className="text-muted-foreground text-sm">{debt.createdAt ? format(new Date(debt.createdAt), 'yyyy-MM-dd') : '-'}</TableCell>
-                            <TableCell>{getCustomerName(debt.customerId)}</TableCell>
-                            <TableCell>{total.toFixed(2)} ر.س</TableCell>
-                            <TableCell className="text-green-600">{paid.toFixed(2)} ر.س</TableCell>
-                            <TableCell className="text-red-600 font-bold">{remaining.toFixed(2)} ر.س</TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => setPaymentDialogDebt(debt)}
-                                  data-testid={`button-partial-pay-${debt.id}`}
-                                >
-                                  دفع جزئي
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="default"
-                                  onClick={() => updateDebt.mutate({ id: debt.id, isPaid: true })}
-                                  data-testid={`button-mark-paid-${debt.id}`}
-                                >
-                                  <Check className="h-4 w-4 ml-1" />
-                                  دفع كامل
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
         {driverId && (
           <Card className="border-slate-100">
