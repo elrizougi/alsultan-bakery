@@ -1425,12 +1425,30 @@ export async function registerRoutes(
     return saudi.toISOString().slice(0, 10);
   };
 
+  const reportAdjustmentRowSchema = z.object({
+    customerId: z.string().min(1),
+    whiteBread: z.number().int().min(0),
+    brownBread: z.number().int().min(0),
+    medium: z.number().int().min(0),
+    superBread: z.number().int().min(0),
+    wrapped: z.number().int().min(0),
+    returned: z.number().int().min(0),
+    paidAmount: z.string().regex(/^\d+(\.\d{1,4})?$/),
+    totalAmount: z.string().regex(/^\d+(\.\d{1,4})?$/),
+  });
+  const reportAdjustmentBodySchema = z.object({
+    driverId: z.string().min(1),
+    reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    rows: z.array(reportAdjustmentRowSchema).min(0),
+  });
+
   app.post("/api/report-adjustments", async (req, res) => {
     try {
-      const { driverId, reportDate, rows } = req.body;
-      if (!driverId || !reportDate || !Array.isArray(rows)) {
-        return res.status(400).json({ message: "بيانات ناقصة" });
+      const parsed = reportAdjustmentBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "بيانات غير صحيحة", errors: parsed.error.flatten() });
       }
+      const { driverId, reportDate, rows } = parsed.data;
 
       // 1. Ensure "بيع مباشر" customer exists
       const directSaleCustomer = await storage.getOrCreateDirectSaleCustomer();

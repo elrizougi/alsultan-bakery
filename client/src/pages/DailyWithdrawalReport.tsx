@@ -11,7 +11,7 @@ import { ar } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useCustomers, useProducts, useUsers } from "@/hooks/useData";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 
@@ -117,6 +117,14 @@ export default function DailyWithdrawalReportPage() {
       return res.json();
     },
   });
+
+  // If the direct-sale customer was just created server-side and isn't in the customers list yet,
+  // invalidate the customers cache so it gets picked up for correct sorting/labeling.
+  useEffect(() => {
+    if (directSaleCustomer && !customers.find(c => c.id === directSaleCustomer.id)) {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    }
+  }, [directSaleCustomer]);
 
   const productMap: Record<string, { name: string; price: number }> = {};
   products.forEach(p => {
@@ -250,8 +258,8 @@ export default function DailyWithdrawalReportPage() {
         const paidAmount = parseFloat(adj.paidAmount || '0');
         return {
           id: adj.customerId,
-          name: customer?.name || '-',
-          isDirectSale: customer?.isDirectSale ?? false,
+          name: customer?.name || (directSaleCustomer?.id === adj.customerId ? 'بيع مباشر' : '-'),
+          isDirectSale: customer?.isDirectSale ?? (directSaleCustomer?.id === adj.customerId),
           whiteBread: wb,
           brownBread: bb,
           medium: med,
@@ -360,11 +368,6 @@ export default function DailyWithdrawalReportPage() {
     if (!selectedDriverId || selectedDriverId === 'all') return;
     setIsSaving(true);
     try {
-      // Calculate old vs new total paid
-      const oldTotalPaid = reportRows.reduce((s, r) => s + r.paidAmount, 0);
-      const newTotalPaid = editRows.reduce((s, r) => s + r.paidAmount, 0);
-      const totalPaidDelta = newTotalPaid - oldTotalPaid;
-
       const rows = editRows.filter(r => r.whiteBread > 0 || r.brownBread > 0 || r.medium > 0 || r.superBread > 0 || r.wrapped > 0 || r.returned > 0 || r.paidAmount > 0).map(r => ({
         customerId: r.id,
         whiteBread: r.whiteBread,
@@ -384,7 +387,6 @@ export default function DailyWithdrawalReportPage() {
           driverId: selectedDriverId,
           reportDate: selectedDate,
           rows,
-          totalPaidDelta: Math.round(totalPaidDelta * 100) / 100,
         }),
       });
 
