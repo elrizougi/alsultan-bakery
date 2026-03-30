@@ -407,6 +407,7 @@ export default function DailyWithdrawalReportPage() {
     try {
       await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`, { method: 'DELETE' });
       await refetchAdjustments();
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
       toast({ title: "تم الإلغاء", description: "تم حذف التعديلات واستعادة البيانات الأصلية" });
     } catch (e) {
       toast({ title: "خطأ", description: "فشل إلغاء التعديلات", variant: "destructive" });

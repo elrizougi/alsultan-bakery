@@ -801,26 +801,9 @@ export async function registerRoutes(
   app.get("/api/transactions", async (req, res) => {
     try {
       const allTransactions = await storage.getAllTransactions();
-      // Smart filter: when isAdjustment=true transactions exist for a (driverId, date) pair,
-      // exclude ONLY the original bread-sale types (CASH_SALE, CREDIT_SALE, FREE_DISTRIBUTION,
-      // FREE_SAMPLE, DAMAGED) for that pair. Non-bread types (EXPENSE, DRIVER_DEBT, etc.)
-      // are always preserved regardless.
-      const breadSaleTypes = new Set(['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE', 'DAMAGED']);
-      const adjustedPairs = new Set<string>();
-      for (const t of allTransactions) {
-        if (t.isAdjustment) {
-          const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt!);
-          adjustedPairs.add(`${t.driverId}:${d.toISOString().slice(0, 10)}`);
-        }
-      }
-      const filtered = adjustedPairs.size === 0
-        ? allTransactions
-        : allTransactions.filter(t => {
-            if (t.isAdjustment) return true;
-            if (!breadSaleTypes.has(t.type as string)) return true; // Always keep non-bread types
-            const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt!);
-            return !adjustedPairs.has(`${t.driverId}:${d.toISOString().slice(0, 10)}`);
-          });
+      // isAdjustment rows are internal implementation rows (created when a report is adjusted);
+      // they are never exposed to global consumers — adjustment semantics belong to report endpoints.
+      const filtered = allTransactions.filter(t => !t.isAdjustment);
       res.json(filtered);
     } catch (error) {
       res.status(500).json({ message: "خطأ في الخادم" });
@@ -1515,11 +1498,20 @@ export async function registerRoutes(
         wrapped: acc.wrapped + r.wrapped,
       }), { white: 0, brown: 0, medium: 0, super: 0, wrapped: 0 });
 
-      const dsWhite = Math.max(0, txTotals.white - custSum.white);
-      const dsBrown = Math.max(0, txTotals.brown - custSum.brown);
-      const dsMedium = Math.max(0, txTotals.medium - custSum.medium);
-      const dsSuper = Math.max(0, txTotals.super - custSum.super);
-      const dsWrapped = Math.max(0, txTotals.wrapped - custSum.wrapped);
+      // Validate: customer totals must not exceed field totals for any product type
+      if (custSum.white > txTotals.white || custSum.brown > txTotals.brown ||
+          custSum.medium > txTotals.medium || custSum.super > txTotals.super ||
+          custSum.wrapped > txTotals.wrapped) {
+        return res.status(400).json({
+          message: "إجمالي الكميات المدخلة للعملاء يتجاوز الكميات المسجلة في العمليات الميدانية. الفرق يجب أن يكون صفراً أو موجباً للبيع المباشر.",
+        });
+      }
+
+      const dsWhite = txTotals.white - custSum.white;
+      const dsBrown = txTotals.brown - custSum.brown;
+      const dsMedium = txTotals.medium - custSum.medium;
+      const dsSuper = txTotals.super - custSum.super;
+      const dsWrapped = txTotals.wrapped - custSum.wrapped;
       const dsTotal = computeAmount(dsWhite, dsBrown, dsMedium, dsSuper, dsWrapped);
       const dsPaid = submittedDsRow
         ? Math.max(0, parseFloat(String(submittedDsRow.paidAmount)) || 0)
