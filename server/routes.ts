@@ -1418,6 +1418,10 @@ export async function registerRoutes(
   // Report Adjustments - تعديلات تقرير سحب الخبز
   app.get("/api/report-adjustments/:driverId/:date", async (req, res) => {
     try {
+      const sessionRoleGet = req.session?.userRole;
+      if (!sessionRoleGet || (sessionRoleGet !== 'ADMIN' && sessionRoleGet !== 'SUB_ADMIN')) {
+        return res.status(403).json({ message: "غير مصرح بهذه العملية" });
+      }
       const adjustments = await storage.getReportAdjustments(req.params.driverId, req.params.date);
       res.json(adjustments);
     } catch (error) {
@@ -1831,6 +1835,10 @@ export async function registerRoutes(
 
   app.get("/api/direct-sale-customer", async (req, res) => {
     try {
+      const sessionRoleDs = req.session?.userRole;
+      if (!sessionRoleDs || (sessionRoleDs !== 'ADMIN' && sessionRoleDs !== 'SUB_ADMIN')) {
+        return res.status(403).json({ message: "غير مصرح بهذه العملية" });
+      }
       const customer = await storage.getDirectSaleCustomer();
       if (!customer) return res.status(404).json({ message: "لم يُنشأ عميل بيع مباشر بعد" });
       res.json(customer);

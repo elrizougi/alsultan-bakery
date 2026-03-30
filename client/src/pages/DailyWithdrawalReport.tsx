@@ -101,7 +101,7 @@ export default function DailyWithdrawalReportPage() {
     queryKey: ['report-adjustments', selectedDriverId, selectedDate],
     queryFn: async () => {
       if (selectedDriverId === 'all') return [];
-      const res = await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`);
+      const res = await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`, { credentials: 'include' });
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data) ? data : [];
@@ -112,7 +112,7 @@ export default function DailyWithdrawalReportPage() {
   const { data: directSaleCustomer } = useQuery<DirectSaleCustomer | null>({
     queryKey: ['direct-sale-customer'],
     queryFn: async () => {
-      const res = await fetch('/api/direct-sale-customer');
+      const res = await fetch('/api/direct-sale-customer', { credentials: 'include' });
       if (!res.ok) return null;
       return res.json();
     },
