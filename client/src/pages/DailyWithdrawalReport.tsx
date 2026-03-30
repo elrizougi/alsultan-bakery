@@ -14,6 +14,7 @@ import { useCustomers, useProducts, useUsers } from "@/hooks/useData";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 interface AdjustmentRow {
   id: string;
@@ -73,6 +74,8 @@ interface EditRow {
 export default function DailyWithdrawalReportPage() {
   const currentUser = useStore(state => state.user);
   const canExport = currentUser?.role !== 'SUB_ADMIN';
+  const logout = useStore(state => state.logout);
+  const [, navigate] = useLocation();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedDriverId, setSelectedDriverId] = useState<string>("all");
   const [editMode, setEditMode] = useState(false);
@@ -80,6 +83,12 @@ export default function DailyWithdrawalReportPage() {
   const [isSaving, setIsSaving] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  const handleAuthError = useCallback(() => {
+    toast({ title: "انتهت الجلسة", description: "يرجى تسجيل الدخول مجدداً", variant: "destructive" });
+    logout();
+    navigate("/login");
+  }, [toast, logout, navigate]);
   const queryClient = useQueryClient();
 
   const { data: products = [] } = useProducts();
@@ -402,6 +411,7 @@ export default function DailyWithdrawalReportPage() {
         body: JSON.stringify(body),
       });
 
+      if (res.status === 403) { handleAuthError(); return; }
       if (!res.ok) throw new Error('فشل الحفظ');
 
       await refetchAdjustments();
@@ -425,6 +435,7 @@ export default function DailyWithdrawalReportPage() {
         method: 'DELETE',
         credentials: 'include',
       });
+      if (res.status === 403) { handleAuthError(); return; }
       if (!res.ok) throw new Error('فشل الحذف');
       await refetchAdjustments();
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
