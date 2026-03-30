@@ -434,7 +434,7 @@ export default function DailyWithdrawalReportPage() {
       setEditRows([]);
       toast({ title: "تم الحفظ بنجاح", description: "تم حفظ التعديلات" });
     } catch (e) {
-      toast({ title: "خطأ", description: "فشل حفظ التعديلات", variant: "destructive" });
+      toast({ title: "خطأ", description: e instanceof Error ? e.message : "فشل حفظ التعديلات", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }

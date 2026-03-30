@@ -1551,20 +1551,12 @@ export async function registerRoutes(
         wrapped: acc.wrapped + r.wrapped,
       }), { white: 0, brown: 0, medium: 0, super: 0, wrapped: 0 });
 
-      // Validate: customer totals must not exceed field totals for any product type
-      if (custSum.white > txTotals.white || custSum.brown > txTotals.brown ||
-          custSum.medium > txTotals.medium || custSum.super > txTotals.super ||
-          custSum.wrapped > txTotals.wrapped) {
-        return res.status(400).json({
-          message: "إجمالي الكميات المدخلة للعملاء يتجاوز الكميات المسجلة في العمليات الميدانية. الفرق يجب أن يكون صفراً أو موجباً للبيع المباشر.",
-        });
-      }
-
-      const dsWhite = txTotals.white - custSum.white;
-      const dsBrown = txTotals.brown - custSum.brown;
-      const dsMedium = txTotals.medium - custSum.medium;
-      const dsSuper = txTotals.super - custSum.super;
-      const dsWrapped = txTotals.wrapped - custSum.wrapped;
+      // Direct sale = field total minus customer total (clamped at 0; negative means no direct sale)
+      const dsWhite = Math.max(0, txTotals.white - custSum.white);
+      const dsBrown = Math.max(0, txTotals.brown - custSum.brown);
+      const dsMedium = Math.max(0, txTotals.medium - custSum.medium);
+      const dsSuper = Math.max(0, txTotals.super - custSum.super);
+      const dsWrapped = Math.max(0, txTotals.wrapped - custSum.wrapped);
       const dsTotal = computeAmount(dsWhite, dsBrown, dsMedium, dsSuper, dsWrapped);
       const dsPaid = submittedDsRow
         ? Math.max(0, parseFloat(String(submittedDsRow.paidAmount)) || 0)
