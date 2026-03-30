@@ -1452,6 +1452,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "بيانات غير صحيحة", errors: parsed.error.flatten() });
       }
       const { driverId, reportDate, rows } = parsed.data;
+      if (driverId === 'all') {
+        return res.status(400).json({ message: "يجب تحديد سائق محدد وليس 'الكل'" });
+      }
 
       // 1. Ensure "بيع مباشر" customer exists
       const directSaleCustomer = await storage.getOrCreateDirectSaleCustomer();
@@ -1714,6 +1717,9 @@ export async function registerRoutes(
   app.delete("/api/report-adjustments/:driverId/:date", async (req, res) => {
     try {
       const { driverId, date } = req.params;
+      if (driverId === 'all') {
+        return res.status(400).json({ message: "يجب تحديد سائق محدد وليس 'الكل'" });
+      }
 
       // Read data outside transaction (read-only).
       // Use DB-level date bounds to avoid full-table scans.

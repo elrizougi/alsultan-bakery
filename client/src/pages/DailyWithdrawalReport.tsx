@@ -405,6 +405,8 @@ export default function DailyWithdrawalReportPage() {
 
       await refetchAdjustments();
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['direct-sale-customer'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       setEditMode(false);
       setEditRows([]);
       toast({ title: "تم الحفظ بنجاح", description: "تم حفظ التعديلات" });
@@ -422,6 +424,8 @@ export default function DailyWithdrawalReportPage() {
       if (!res.ok) throw new Error('فشل الحذف');
       await refetchAdjustments();
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['direct-sale-customer'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({ title: "تم الإلغاء", description: "تم حذف التعديلات واستعادة البيانات الأصلية" });
     } catch (e) {
       toast({ title: "خطأ", description: "فشل إلغاء التعديلات", variant: "destructive" });
