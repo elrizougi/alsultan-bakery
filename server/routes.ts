@@ -1456,7 +1456,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "يجب تحديد سائق محدد وليس 'الكل'" });
       }
       const userRole = req.headers['x-user-role'] as string | undefined;
-      if (userRole && userRole !== 'ADMIN' && userRole !== 'SUB_ADMIN') {
+      if (!userRole || (userRole !== 'ADMIN' && userRole !== 'SUB_ADMIN')) {
         return res.status(403).json({ message: "غير مصرح بهذه العملية" });
       }
 
@@ -1725,7 +1725,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "يجب تحديد سائق محدد وليس 'الكل'" });
       }
       const userRoleDel = req.headers['x-user-role'] as string | undefined;
-      if (userRoleDel && userRoleDel !== 'ADMIN' && userRoleDel !== 'SUB_ADMIN') {
+      if (!userRoleDel || (userRoleDel !== 'ADMIN' && userRoleDel !== 'SUB_ADMIN')) {
         return res.status(403).json({ message: "غير مصرح بهذه العملية" });
       }
 

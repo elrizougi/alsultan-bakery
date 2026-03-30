@@ -124,7 +124,7 @@ export default function DailyWithdrawalReportPage() {
     if (directSaleCustomer && !customers.find(c => c.id === directSaleCustomer.id)) {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     }
-  }, [directSaleCustomer]);
+  }, [directSaleCustomer, customers, queryClient]);
 
   const productMap: Record<string, { name: string; price: number }> = {};
   products.forEach(p => {
