@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStore } from "@/lib/store";
 import { useCustomers, useProducts, useUsers } from "@/hooks/useData";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, Loader2, ShoppingCart, Banknote, CreditCard, Receipt, Building2 } from "lucide-react";
+import { Package, Loader2, ShoppingCart, Banknote, CreditCard, Receipt, Building2, TrendingUp, TrendingDown } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
@@ -222,6 +222,7 @@ export default function Dashboard() {
                         <TableHead className="text-right font-bold">المحصل نقداً</TableHead>
                         <TableHead className="text-right font-bold">الآجل غير المدفوع</TableHead>
                         <TableHead className="text-right font-bold">مصروفات التوزيع</TableHead>
+                        <TableHead className="text-right font-bold">الأرباح</TableHead>
                         <TableHead className="text-right font-bold">عدد العملاء</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -259,6 +260,14 @@ export default function Dashboard() {
                         const expenses = dayTx
                           .filter(t => (t.type as string) === 'EXPENSE')
                           .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+                        const daySoldValue = dayTx
+                          .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string))
+                          .reduce((sum, t) => {
+                            const stored = parseFloat(t.totalAmount || '0');
+                            const computed = stored !== 0 ? stored : t.quantity * parseFloat((t as any).unitPrice || '0');
+                            return sum + computed;
+                          }, 0);
+                        const dayProfit = daySoldValue - soldBread * 0.6 - expenses;
                         const uniqueCustomers = new Set(
                           dayTx
                             .filter(t => ['CASH_SALE', 'CREDIT_SALE'].includes(t.type as string) && t.customerId)
@@ -280,6 +289,12 @@ export default function Dashboard() {
                             <TableCell className="text-emerald-700 font-semibold">{fmt(cashCollected)} ر.س</TableCell>
                             <TableCell className="text-yellow-700 font-semibold">{fmt(creditUnpaid)} ر.س</TableCell>
                             <TableCell className="text-red-600 font-semibold">{fmt(expenses)} ر.س</TableCell>
+                            <TableCell className={`font-bold ${dayProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                              <span className="flex items-center gap-1 justify-end">
+                                {dayProfit >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                                {fmt(dayProfit)} ر.س
+                              </span>
+                            </TableCell>
                             <TableCell>{uniqueCustomers}</TableCell>
                           </TableRow>
                         );

@@ -720,7 +720,7 @@ export default function DailyWithdrawalReportPage() {
                       <TableHead className="text-center font-bold border-l whitespace-nowrap" rowSpan={2}>م</TableHead>
                       <TableHead className="text-center font-bold border-l whitespace-nowrap" rowSpan={2}>{isAllDrivers ? 'المندوب' : 'اسم العميل'}</TableHead>
                       <TableHead className="text-center font-bold border-l" colSpan={7}>معدل سحب الخبز</TableHead>
-                      <TableHead className="text-center font-bold" colSpan={6}>الحساب المالي</TableHead>
+                      <TableHead className="text-center font-bold" colSpan={7}>الحساب المالي</TableHead>
                     </TableRow>
                     <TableRow className="bg-slate-50">
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">خبز ابيض</TableHead>
@@ -735,13 +735,14 @@ export default function DailyWithdrawalReportPage() {
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">مبلغ مغلف</TableHead>
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">اجمالي المبلغ</TableHead>
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">المبلغ المدفوع</TableHead>
-                      <TableHead className="text-center font-bold whitespace-nowrap">الباقي</TableHead>
+                      <TableHead className="text-center font-bold border-l whitespace-nowrap">الباقي</TableHead>
+                      <TableHead className="text-center font-bold whitespace-nowrap">الأرباح</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {reportRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
                           لا توجد عمليات مسجلة لهذا اليوم
                         </TableCell>
                       </TableRow>
@@ -770,6 +771,9 @@ export default function DailyWithdrawalReportPage() {
                             <TableCell className="text-center border-l font-bold">{fmt(r.totalAmount)}</TableCell>
                             <TableCell className="text-center border-l">{fmt(r.paidAmount)}</TableCell>
                             <TableCell className="text-center font-bold">{fmt(r.remaining)}</TableCell>
+                            <TableCell className={`text-center font-bold ${(r.totalAmount - r.totalBread * 0.6) >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                              {fmt(r.totalAmount - r.totalBread * 0.6)}
+                            </TableCell>
                           </TableRow>
                         ))}
                         <TableRow className="bg-slate-100 font-bold" data-testid="row-report-totals">
@@ -790,7 +794,10 @@ export default function DailyWithdrawalReportPage() {
                           <TableCell className="text-center border-l">{fmt(totals.wrappedAmount)}</TableCell>
                           <TableCell className="text-center border-l">{fmt(totals.totalAmount)}</TableCell>
                           <TableCell className="text-center border-l">{fmt(totals.paidAmount)}</TableCell>
-                          <TableCell className="text-center">{fmt(totals.remaining)}</TableCell>
+                          <TableCell className="text-center border-l">{fmt(totals.remaining)}</TableCell>
+                          <TableCell className={`text-center ${(totals.totalAmount - totals.totalBread * 0.6) >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                            {fmt(totals.totalAmount - totals.totalBread * 0.6)}
+                          </TableCell>
                         </TableRow>
                       </>
                     )}

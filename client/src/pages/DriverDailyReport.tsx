@@ -128,6 +128,8 @@ export default function DriverDailyReportPage() {
         .map(t => t.customerId).filter(Boolean)
     );
 
+    const dailyProfit = totalSalesAmount - totalSoldQty * 0.6 - expensesAmount;
+
     return {
       soldByProduct: Array.from(soldByProduct.values()),
       totalSoldQty,
@@ -140,6 +142,7 @@ export default function DriverDailyReportPage() {
       totalSalesAmount,
       expensesAmount,
       driverDebtAmount,
+      dailyProfit,
       servedCount: servedCustomerIds.size,
       dayTx,
     };
@@ -338,7 +341,7 @@ export default function DriverDailyReportPage() {
     rows: { date: string; driverId?: string; driverName?: string; data: ReturnType<typeof getDayDataForDriver> }[],
     showDriverColumn: boolean
   ) => {
-    const colCount = (showDriverColumn ? 10 : 11) + productColumns.length + (showDriverColumn ? 1 : 0);
+    const colCount = (showDriverColumn ? 11 : 12) + productColumns.length + (showDriverColumn ? 1 : 0);
 
     return (
       <Table>
@@ -358,6 +361,7 @@ export default function DriverDailyReportPage() {
             <TableHead className="text-right font-bold">المصروفات</TableHead>
             <TableHead className="text-right font-bold">المديونية</TableHead>
             <TableHead className="text-right font-bold">الصافي</TableHead>
+            <TableHead className="text-right font-bold">الأرباح</TableHead>
             <TableHead className="text-right font-bold">العملاء</TableHead>
             <TableHead className="text-right font-bold">تفاصيل</TableHead>
           </TableRow>
@@ -397,6 +401,9 @@ export default function DriverDailyReportPage() {
                   <TableCell className="text-red-600 text-sm">{d.expensesAmount > 0 ? d.expensesAmount.toFixed(2) : '-'}</TableCell>
                   <TableCell className="text-rose-600 text-sm">{d.driverDebtAmount > 0 ? d.driverDebtAmount.toFixed(2) : '-'}</TableCell>
                   <TableCell className="text-teal-700 font-bold text-sm">{(d.cashAmount - d.expensesAmount - d.driverDebtAmount).toFixed(2)}</TableCell>
+                  <TableCell className={`font-bold text-sm ${d.dailyProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {d.dailyProfit >= 0 ? '+' : ''}{d.dailyProfit.toFixed(2)}
+                  </TableCell>
                   <TableCell className="text-purple-600 font-medium">{d.servedCount}</TableCell>
                   <TableCell>
                     <Button
