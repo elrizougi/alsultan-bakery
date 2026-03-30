@@ -5,7 +5,7 @@ import { insertUserSchema, insertProductSchema, insertCustomerSchema, insertOrde
   transactions as transactionsTable, customers as customersTable, customerDebts as customerDebtsTable,
   cashDeposits as cashDepositsTable, bakeryExpenses as bakeryExpensesTable,
   driverInventory as driverInventoryTable, driverBalance as driverBalanceTable,
-  products as productsTable,
+  products as productsTable, reportAdjustments as reportAdjustmentsTable,
 } from "@shared/schema";
 import { z } from "zod";
 import { gte, and, eq } from "drizzle-orm";
@@ -1570,32 +1570,7 @@ export async function registerRoutes(
       }
       const paidDelta = newTotalPaid - oldTotalPaid;
 
-      // 7. Save adjustments and update balance
-      const saved = await storage.saveReportAdjustments(driverId, reportDate, allRows);
-      if (Math.abs(paidDelta) > 0.001) {
-        await storage.updateDriverCashBalance(driverId, paidDelta.toFixed(2));
-      }
-
-      // 8. Create canonical isAdjustment=true transactions (replacing prior adjustment transactions)
-      // Delete existing adjustment transactions for this driver/date
-      const existingAdjTxns = await db.select().from(transactionsTable).where(
-        and(eq(transactionsTable.driverId, driverId))
-      );
-      const priorAdjIds = existingAdjTxns
-        .filter(t => {
-          if (!t.isAdjustment || !t.createdAt) return false;
-          const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
-          return toSaudiDate(d) === reportDate;
-        })
-        .map(t => t.id);
-
-      if (priorAdjIds.length > 0) {
-        for (const id of priorAdjIds) {
-          await db.delete(transactionsTable).where(eq(transactionsTable.id, id));
-        }
-      }
-
-      // Create new isAdjustment=true CASH_SALE transactions per product per customer
+      // 7+8. Execute all mutations atomically in a single DB transaction
       const namedProducts = [
         { key: 'white', product: whiteProduct },
         { key: 'brown', product: brownProduct },
@@ -1604,49 +1579,91 @@ export async function registerRoutes(
         { key: 'wrapped', product: wrappedProduct },
       ] as const;
 
-      const adjCreatedAt = new Date(`${reportDate}T12:00:00.000Z`);
+      const adjCreatedAt = new Date(`${reportDate}T09:00:00.000Z`); // 9am UTC = noon Saudi
 
-      for (const adjRow of allRows) {
-        const qtys: Record<string, number> = {
-          white: adjRow.whiteBread, brown: adjRow.brownBread,
-          medium: adjRow.medium, super: adjRow.superBread, wrapped: adjRow.wrapped,
-        };
-        for (const { key, product } of namedProducts) {
-          const qty = qtys[key] || 0;
-          if (!product || qty <= 0) continue;
-          const unitPrice = parseFloat(product.price);
-          const lineAmount = qty * unitPrice;
+      // Pre-fetch prior isAdjustment transaction ids (outside transaction — read only)
+      const existingAdjTxns = await db
+        .select({ id: transactionsTable.id, createdAt: transactionsTable.createdAt, isAdjustment: transactionsTable.isAdjustment })
+        .from(transactionsTable)
+        .where(and(eq(transactionsTable.driverId, driverId)));
+      const priorAdjIds = existingAdjTxns
+        .filter(t => {
+          if (!t.createdAt || !t.isAdjustment) return false;
+          const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
+          return toSaudiDate(d) === reportDate;
+        })
+        .map(t => t.id);
 
-          await db.insert(transactionsTable).values({
-            driverId,
-            customerId: adjRow.customerId,
-            productId: product.id,
-            type: 'CASH_SALE',
-            quantity: qty,
-            unitPrice: unitPrice.toFixed(2),
-            totalAmount: lineAmount.toFixed(2),
-            notes: 'adjustment',
-            isAdjustment: true,
-            createdAt: adjCreatedAt,
-          });
+      const saved = await db.transaction(async (tx) => {
+        // 7a. Save adjustments (upsert: delete + insert)
+        await tx.delete(reportAdjustmentsTable).where(
+          and(eq(reportAdjustmentsTable.driverId, driverId), eq(reportAdjustmentsTable.reportDate, reportDate))
+        );
+        const inserted = allRows.length > 0
+          ? await tx.insert(reportAdjustmentsTable).values(
+              allRows.map(r => ({ driverId, reportDate, ...r }))
+            ).returning()
+          : [];
+
+        // 7b. Update driver cash balance
+        if (Math.abs(paidDelta) > 0.001) {
+          const existingBal = await tx.select().from(driverBalanceTable).where(eq(driverBalanceTable.driverId, driverId));
+          const currentBal = existingBal[0] ? parseFloat(existingBal[0].cashBalance) : 0;
+          const newBal = (currentBal + paidDelta).toFixed(2);
+          if (existingBal[0]) {
+            await tx.update(driverBalanceTable).set({ cashBalance: newBal, updatedAt: new Date() })
+              .where(eq(driverBalanceTable.driverId, driverId));
+          } else {
+            await tx.insert(driverBalanceTable).values({ driverId, cashBalance: newBal });
+          }
         }
 
-        // Also record damaged/returned if any
-        if (adjRow.returned > 0 && whiteProduct) {
-          await db.insert(transactionsTable).values({
-            driverId,
-            customerId: adjRow.customerId,
-            productId: whiteProduct.id,
-            type: 'DAMAGED',
-            quantity: adjRow.returned,
-            unitPrice: '0',
-            totalAmount: '0',
-            notes: 'adjustment',
-            isAdjustment: true,
-            createdAt: adjCreatedAt,
-          });
+        // 8a. Delete prior isAdjustment transactions for this driver/date
+        for (const id of priorAdjIds) {
+          await tx.delete(transactionsTable).where(eq(transactionsTable.id, id));
         }
-      }
+
+        // 8b. Create new isAdjustment=true CASH_SALE transactions per product per customer
+        for (const adjRow of allRows) {
+          const qtys: Record<string, number> = {
+            white: adjRow.whiteBread, brown: adjRow.brownBread,
+            medium: adjRow.medium, super: adjRow.superBread, wrapped: adjRow.wrapped,
+          };
+          for (const { key, product } of namedProducts) {
+            const qty = qtys[key] || 0;
+            if (!product || qty <= 0) continue;
+            const unitPrice = parseFloat(product.price);
+            await tx.insert(transactionsTable).values({
+              driverId,
+              customerId: adjRow.customerId,
+              productId: product.id,
+              type: 'CASH_SALE',
+              quantity: qty,
+              unitPrice: unitPrice.toFixed(2),
+              totalAmount: (qty * unitPrice).toFixed(2),
+              notes: 'adjustment',
+              isAdjustment: true,
+              createdAt: adjCreatedAt,
+            });
+          }
+          if (adjRow.returned > 0 && whiteProduct) {
+            await tx.insert(transactionsTable).values({
+              driverId,
+              customerId: adjRow.customerId,
+              productId: whiteProduct.id,
+              type: 'DAMAGED',
+              quantity: adjRow.returned,
+              unitPrice: '0',
+              totalAmount: '0',
+              notes: 'adjustment',
+              isAdjustment: true,
+              createdAt: adjCreatedAt,
+            });
+          }
+        }
+
+        return inserted;
+      });
 
       res.json(saved);
     } catch (error) {
@@ -1658,21 +1675,23 @@ export async function registerRoutes(
   app.delete("/api/report-adjustments/:driverId/:date", async (req, res) => {
     try {
       const { driverId, date } = req.params;
-      // Reverse the balance adjustment before deleting
+
+      // Read data outside transaction (read-only)
       const oldAdjustments = await storage.getReportAdjustments(driverId, date);
+      const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.driverId, driverId));
+      const allDebts = await db.select().from(customerDebtsTable);
+
+      let reverseDelta = 0;
       if (oldAdjustments.length > 0) {
         const oldTotalPaid = oldAdjustments.reduce((s, a) => s + parseFloat(a.paidAmount || '0'), 0);
-        // Get ORIGINAL (non-adjustment) paid for this driver/date:
-        // CASH_SALE totals + paid customer debts created on that date
-        const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.driverId, driverId));
-        const origCashTxns = txns.filter(t => {
-          if (!t.createdAt || t.type !== 'CASH_SALE' || t.isAdjustment) return false;
-          const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
-          return toSaudiDate(d) === date;
-        });
-        const cashSalePaid = origCashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
+        const cashSalePaid = txns
+          .filter(t => {
+            if (!t.createdAt || t.type !== 'CASH_SALE' || t.isAdjustment) return false;
+            const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
+            return toSaudiDate(d) === date;
+          })
+          .reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
 
-        const allDebts = await db.select().from(customerDebtsTable);
         const dateDebtPaid = allDebts
           .filter(d => {
             if (!d.createdAt || d.driverId !== driverId) return false;
@@ -1681,25 +1700,41 @@ export async function registerRoutes(
           })
           .reduce((s, d) => s + parseFloat(d.paidAmount || '0'), 0);
 
-        const originalPaid = cashSalePaid + dateDebtPaid;
-        const reverseDelta = originalPaid - oldTotalPaid;
-        if (Math.abs(reverseDelta) > 0.001) {
-          await storage.updateDriverCashBalance(driverId, reverseDelta.toFixed(2));
-        }
+        reverseDelta = (cashSalePaid + dateDebtPaid) - oldTotalPaid;
       }
-      // Delete isAdjustment=true transactions for this driver/date
-      const allTxns = await db.select().from(transactionsTable).where(eq(transactionsTable.driverId, driverId));
-      const adjIds = allTxns
+
+      const adjIds = txns
         .filter(t => {
           if (!t.isAdjustment || !t.createdAt) return false;
           const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
           return toSaudiDate(d) === date;
         })
         .map(t => t.id);
-      for (const id of adjIds) {
-        await db.delete(transactionsTable).where(eq(transactionsTable.id, id));
-      }
-      await storage.deleteReportAdjustments(driverId, date);
+
+      // Execute all mutations atomically
+      await db.transaction(async (tx) => {
+        // Reverse balance if needed
+        if (Math.abs(reverseDelta) > 0.001) {
+          const existingBal = await tx.select().from(driverBalanceTable).where(eq(driverBalanceTable.driverId, driverId));
+          const currentBal = existingBal[0] ? parseFloat(existingBal[0].cashBalance) : 0;
+          const newBal = (currentBal + reverseDelta).toFixed(2);
+          if (existingBal[0]) {
+            await tx.update(driverBalanceTable).set({ cashBalance: newBal, updatedAt: new Date() })
+              .where(eq(driverBalanceTable.driverId, driverId));
+          } else {
+            await tx.insert(driverBalanceTable).values({ driverId, cashBalance: newBal });
+          }
+        }
+        // Delete isAdjustment transactions
+        for (const id of adjIds) {
+          await tx.delete(transactionsTable).where(eq(transactionsTable.id, id));
+        }
+        // Delete adjustment rows
+        await tx.delete(reportAdjustmentsTable).where(
+          and(eq(reportAdjustmentsTable.driverId, driverId), eq(reportAdjustmentsTable.reportDate, date))
+        );
+      });
+
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "خطأ في حذف التعديلات" });
