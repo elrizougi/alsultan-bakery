@@ -23,6 +23,7 @@ services:
     environment:
       DATABASE_URL: postgresql://alsultan:Awe@93554@db:5432/alsultan_bakery
       PORT: "3000"
+      SESSION_SECRET: ${SESSION_SECRET}
     ports:
       - "3020:3000"
     depends_on:
