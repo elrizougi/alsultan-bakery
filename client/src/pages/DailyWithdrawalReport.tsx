@@ -421,7 +421,10 @@ export default function DailyWithdrawalReportPage() {
       });
 
       if (res.status === 403) { handleAuthError(); return; }
-      if (!res.ok) throw new Error('فشل الحفظ');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.message || 'فشل الحفظ');
+      }
 
       await refetchAdjustments();
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
