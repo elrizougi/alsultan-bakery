@@ -730,7 +730,7 @@ export default function DriverTransactionsPage() {
     return products.find(p => p.id === productId)?.name || "غير معروف";
   };
 
-  const driverCustomers = customers.filter(c => c.driverId === driverId);
+  const driverCustomers = customers.filter(c => !c.isDirectSale);
 
   const getCustomerName = (customerId?: string) => {
     if (!customerId) return "-";
@@ -3089,6 +3089,7 @@ export default function DriverTransactionsPage() {
                                   onClick={() => {
                                     setEditingTransaction(tx);
                                     setEditForm({
+                                      type: tx.type,
                                       quantity: tx.quantity,
                                       unitPrice: tx.unitPrice || "",
                                       customerId: tx.customerId || "",
@@ -3137,6 +3138,7 @@ export default function DriverTransactionsPage() {
                                   onClick={() => {
                                     setEditingTransaction(tx);
                                     setEditForm({
+                                      type: tx.type,
                                       quantity: tx.quantity,
                                       unitPrice: tx.unitPrice || "",
                                       customerId: tx.customerId || "",
