@@ -896,7 +896,7 @@ export default function DriverTransactionsPage() {
   const dailyPaidToBakery = cashDeposits
     .filter(d => d.depositDate === selectedDate && d.status === 'CONFIRMED')
     .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
-  const driverCashBalance = totalSoldValue - dailyPaidToBakery - dailyCreditSalesUnpaid;
+  const driverCashBalance = totalSoldValue - dailyPaidToBakery;
 
   const allTotalSales = allDriverTransactions
     .filter(t => t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE')
@@ -906,7 +906,7 @@ export default function DriverTransactionsPage() {
   const allPaidToBakery = cashDeposits
     .filter(d => d.status === 'CONFIRMED')
     .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
-  const cumulativeBalance = allTotalSales - allPaidToBakery - allCreditSalesUnpaid;
+  const cumulativeBalance = allTotalSales - allPaidToBakery;
 
   // حساب الأرباح اليومية للمندوب
   const dailyCost = grossSoldBread * 0.6;
@@ -942,7 +942,7 @@ export default function DriverTransactionsPage() {
       const date = format(new Date(t.createdAt), 'yyyy-MM-dd');
       const entry = dateMap.get(date) || { cashSales: 0, creditSalesUnpaid: 0, paidToBakery: 0, expenses: 0 };
       const amount = parseFloat(t.totalAmount || '0');
-      if (t.type === 'CASH_SALE') entry.cashSales += amount;
+      if (t.type === 'CASH_SALE' || t.type === 'CREDIT_SALE') entry.cashSales += amount;
       else if ((t.type as string) === 'EXPENSE') entry.expenses += amount;
       dateMap.set(date, entry);
     });
@@ -963,7 +963,7 @@ export default function DriverTransactionsPage() {
     const sorted = Array.from(dateMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
     let running = 0;
     return sorted.map(([date, data]) => {
-      const dailyNet = data.cashSales - data.paidToBakery;
+      const dailyNet = data.cashSales - data.paidToBakery; // cashSales now includes credit sales
       running += dailyNet;
       return { date, ...data, dailyNet, cumulative: running };
     });
@@ -1399,7 +1399,7 @@ export default function DriverTransactionsPage() {
                   <BarChart3 className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className={`text-xs font-medium ${cumulativeBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>رصيد المندوب التراكمي</p>
+                  <p className={`text-xs font-medium ${cumulativeBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>عهدة المندوب</p>
                   <div className={`text-2xl font-bold ${cumulativeBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`} data-testid="text-cumulative-balance">
                     {cumulativeBalance.toFixed(2)} <span className="text-sm">ر.س</span>
                   </div>
@@ -1408,8 +1408,7 @@ export default function DriverTransactionsPage() {
               <div className="flex items-center gap-3">
                 <div className="hidden md:flex gap-4 text-xs">
                   <span className="text-gray-600">المبيعات: <strong className="text-gray-800">{allTotalSales.toFixed(2)}</strong></span>
-                  <span className="text-emerald-600">المدفوع: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
-                  <span className="text-yellow-600">الآجل: <strong>-{allCreditSalesUnpaid.toFixed(2)}</strong></span>
+                  <span className="text-emerald-600">المسدَّد: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
                 </div>
                 <Button
                   size="sm"
@@ -3313,23 +3312,22 @@ export default function DriverTransactionsPage() {
           <SheetHeader className="sticky top-0 bg-white z-10 p-4 border-b">
             <SheetTitle className="text-right flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-blue-600" />
-              رصيد المندوب التراكمي
+              عهدة المندوب
             </SheetTitle>
             <SheetDescription className="text-right text-xs">
-              تفاصيل الرصيد اليومي والتراكمي - {driverName}
+              تفاصيل العهدة اليومية والتراكمية - {driverName}
             </SheetDescription>
           </SheetHeader>
           <div className="p-4">
             <Card className={`mb-4 ${cumulativeBalance >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
               <CardContent className="pt-4 pb-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">الرصيد التراكمي الحالي</p>
+                <p className="text-xs text-muted-foreground mb-1">العهدة الحالية</p>
                 <p className={`text-3xl font-bold ${cumulativeBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                   {cumulativeBalance.toFixed(2)} <span className="text-sm">ر.س</span>
                 </p>
                 <div className="flex justify-center gap-3 mt-2 text-xs">
                   <span className="text-gray-600">المبيعات: <strong>{allTotalSales.toFixed(2)}</strong></span>
-                  <span className="text-orange-600">المدفوع: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
-                  <span className="text-yellow-600">الآجل: <strong>-{allCreditSalesUnpaid.toFixed(2)}</strong></span>
+                  <span className="text-emerald-600">المسدَّد: <strong>-{allPaidToBakery.toFixed(2)}</strong></span>
                 </div>
               </CardContent>
             </Card>
@@ -3340,10 +3338,10 @@ export default function DriverTransactionsPage() {
                 <TableHeader>
                   <TableRow className="bg-slate-50">
                     <TableHead className="text-right font-bold text-xs">التاريخ</TableHead>
-                    <TableHead className="text-right font-bold text-xs">النقدي</TableHead>
-                    <TableHead className="text-right font-bold text-xs">المدفوع</TableHead>
-                    <TableHead className="text-right font-bold text-xs">الصافي</TableHead>
-                    <TableHead className="text-right font-bold text-xs">التراكمي</TableHead>
+                    <TableHead className="text-right font-bold text-xs">المبيعات</TableHead>
+                    <TableHead className="text-right font-bold text-xs">المسدَّد</TableHead>
+                    <TableHead className="text-right font-bold text-xs">العهدة اليومية</TableHead>
+                    <TableHead className="text-right font-bold text-xs">العهدة التراكمية</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

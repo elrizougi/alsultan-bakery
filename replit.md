@@ -52,7 +52,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Reports
 - **Daily Withdrawal Report** (`/daily-withdrawal-report`): Daily bread withdrawal report per customer showing quantities per product type (white, brown, medium, شاورما, wrapped), returns, financial calculations (amounts, paid, remaining). Supports print and Excel export (Excel restricted from SUB_ADMIN).
-- **Driver Cumulative Balance** (`/driver-cumulative-balance`): Shows cumulative balance for all drivers across all days. Displays total sales (cash + credit), amounts paid to bakery, unpaid debts, expenses, bread sold count, and running cumulative balance. Expandable daily breakdown per driver.
+- **Driver Cumulative Balance** (`/driver-cumulative-balance`): Shows driver custody (عهدة) for all drivers across all days. Formula: عهدة = total sales (cash + credit) - total confirmed deposits. Customer debt column shown for reference only. Expandable daily breakdown per driver.
 - **Bakery Cash Vault** (`/bakery-cash-vault`): Cash flow audit page showing all income (confirmed driver deposits) and expenses (bakery expenses + driver expenses). Date range filter, type filter, print support. Shows period totals and all-time vault balance.
 
 ### Incremental Data Load

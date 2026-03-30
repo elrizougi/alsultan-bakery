@@ -91,7 +91,7 @@ export default function DriverCumulativeBalancePage() {
         .filter(d => !d.isPaid)
         .reduce((sum, d) => sum + (parseFloat(d.amount) - parseFloat(d.paidAmount || "0")), 0);
 
-      const cumulativeBalance = totalSales - totalPaidToBakery - unpaidDebts;
+      const cumulativeBalance = totalSales - totalPaidToBakery;
 
       const dateMap = new Map<string, {
         cashSales: number;
@@ -147,7 +147,7 @@ export default function DriverCumulativeBalancePage() {
       const dailyRowsWithRunning = Array.from(dateMap.entries())
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, data]) => {
-          const dailyNet = data.cashSales + data.creditSales - data.paidToBakery - data.creditUnpaid;
+          const dailyNet = data.cashSales + data.creditSales - data.paidToBakery;
           runningBalance += dailyNet;
           return { date, ...data, totalSales: data.cashSales + data.creditSales, dailyNet, cumulative: runningBalance };
         })
@@ -191,7 +191,7 @@ export default function DriverCumulativeBalancePage() {
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>رصيد المندوب التراكمي</title>
+<title>عهدة المندوبين</title>
 <style>
 @page { size: A4; margin: 10mm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -223,12 +223,12 @@ td { padding: 3px; border: 1px solid #d1d5db; text-align: center; }
 </style>
 </head>
 <body>
-<div class="print-title">رصيد المندوب التراكمي</div>
+<div class="print-title">عهدة المندوبين</div>
 <div class="summary-grid">
   <div class="summary-card"><div class="label">إجمالي المبيعات</div><div class="value text-blue">${fmt(grandTotals.totalSales)} ر.س</div></div>
   <div class="summary-card"><div class="label">المدفوع للمخبز</div><div class="value text-emerald">${fmt(grandTotals.totalPaidToBakery)} ر.س</div></div>
-  <div class="summary-card"><div class="label">ديون غير مسددة</div><div class="value text-orange">${fmt(grandTotals.unpaidDebts)} ر.س</div></div>
-  <div class="summary-card"><div class="label">الرصيد التراكمي</div><div class="value ${grandTotals.cumulativeBalance >= 0 ? 'text-indigo' : 'text-red'}">${fmt(grandTotals.cumulativeBalance)} ر.س</div></div>
+  <div class="summary-card"><div class="label">ديون العملاء</div><div class="value text-orange">${fmt(grandTotals.unpaidDebts)} ر.س</div></div>
+  <div class="summary-card"><div class="label">إجمالي العهدة</div><div class="value ${grandTotals.cumulativeBalance >= 0 ? 'text-indigo' : 'text-red'}">${fmt(grandTotals.cumulativeBalance)} ر.س</div></div>
 </div>
 ${driverSummaries.map(s => `
 <div class="driver-section">
@@ -240,13 +240,13 @@ ${driverSummaries.map(s => `
     <div class="driver-stat"><div class="stat-label">المبيعات النقدية</div><div class="stat-value text-blue">${fmt(s.totalCashSales)}</div></div>
     <div class="driver-stat"><div class="stat-label">المبيعات الآجلة</div><div class="stat-value text-amber">${fmt(s.totalCreditSales)}</div></div>
     <div class="driver-stat"><div class="stat-label">المدفوع للمخبز</div><div class="stat-value text-emerald">${fmt(s.totalPaidToBakery)}</div></div>
-    <div class="driver-stat"><div class="stat-label">ديون غير مسددة</div><div class="stat-value text-orange">${fmt(s.unpaidDebts)}</div></div>
+    <div class="driver-stat"><div class="stat-label">ديون العملاء</div><div class="stat-value text-orange">${fmt(s.unpaidDebts)}</div></div>
     <div class="driver-stat"><div class="stat-label">المصروفات</div><div class="stat-value text-red">${fmt(s.totalExpenses)}</div></div>
     <div class="driver-stat"><div class="stat-label">الخبز المباع</div><div class="stat-value">${s.totalBreadSold}</div></div>
   </div>
   ${s.dailyRows.length > 0 ? `<table>
     <thead><tr>
-      <th>التاريخ</th><th>الخبز المباع</th><th>نقدي</th><th>آجل</th><th>إجمالي المبيعات</th><th>المدفوع للمخبز</th><th>المصروفات</th><th>ديون غير مسددة</th><th>الرصيد التراكمي</th>
+      <th>التاريخ</th><th>الخبز المباع</th><th>نقدي</th><th>آجل</th><th>إجمالي المبيعات</th><th>المدفوع للمخبز</th><th>المصروفات</th><th>ديون العملاء</th><th>العهدة التراكمية</th>
     </tr></thead>
     <tbody>${s.dailyRows.map(r => `<tr>
       <td>${r.date}</td>
@@ -272,7 +272,7 @@ ${driverSummaries.map(s => `
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Wallet className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold" data-testid="text-page-title">رصيد المندوب التراكمي</h1>
+            <h1 className="text-xl font-bold" data-testid="text-page-title">عهدة المندوبين</h1>
           </div>
           <div className="flex items-center gap-2">
             <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
@@ -320,7 +320,7 @@ ${driverSummaries.map(s => `
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingDown className="h-4 w-4 text-orange-600" />
-                <p className="text-xs text-orange-600 font-medium">ديون غير مسددة</p>
+                <p className="text-xs text-orange-600 font-medium">ديون العملاء</p>
               </div>
               <p className="text-lg font-bold text-orange-700" data-testid="text-grand-unpaid-debts">{fmt(grandTotals.unpaidDebts)} <span className="text-xs">ر.س</span></p>
             </CardContent>
@@ -329,7 +329,7 @@ ${driverSummaries.map(s => `
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-1">
                 <Banknote className={`h-4 w-4 ${grandTotals.cumulativeBalance >= 0 ? "text-indigo-600" : "text-red-600"}`} />
-                <p className={`text-xs font-medium ${grandTotals.cumulativeBalance >= 0 ? "text-indigo-600" : "text-red-600"}`}>الرصيد التراكمي</p>
+                <p className={`text-xs font-medium ${grandTotals.cumulativeBalance >= 0 ? "text-indigo-600" : "text-red-600"}`}>إجمالي العهدة</p>
               </div>
               <p className={`text-lg font-bold ${grandTotals.cumulativeBalance >= 0 ? "text-indigo-700" : "text-red-700"}`} data-testid="text-grand-cumulative-balance">
                 {fmt(grandTotals.cumulativeBalance)} <span className="text-xs">ر.س</span>
@@ -366,7 +366,7 @@ ${driverSummaries.map(s => `
                   <p className="text-sm font-bold text-emerald-700" data-testid={`text-paid-${summary.driver.id}`}>{fmt(summary.totalPaidToBakery)}</p>
                 </div>
                 <div className="bg-orange-50 rounded-lg p-2">
-                  <p className="text-[10px] text-orange-500">ديون غير مسددة</p>
+                  <p className="text-[10px] text-orange-500">ديون العملاء</p>
                   <p className="text-sm font-bold text-orange-700" data-testid={`text-debts-${summary.driver.id}`}>{fmt(summary.unpaidDebts)}</p>
                 </div>
                 <div className="bg-red-50 rounded-lg p-2">
@@ -406,8 +406,8 @@ ${driverSummaries.map(s => `
                           <TableHead className="text-center text-xs font-bold whitespace-nowrap">إجمالي المبيعات</TableHead>
                           <TableHead className="text-center text-xs font-bold whitespace-nowrap">المدفوع للمخبز</TableHead>
                           <TableHead className="text-center text-xs font-bold whitespace-nowrap">المصروفات</TableHead>
-                          <TableHead className="text-center text-xs font-bold whitespace-nowrap">ديون غير مسددة</TableHead>
-                          <TableHead className="text-center text-xs font-bold whitespace-nowrap">الرصيد التراكمي</TableHead>
+                          <TableHead className="text-center text-xs font-bold whitespace-nowrap">ديون العملاء</TableHead>
+                          <TableHead className="text-center text-xs font-bold whitespace-nowrap">العهدة التراكمية</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
