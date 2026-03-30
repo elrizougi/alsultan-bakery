@@ -1577,13 +1577,18 @@ export async function registerRoutes(
         // Use existing adjustments as baseline (already includes all rows)
         oldTotalPaid = oldAdjustments.reduce((s, a) => s + parseFloat(a.paidAmount || '0'), 0);
       } else {
-        // Use original transactions as baseline: CASH_SALE totals + paid customer debts for this date
+        // Use original transactions as baseline: CASH_SALE totals + paid customer debts for this date.
+        // Debt payments are only included for customers who have bread sales on this date (matching
+        // the edit row universe), to avoid accounting distortion from debt-only customers.
         const origCashTxns = txns.filter(t => {
           if (!t.createdAt || t.type !== 'CASH_SALE' || t.isAdjustment) return false;
           const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
           return toSaudiDate(d) === reportDate;
         });
         const cashSalePaid = origCashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
+
+        // Only consider debts for customers who appear in bread sale transactions on this date
+        const breadCustomerIds = new Set(dateTxns.map(t => t.customerId).filter(Boolean));
 
         const allDebts = await db.select().from(customerDebtsTable).where(
           and(
@@ -1594,7 +1599,7 @@ export async function registerRoutes(
         );
         const dateDebtPaid = allDebts
           .filter(d => {
-            if (!d.createdAt) return false;
+            if (!d.createdAt || !breadCustomerIds.has(d.customerId)) return false;
             const dd = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
             return toSaudiDate(dd) === reportDate;
           })
@@ -1736,6 +1741,16 @@ export async function registerRoutes(
       let reverseDelta = 0;
       if (oldAdjustments.length > 0) {
         const oldTotalPaid = oldAdjustments.reduce((s, a) => s + parseFloat(a.paidAmount || '0'), 0);
+
+        const saleTypesReset = ['CASH_SALE', 'CREDIT_SALE', 'FREE_DISTRIBUTION', 'FREE_SAMPLE'];
+        const breadTxnsReset = txns.filter(t => {
+          if (!t.createdAt || t.isAdjustment) return false;
+          const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
+          return toSaudiDate(d) === date && saleTypesReset.includes(t.type as string);
+        });
+        // Only include debts for customers with bread sales on this date (mirrors edit row universe)
+        const breadCustomerIdsReset = new Set(breadTxnsReset.map(t => t.customerId).filter(Boolean));
+
         const cashSalePaid = txns
           .filter(t => {
             if (!t.createdAt || t.type !== 'CASH_SALE' || t.isAdjustment) return false;
@@ -1746,7 +1761,7 @@ export async function registerRoutes(
 
         const dateDebtPaid = allDebts
           .filter(d => {
-            if (!d.createdAt) return false;
+            if (!d.createdAt || !breadCustomerIdsReset.has(d.customerId)) return false;
             const dd = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
             return toSaudiDate(dd) === date;
           })
