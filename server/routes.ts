@@ -1453,7 +1453,7 @@ export async function registerRoutes(
         and(eq(transactionsTable.driverId, driverId))
       );
       const dateTxns = txns.filter(t => {
-        if (!t.createdAt) return false;
+        if (!t.createdAt || t.isAdjustment) return false;
         const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
         return d.toISOString().slice(0, 10) === reportDate && saleTypes.includes(t.type as string);
       });
@@ -1590,8 +1590,6 @@ export async function registerRoutes(
       }
 
       // Create new isAdjustment=true CASH_SALE transactions per product per customer
-      const productMap: Record<string, typeof allProducts[number]> = {};
-      for (const p of allProducts) { productMap[p.id] = p; }
       const namedProducts = [
         { key: 'white', product: whiteProduct },
         { key: 'brown', product: brownProduct },
@@ -1607,10 +1605,6 @@ export async function registerRoutes(
           white: adjRow.whiteBread, brown: adjRow.brownBread,
           medium: adjRow.medium, super: adjRow.superBread, wrapped: adjRow.wrapped,
         };
-        const rowTotalAmount = parseFloat(adjRow.totalAmount || '0');
-        const rowPaidAmount = parseFloat(adjRow.paidAmount || '0');
-        const rowCreditAmount = Math.max(0, rowTotalAmount - rowPaidAmount);
-
         for (const { key, product } of namedProducts) {
           const qty = qtys[key] || 0;
           if (!product || qty <= 0) continue;

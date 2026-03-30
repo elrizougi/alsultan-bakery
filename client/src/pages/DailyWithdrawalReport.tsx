@@ -405,7 +405,8 @@ export default function DailyWithdrawalReportPage() {
   const resetAdjustments = async () => {
     if (!selectedDriverId || selectedDriverId === 'all') return;
     try {
-      await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`, { method: 'DELETE' });
+      const res = await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('فشل الحذف');
       await refetchAdjustments();
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       toast({ title: "تم الإلغاء", description: "تم حذف التعديلات واستعادة البيانات الأصلية" });
