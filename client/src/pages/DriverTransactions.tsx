@@ -394,6 +394,10 @@ export default function DriverTransactionsPage() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [editForm, setEditForm] = useState({ type: "" as string, quantity: 1, unitPrice: "", customerId: "", notes: "" });
   const [editCustomerSearchOpen, setEditCustomerSearchOpen] = useState(false);
+  const [isBatchOpen, setIsBatchOpen] = useState(false);
+  const [batchSaleType, setBatchSaleType] = useState<'CASH_SALE' | 'CREDIT_SALE'>('CASH_SALE');
+  const [batchData, setBatchData] = useState<Record<string, string>>({});
+  const [isBatchSaving, setIsBatchSaving] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [loadMode, setLoadMode] = useState<'load' | 'return'>('load');
   const [duplicateWarning, setDuplicateWarning] = useState<{ message: string; onConfirm: () => void } | null>(null);
@@ -473,6 +477,55 @@ export default function DriverTransactionsPage() {
       toast({ title: "تم إضافة العميل بنجاح" });
     } catch (error) {
       toast({ title: "حدث خطأ في إضافة العميل", variant: "destructive" });
+    }
+  };
+
+  const batchKey = (customerId: string, productId: string, isReturn = false) =>
+    `${customerId}:${productId}:${isReturn ? 'r' : 's'}`;
+
+  const getBatchQty = (customerId: string, productId: string, isReturn = false) =>
+    parseInt(batchData[batchKey(customerId, productId, isReturn)] || '0') || 0;
+
+  const handleOpenBatch = () => {
+    setBatchData({});
+    setBatchSaleType('CASH_SALE');
+    setIsBatchOpen(true);
+  };
+
+  const handleBatchSubmit = async () => {
+    const txList: InsertTransaction[] = [];
+    for (const customer of driverCustomers) {
+      for (const product of products) {
+        const saleQty = getBatchQty(customer.id, product.id);
+        if (saleQty > 0) {
+          const cp = allCustomerPrices.find((x: any) => x.customerId === customer.id && x.productId === product.id);
+          const unitPrice = cp ? cp.price : product.price;
+          txList.push({ driverId, productId: product.id, quantity: saleQty, type: batchSaleType as TransactionType, customerId: customer.id, unitPrice: unitPrice.toString(), notes: '' });
+        }
+        const retQty = getBatchQty(customer.id, product.id, true);
+        if (retQty > 0) {
+          txList.push({ driverId, productId: product.id, quantity: retQty, type: 'RETURN' as TransactionType, customerId: customer.id, unitPrice: product.price.toString(), notes: '' });
+        }
+      }
+    }
+    if (txList.length === 0) {
+      toast({ title: "لم تدخل أي كميات", variant: "destructive" });
+      return;
+    }
+    setIsBatchSaving(true);
+    try {
+      for (const tx of txList) { await api.createTransaction(tx); }
+      queryClient.invalidateQueries({ queryKey: ['driver-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['driver-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['driver-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['driver-debts'] });
+      toast({ title: "تم الحفظ بنجاح", description: `تم تسجيل ${txList.length} عملية` });
+      setIsBatchOpen(false);
+      setBatchData({});
+    } catch (e: any) {
+      toast({ title: "خطأ في الحفظ", description: e.message || "حدث خطأ", variant: "destructive" });
+    } finally {
+      setIsBatchSaving(false);
     }
   };
 
@@ -1067,12 +1120,21 @@ export default function DriverTransactionsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button 
-              onClick={() => setIsCreateOpen(true)} 
+              onClick={handleOpenBatch}
               className="flex-row gap-2 bg-primary hover:bg-primary/90 rounded-xl h-11 px-6 shadow-lg shadow-primary/20 font-bold"
               data-testid="button-new-transaction"
               disabled={isAdmin && !driverId}
             >
-              <Plus className="h-4 w-4" /> عملية جديدة
+              <Plus className="h-4 w-4" /> إضافة مبيعات
+            </Button>
+            <Button 
+              onClick={() => setIsCreateOpen(true)}
+              variant="outline"
+              className="flex-row gap-2 rounded-xl h-11 px-4 font-bold"
+              data-testid="button-other-transaction"
+              disabled={isAdmin && !driverId}
+            >
+              <Plus className="h-4 w-4" /> عملية أخرى
             </Button>
             <Button 
               onClick={() => setIsLoadDialogOpen(true)} 
@@ -2688,6 +2750,116 @@ export default function DriverTransactionsPage() {
               data-testid="button-save-edit"
             >
               {updateTransaction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ التعديلات"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Sales Entry Dialog */}
+      <Dialog open={isBatchOpen} onOpenChange={(open) => { if (!open) setIsBatchOpen(false); }}>
+        <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right text-lg font-bold">إضافة مبيعات جماعية</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center gap-4 pb-3 border-b">
+            <Label className="whitespace-nowrap font-semibold">نوع البيع:</Label>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={batchSaleType === 'CASH_SALE' ? 'default' : 'outline'}
+                onClick={() => setBatchSaleType('CASH_SALE')}
+                className="gap-1"
+              >
+                <DollarSign className="h-3.5 w-3.5" /> نقدي
+              </Button>
+              <Button
+                size="sm"
+                variant={batchSaleType === 'CREDIT_SALE' ? 'default' : 'outline'}
+                onClick={() => setBatchSaleType('CREDIT_SALE')}
+                className="gap-1"
+              >
+                <FileText className="h-3.5 w-3.5" /> آجل
+              </Button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className="border border-slate-200 px-2 py-2 text-center font-bold w-8">م</th>
+                  <th className="border border-slate-200 px-3 py-2 text-right font-bold min-w-[140px]">اسم العميل</th>
+                  {products.map(p => (
+                    <th key={p.id} colSpan={2} className="border border-slate-200 px-2 py-2 text-center font-bold min-w-[110px] bg-blue-50">
+                      {p.name}
+                    </th>
+                  ))}
+                </tr>
+                <tr className="bg-slate-50 text-xs text-muted-foreground">
+                  <th className="border border-slate-200 px-1 py-1"></th>
+                  <th className="border border-slate-200 px-1 py-1"></th>
+                  {products.map(p => (
+                    <>
+                      <th key={`${p.id}-s`} className="border border-slate-200 px-1 py-1 text-center text-green-700 font-semibold">مبيعات</th>
+                      <th key={`${p.id}-r`} className="border border-slate-200 px-1 py-1 text-center text-red-700 font-semibold">راجع</th>
+                    </>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {driverCustomers.map((customer, idx) => (
+                  <tr key={customer.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td className="border border-slate-200 px-2 py-1.5 text-center text-muted-foreground">{idx + 1}</td>
+                    <td className="border border-slate-200 px-3 py-1.5 font-medium">{customer.name}</td>
+                    {products.map(p => (
+                      <>
+                        <td key={`${customer.id}-${p.id}-s`} className="border border-slate-200 p-1">
+                          <Input
+                            type="number"
+                            min={0}
+                            className="h-7 w-full text-center text-sm px-1"
+                            value={batchData[batchKey(customer.id, p.id)] || ''}
+                            onChange={(e) => setBatchData(prev => ({ ...prev, [batchKey(customer.id, p.id)]: e.target.value }))}
+                            placeholder="0"
+                            data-testid={`batch-sale-${customer.id}-${p.id}`}
+                          />
+                        </td>
+                        <td key={`${customer.id}-${p.id}-r`} className="border border-slate-200 p-1">
+                          <Input
+                            type="number"
+                            min={0}
+                            className="h-7 w-full text-center text-sm px-1 bg-red-50"
+                            value={batchData[batchKey(customer.id, p.id, true)] || ''}
+                            onChange={(e) => setBatchData(prev => ({ ...prev, [batchKey(customer.id, p.id, true)]: e.target.value }))}
+                            placeholder="0"
+                            data-testid={`batch-return-${customer.id}-${p.id}`}
+                          />
+                        </td>
+                      </>
+                    ))}
+                  </tr>
+                ))}
+                {/* Total Row */}
+                <tr className="bg-slate-200 font-bold">
+                  <td className="border border-slate-300 px-2 py-2 text-center" colSpan={2}>المجموع</td>
+                  {products.map(p => (
+                    <>
+                      <td key={`total-${p.id}-s`} className="border border-slate-300 px-2 py-2 text-center text-green-800">
+                        {driverCustomers.reduce((sum, c) => sum + getBatchQty(c.id, p.id), 0) || 0}
+                      </td>
+                      <td key={`total-${p.id}-r`} className="border border-slate-300 px-2 py-2 text-center text-red-800">
+                        {driverCustomers.reduce((sum, c) => sum + getBatchQty(c.id, p.id, true), 0) || 0}
+                      </td>
+                    </>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" onClick={() => setIsBatchOpen(false)} disabled={isBatchSaving}>إلغاء</Button>
+            <Button onClick={handleBatchSubmit} disabled={isBatchSaving} className="gap-2 bg-primary font-bold px-6">
+              {isBatchSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              حفظ العمليات
             </Button>
           </DialogFooter>
         </DialogContent>
