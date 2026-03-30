@@ -331,10 +331,12 @@ export default function DailyWithdrawalReportPage() {
       totalAmount: r.totalAmount,
       isDirectSale: r.isDirectSale,
     }));
-    // Add "بيع مباشر" row if not already present
-    if (directSaleCustomer && !rows.find(r => r.id === directSaleCustomer.id)) {
+    // Always add "بيع مباشر" row if not already present.
+    // Use real ID when available; fall back to '__direct_sale__' placeholder before first save.
+    const dsId = directSaleCustomer?.id ?? '__direct_sale__';
+    if (!rows.find(r => r.isDirectSale)) {
       rows.push({
-        id: directSaleCustomer.id,
+        id: dsId,
         name: 'بيع مباشر',
         whiteBread: 0,
         brownBread: 0,
@@ -368,26 +370,35 @@ export default function DailyWithdrawalReportPage() {
     if (!selectedDriverId || selectedDriverId === 'all') return;
     setIsSaving(true);
     try {
-      const rows = editRows.filter(r => r.whiteBread > 0 || r.brownBread > 0 || r.medium > 0 || r.superBread > 0 || r.wrapped > 0 || r.returned > 0 || r.paidAmount > 0).map(r => ({
-        customerId: r.id,
-        whiteBread: r.whiteBread,
-        brownBread: r.brownBread,
-        medium: r.medium,
-        superBread: r.superBread,
-        wrapped: r.wrapped,
-        returned: r.returned,
-        paidAmount: r.paidAmount.toString(),
-        totalAmount: r.totalAmount.toString(),
-      }));
+      // Direct-sale quantities are always server-computed from field totals.
+      // Capture paidAmount from any direct-sale row (provisional or real) and send separately.
+      const dsEditRow = editRows.find(r => r.isDirectSale);
+      const rows = editRows
+        .filter(r => !r.isDirectSale) // exclude direct-sale; handled via directSalePaidAmount
+        .filter(r => r.whiteBread > 0 || r.brownBread > 0 || r.medium > 0 || r.superBread > 0 || r.wrapped > 0 || r.returned > 0 || r.paidAmount > 0)
+        .map(r => ({
+          customerId: r.id,
+          whiteBread: r.whiteBread,
+          brownBread: r.brownBread,
+          medium: r.medium,
+          superBread: r.superBread,
+          wrapped: r.wrapped,
+          returned: r.returned,
+          paidAmount: r.paidAmount.toString(),
+          totalAmount: r.totalAmount.toString(),
+        }));
+
+      const body: Record<string, unknown> = {
+        driverId: selectedDriverId,
+        reportDate: selectedDate,
+        rows,
+        directSalePaidAmount: (dsEditRow?.paidAmount ?? 0).toFixed(2),
+      };
 
       const res = await fetch('/api/report-adjustments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          driverId: selectedDriverId,
-          reportDate: selectedDate,
-          rows,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) throw new Error('فشل الحفظ');

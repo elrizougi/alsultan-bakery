@@ -1440,6 +1440,7 @@ export async function registerRoutes(
     driverId: z.string().min(1),
     reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     rows: z.array(reportAdjustmentRowSchema).min(0),
+    directSalePaidAmount: z.string().regex(/^\d+(\.\d{1,4})?$/).optional(),
   });
 
   app.post("/api/report-adjustments", async (req, res) => {
@@ -1547,7 +1548,7 @@ export async function registerRoutes(
       const dsTotal = computeAmount(dsWhite, dsBrown, dsMedium, dsSuper, dsWrapped);
       const dsPaid = submittedDsRow
         ? Math.max(0, parseFloat(String(submittedDsRow.paidAmount)) || 0)
-        : 0;
+        : Math.max(0, parseFloat(parsed.data.directSalePaidAmount ?? '0') || 0);
 
       const allRows: Parameters<typeof storage.saveReportAdjustments>[2] = [...customerRows];
       if (dsWhite + dsBrown + dsMedium + dsSuper + dsWrapped > 0) {
@@ -1707,10 +1708,28 @@ export async function registerRoutes(
     try {
       const { driverId, date } = req.params;
 
-      // Read data outside transaction (read-only)
-      const oldAdjustments = await storage.getReportAdjustments(driverId, date);
-      const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.driverId, driverId));
-      const allDebts = await db.select().from(customerDebtsTable);
+      // Read data outside transaction (read-only).
+      // Use DB-level date bounds to avoid full-table scans.
+      const utcDayStart = new Date(`${date}T00:00:00.000+03:00`);
+      const utcDayEnd   = new Date(`${date}T23:59:59.999+03:00`);
+
+      const [oldAdjustments, txns, allDebts] = await Promise.all([
+        storage.getReportAdjustments(driverId, date),
+        db.select().from(transactionsTable).where(
+          and(
+            eq(transactionsTable.driverId, driverId),
+            gte(transactionsTable.createdAt, utcDayStart),
+            lte(transactionsTable.createdAt, utcDayEnd)
+          )
+        ),
+        db.select().from(customerDebtsTable).where(
+          and(
+            eq(customerDebtsTable.driverId, driverId),
+            gte(customerDebtsTable.createdAt, utcDayStart),
+            lte(customerDebtsTable.createdAt, utcDayEnd)
+          )
+        ),
+      ]);
 
       let reverseDelta = 0;
       if (oldAdjustments.length > 0) {
@@ -1725,7 +1744,7 @@ export async function registerRoutes(
 
         const dateDebtPaid = allDebts
           .filter(d => {
-            if (!d.createdAt || d.driverId !== driverId) return false;
+            if (!d.createdAt) return false;
             const dd = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
             return toSaudiDate(dd) === date;
           })
