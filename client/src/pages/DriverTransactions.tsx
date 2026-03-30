@@ -870,7 +870,11 @@ export default function DriverTransactionsPage() {
   const avgSalePriceTotal = salesExcludingMoghallaf.reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
   const avgSalePrice = avgSalePriceQty > 0 ? avgSalePriceTotal / avgSalePriceQty : 0;
 
-  const logTransactions = transactions;
+  const logTransactions = [...transactions].sort((a, b) => {
+    const aOrder = customers.find(c => c.id === a.customerId)?.sortOrder ?? 9999;
+    const bOrder = customers.find(c => c.id === b.customerId)?.sortOrder ?? 9999;
+    return aOrder - bOrder;
+  });
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -903,6 +907,29 @@ export default function DriverTransactionsPage() {
     .filter(d => d.status === 'CONFIRMED')
     .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
   const cumulativeBalance = allTotalSales - allPaidToBakery - allCreditSalesUnpaid;
+
+  // ملخص الشهر الحالي يومياً (من بداية الشهر حتى اليوم المحدد)
+  const monthDailySummary = (() => {
+    const d = new Date(selectedDate);
+    const monthStartStr = `${format(d, 'yyyy-MM')}-01`;
+    const monthEndStr = selectedDate;
+    const dayMap = new Map<string, { total: number; paid: number; remaining: number }>();
+    allDriverTransactions.forEach(t => {
+      if (!t.createdAt) return;
+      const txDate = format(new Date(t.createdAt), 'yyyy-MM-dd');
+      if (txDate < monthStartStr || txDate > monthEndStr) return;
+      if (t.type !== 'CASH_SALE' && t.type !== 'CREDIT_SALE') return;
+      const amount = parseFloat(t.totalAmount || '0');
+      if (!dayMap.has(txDate)) dayMap.set(txDate, { total: 0, paid: 0, remaining: 0 });
+      const entry = dayMap.get(txDate)!;
+      entry.total += amount;
+      if (t.type === 'CASH_SALE') entry.paid += amount;
+      else entry.remaining += amount;
+    });
+    return Array.from(dayMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, data]) => ({ date, ...data }));
+  })();
 
   const dailyBalanceBreakdown = (() => {
     const dateMap = new Map<string, { cashSales: number; creditSalesUnpaid: number; paidToBakery: number; expenses: number }>();
@@ -1574,6 +1601,46 @@ export default function DriverTransactionsPage() {
                     {driverCashBalance.toFixed(2)} ر.س
                   </span>
                 </div>
+
+                {monthDailySummary.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">ملخص أيام الشهر الحالي</p>
+                    <div className="overflow-auto rounded border border-slate-200">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-600">
+                            <th className="text-right py-1 px-2 font-medium">اليوم</th>
+                            <th className="text-right py-1 px-2 font-medium">إجمالي</th>
+                            <th className="text-right py-1 px-2 font-medium">مدفوع</th>
+                            <th className="text-right py-1 px-2 font-medium">متبقي</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {monthDailySummary.map((row, i) => (
+                            <tr
+                              key={row.date}
+                              className={`border-t border-slate-100 ${row.date === selectedDate ? 'bg-blue-50 font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
+                              data-testid={`row-month-summary-${row.date}`}
+                            >
+                              <td className="py-1 px-2 text-slate-700">{format(new Date(row.date), 'd/M')}</td>
+                              <td className="py-1 px-2 text-slate-800">{row.total.toFixed(2)}</td>
+                              <td className="py-1 px-2 text-green-700">{row.paid.toFixed(2)}</td>
+                              <td className={`py-1 px-2 ${row.remaining > 0 ? 'text-amber-600' : 'text-slate-400'}`}>{row.remaining.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                          {monthDailySummary.length > 1 && (
+                            <tr className="border-t-2 border-slate-300 bg-slate-100 font-semibold">
+                              <td className="py-1 px-2 text-slate-700">المجموع</td>
+                              <td className="py-1 px-2 text-slate-800">{monthDailySummary.reduce((s, r) => s + r.total, 0).toFixed(2)}</td>
+                              <td className="py-1 px-2 text-green-700">{monthDailySummary.reduce((s, r) => s + r.paid, 0).toFixed(2)}</td>
+                              <td className="py-1 px-2 text-amber-600">{monthDailySummary.reduce((s, r) => s + r.remaining, 0).toFixed(2)}</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
