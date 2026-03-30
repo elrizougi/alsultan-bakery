@@ -855,6 +855,13 @@ export async function registerRoutes(
       }
       const parsed = insertTransactionSchema.parse(body);
       
+      // حساب totalAmount تلقائياً إذا كان غير محدد أو صفر
+      if (!parsed.totalAmount || parseFloat(parsed.totalAmount) === 0) {
+        const qty = parsed.quantity || 0;
+        const price = parseFloat(parsed.unitPrice || '0');
+        (parsed as any).totalAmount = (qty * price).toFixed(2);
+      }
+      
       const { type, customerId } = parsed;
       
       // التحقق من أن البيع الآجل يتطلب عميل

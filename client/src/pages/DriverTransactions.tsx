@@ -500,11 +500,13 @@ export default function DriverTransactionsPage() {
         if (saleQty > 0) {
           const cp = allCustomerPrices.find((x: any) => x.customerId === customer.id && x.productId === product.id);
           const unitPrice = cp ? cp.price : product.price;
-          txList.push({ driverId, productId: product.id, quantity: saleQty, type: batchSaleType as TransactionType, customerId: customer.id, unitPrice: unitPrice.toString(), notes: '' });
+          const totalAmountSale = (saleQty * parseFloat(unitPrice.toString())).toFixed(2);
+          txList.push({ driverId, productId: product.id, quantity: saleQty, type: batchSaleType as TransactionType, customerId: customer.id, unitPrice: unitPrice.toString(), totalAmount: totalAmountSale, notes: '' });
         }
         const retQty = getBatchQty(customer.id, product.id, true);
         if (retQty > 0) {
-          txList.push({ driverId, productId: product.id, quantity: retQty, type: 'RETURN' as TransactionType, customerId: customer.id, unitPrice: product.price.toString(), notes: '' });
+          const totalAmountRet = (retQty * parseFloat(product.price.toString())).toFixed(2);
+          txList.push({ driverId, productId: product.id, quantity: retQty, type: 'RETURN' as TransactionType, customerId: customer.id, unitPrice: product.price.toString(), totalAmount: totalAmountRet, notes: '' });
         }
       }
     }
@@ -833,7 +835,12 @@ export default function DriverTransactionsPage() {
     .reduce((sum, t) => sum + t.quantity, 0);
   const totalSoldValue = transactions
     .filter(t => t.type === "CASH_SALE" || t.type === "CREDIT_SALE")
-    .reduce((sum, t) => sum + parseFloat(t.totalAmount || '0'), 0);
+    .reduce((sum, t) => {
+      const stored = parseFloat(t.totalAmount || '0');
+      // إذا كانت القيمة المخزنة صفر لكن لدينا كمية وسعر، نحسبها تلقائياً
+      const computed = stored !== 0 ? stored : t.quantity * parseFloat((t as any).unitPrice || '0');
+      return sum + computed;
+    }, 0);
 
   // حساب عدد العملاء الفريدين
   const uniqueCustomersSet = new Set(
