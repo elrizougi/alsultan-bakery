@@ -579,7 +579,7 @@ export default function DailyWithdrawalReportPage() {
                       <TableHead className="text-center font-bold border-l whitespace-nowrap" rowSpan={2}>م</TableHead>
                       <TableHead className="text-center font-bold border-l whitespace-nowrap" rowSpan={2}>اسم العميل</TableHead>
                       <TableHead className="text-center font-bold border-l" colSpan={6}>معدل سحب الخبز</TableHead>
-                      <TableHead className="text-center font-bold" colSpan={5}>الحساب المالي</TableHead>
+                      <TableHead className="text-center font-bold" colSpan={6}>الحساب المالي</TableHead>
                     </TableRow>
                     <TableRow className="bg-blue-50">
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">خبز ابيض</TableHead>
@@ -589,6 +589,8 @@ export default function DailyWithdrawalReportPage() {
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">مغلف</TableHead>
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">الراجع</TableHead>
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">اجمالي الخبز</TableHead>
+                      <TableHead className="text-center font-bold border-l whitespace-nowrap">مبلغ ابيض</TableHead>
+                      <TableHead className="text-center font-bold border-l whitespace-nowrap">مبلغ مغلف</TableHead>
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">اجمالي المبلغ</TableHead>
                       <TableHead className="text-center font-bold border-l whitespace-nowrap">المبلغ المدفوع</TableHead>
                       <TableHead className="text-center font-bold whitespace-nowrap">الباقي</TableHead>
@@ -597,6 +599,8 @@ export default function DailyWithdrawalReportPage() {
                   <TableBody>
                     {editRows.map((r, i) => {
                       const rowTotal = r.whiteBread + r.brownBread + r.medium + r.superBread + r.wrapped;
+                      const whiteAmt = r.whiteBread * whitePrice;
+                      const wrappedAmt = r.wrapped * wrappedPrice;
                       const remaining = r.totalAmount - r.paidAmount;
                       return (
                         <TableRow key={r.id} className={r.isDirectSale ? 'bg-amber-50' : ''} data-testid={`edit-row-${r.id}`}>
@@ -618,6 +622,8 @@ export default function DailyWithdrawalReportPage() {
                             </TableCell>
                           ))}
                           <TableCell className="text-center border-l font-bold text-xs">{rowTotal}</TableCell>
+                          <TableCell className="text-center border-l text-xs text-gray-600">{fmt(whiteAmt)}</TableCell>
+                          <TableCell className="text-center border-l text-xs text-gray-600">{fmt(wrappedAmt)}</TableCell>
                           <TableCell className="text-center border-l text-xs">{fmt(r.totalAmount)}</TableCell>
                           <TableCell className="text-center border-l p-1">
                             <Input
@@ -647,6 +653,8 @@ export default function DailyWithdrawalReportPage() {
                         <TableCell className="text-center border-l">{editTotals.wrapped}</TableCell>
                         <TableCell className="text-center border-l">{editTotals.returned}</TableCell>
                         <TableCell className="text-center border-l">{editTotals.totalBread}</TableCell>
+                        <TableCell className="text-center border-l">{fmt(editTotals.whiteBread * whitePrice)}</TableCell>
+                        <TableCell className="text-center border-l">{fmt(editTotals.wrapped * wrappedPrice)}</TableCell>
                         <TableCell className="text-center border-l">{fmt(editTotals.totalAmount)}</TableCell>
                         <TableCell className="text-center border-l">{fmt(editTotals.paidAmount)}</TableCell>
                         <TableCell className="text-center">{fmt(editTotals.remaining)}</TableCell>

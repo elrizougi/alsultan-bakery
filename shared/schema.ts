@@ -147,6 +147,7 @@ export const transactions = pgTable("transactions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   notes: text("notes"),
   receiptImage: text("receipt_image"),
+  isAdjustment: boolean("is_adjustment").notNull().default(false),
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, updatedAt: true });

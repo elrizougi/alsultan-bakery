@@ -50,6 +50,13 @@
       "when": 1774882800000,
       "tag": "0006_report_adjustments",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774882900000,
+      "tag": "0007_is_adjustment",
+      "breakpoints": true
     }
   ]
 }
