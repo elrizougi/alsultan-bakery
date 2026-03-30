@@ -1404,5 +1404,54 @@ export async function registerRoutes(
     }
   });
 
+  // Report Adjustments - تعديلات تقرير سحب الخبز
+  app.get("/api/report-adjustments/:driverId/:date", async (req, res) => {
+    try {
+      const adjustments = await storage.getReportAdjustments(req.params.driverId, req.params.date);
+      res.json(adjustments);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب التعديلات" });
+    }
+  });
+
+  app.post("/api/report-adjustments", async (req, res) => {
+    try {
+      const { driverId, reportDate, rows, totalPaidDelta } = req.body;
+      if (!driverId || !reportDate || !Array.isArray(rows)) {
+        return res.status(400).json({ message: "بيانات ناقصة" });
+      }
+      // Ensure direct sale customer exists
+      await storage.getOrCreateDirectSaleCustomer();
+      // Save adjustments
+      const saved = await storage.saveReportAdjustments(driverId, reportDate, rows);
+      // Update driver balance if there's a paid amount change
+      if (typeof totalPaidDelta === 'number' && totalPaidDelta !== 0) {
+        await storage.updateDriverCashBalance(driverId, totalPaidDelta.toString());
+      }
+      res.json(saved);
+    } catch (error) {
+      console.error("Report adjustment error:", error);
+      res.status(500).json({ message: "خطأ في حفظ التعديلات" });
+    }
+  });
+
+  app.delete("/api/report-adjustments/:driverId/:date", async (req, res) => {
+    try {
+      await storage.deleteReportAdjustments(req.params.driverId, req.params.date);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في حذف التعديلات" });
+    }
+  });
+
+  app.get("/api/direct-sale-customer", async (req, res) => {
+    try {
+      const customer = await storage.getOrCreateDirectSaleCustomer();
+      res.json(customer);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب عميل بيع مباشر" });
+    }
+  });
+
   return httpServer;
 }

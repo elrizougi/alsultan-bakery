@@ -58,6 +58,7 @@ export const customers = pgTable("customers", {
   routeId: varchar("route_id").references(() => routes.id),
   driverId: varchar("driver_id").references(() => users.id),
   phone: text("phone").default(""),
+  isDirectSale: boolean("is_direct_sale").notNull().default(false),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -226,3 +227,27 @@ export const driverDailyImages = pgTable("driver_daily_images", {
 export const insertDriverDailyImageSchema = createInsertSchema(driverDailyImages).omit({ id: true, createdAt: true });
 export type InsertDriverDailyImage = z.infer<typeof insertDriverDailyImageSchema>;
 export type DriverDailyImage = typeof driverDailyImages.$inferSelect;
+
+// Report Adjustments - تعديلات تقرير سحب الخبز
+export const reportAdjustments = pgTable("report_adjustments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").references(() => users.id).notNull(),
+  reportDate: text("report_date").notNull(),
+  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  whiteBread: integer("white_bread").notNull().default(0),
+  brownBread: integer("brown_bread").notNull().default(0),
+  medium: integer("medium").notNull().default(0),
+  superBread: integer("super_bread").notNull().default(0),
+  wrapped: integer("wrapped").notNull().default(0),
+  returned: integer("returned").notNull().default(0),
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  unique().on(table.driverId, table.reportDate, table.customerId),
+]);
+
+export const insertReportAdjustmentSchema = createInsertSchema(reportAdjustments).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertReportAdjustment = z.infer<typeof insertReportAdjustmentSchema>;
+export type ReportAdjustment = typeof reportAdjustments.$inferSelect;

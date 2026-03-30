@@ -16,6 +16,7 @@ import {
   expenseCategories, type ExpenseCategoryRecord, type InsertExpenseCategory,
   driverDailyImages, type DriverDailyImage, type InsertDriverDailyImage,
   customerPrices, type CustomerPrice, type InsertCustomerPrice,
+  reportAdjustments, type ReportAdjustment,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -126,6 +127,12 @@ export interface IStorage {
   getCustomerPrices(customerId: string): Promise<CustomerPrice[]>;
   setCustomerPrice(data: InsertCustomerPrice): Promise<CustomerPrice>;
   deleteCustomerPrice(id: string): Promise<boolean>;
+
+  // Report Adjustments - تعديلات التقرير
+  getOrCreateDirectSaleCustomer(): Promise<Customer>;
+  getReportAdjustments(driverId: string, reportDate: string): Promise<ReportAdjustment[]>;
+  saveReportAdjustments(driverId: string, reportDate: string, rows: { customerId: string; whiteBread: number; brownBread: number; medium: number; superBread: number; wrapped: number; returned: number; paidAmount: string; totalAmount: string }[]): Promise<ReportAdjustment[]>;
+  deleteReportAdjustments(driverId: string, reportDate: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1090,6 +1097,43 @@ export class DatabaseStorage implements IStorage {
   async deleteCustomerPrice(id: string): Promise<boolean> {
     const result = await db.delete(customerPrices).where(eq(customerPrices.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Report Adjustments
+  async getOrCreateDirectSaleCustomer(): Promise<Customer> {
+    const existing = await db.select().from(customers).where(eq(customers.isDirectSale, true));
+    if (existing.length > 0) return existing[0];
+    const [created] = await db.insert(customers).values({
+      name: "بيع مباشر",
+      isDirectSale: true,
+      address: "",
+      phone: "",
+    }).returning();
+    return created;
+  }
+
+  async getReportAdjustments(driverId: string, reportDate: string): Promise<ReportAdjustment[]> {
+    return db.select().from(reportAdjustments).where(
+      and(eq(reportAdjustments.driverId, driverId), eq(reportAdjustments.reportDate, reportDate))
+    );
+  }
+
+  async saveReportAdjustments(driverId: string, reportDate: string, rows: { customerId: string; whiteBread: number; brownBread: number; medium: number; superBread: number; wrapped: number; returned: number; paidAmount: string; totalAmount: string }[]): Promise<ReportAdjustment[]> {
+    await db.delete(reportAdjustments).where(
+      and(eq(reportAdjustments.driverId, driverId), eq(reportAdjustments.reportDate, reportDate))
+    );
+    if (rows.length === 0) return [];
+    const inserted = await db.insert(reportAdjustments).values(
+      rows.map(r => ({ driverId, reportDate, ...r }))
+    ).returning();
+    return inserted;
+  }
+
+  async deleteReportAdjustments(driverId: string, reportDate: string): Promise<boolean> {
+    await db.delete(reportAdjustments).where(
+      and(eq(reportAdjustments.driverId, driverId), eq(reportAdjustments.reportDate, reportDate))
+    );
+    return true;
   }
 }
 
