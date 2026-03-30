@@ -1488,7 +1488,10 @@ export async function registerRoutes(
       };
 
       // 4. Filter out direct-sale customer from submitted rows; recompute totalAmount server-side
-      const customerRows = (rows as { customerId: string; whiteBread: number; brownBread: number; medium: number; superBread: number; wrapped: number; returned: number; paidAmount: number | string }[])
+      type SubmittedRow = { customerId: string; whiteBread: number; brownBread: number; medium: number; superBread: number; wrapped: number; returned: number; paidAmount: number | string };
+      const submittedRows = rows as SubmittedRow[];
+      const submittedDsRow = submittedRows.find(r => r.customerId === directSaleCustomer.id);
+      const customerRows = submittedRows
         .filter(r => r.customerId !== directSaleCustomer.id)
         .map(r => {
           const wb = Number(r.whiteBread) || 0;
@@ -1502,7 +1505,8 @@ export async function registerRoutes(
           return { customerId: r.customerId, whiteBread: wb, brownBread: bb, medium: med, superBread: sup, wrapped: wrp, returned: ret, paidAmount: paid.toFixed(2), totalAmount: total.toFixed(2) };
         });
 
-      // 5. Compute "بيع مباشر" quantities as difference between transactions totals and customer rows
+      // 5. Compute "بيع مباشر" quantities as difference between transactions totals and customer rows.
+      // Quantities are server-computed; paidAmount respects user input if submitted.
       const custSum = customerRows.reduce((acc, r) => ({
         white: acc.white + r.whiteBread,
         brown: acc.brown + r.brownBread,
@@ -1517,6 +1521,9 @@ export async function registerRoutes(
       const dsSuper = Math.max(0, txTotals.super - custSum.super);
       const dsWrapped = Math.max(0, txTotals.wrapped - custSum.wrapped);
       const dsTotal = computeAmount(dsWhite, dsBrown, dsMedium, dsSuper, dsWrapped);
+      const dsPaid = submittedDsRow
+        ? Math.max(0, parseFloat(String(submittedDsRow.paidAmount)) || 0)
+        : 0;
 
       const allRows: Parameters<typeof storage.saveReportAdjustments>[2] = [...customerRows];
       if (dsWhite + dsBrown + dsMedium + dsSuper + dsWrapped > 0) {
@@ -1528,23 +1535,40 @@ export async function registerRoutes(
           superBread: dsSuper,
           wrapped: dsWrapped,
           returned: 0,
-          paidAmount: "0",
+          paidAmount: dsPaid.toFixed(2),
           totalAmount: dsTotal.toFixed(2),
         });
       }
 
-      // 6. Compute paid delta server-side
+      // 6. Compute paid delta server-side.
+      // newTotalPaid includes ALL rows (customers + direct-sale).
+      const newTotalPaid = allRows.reduce((s, r) => s + parseFloat(r.paidAmount), 0);
+
       const oldAdjustments = await storage.getReportAdjustments(driverId, reportDate);
       let oldTotalPaid: number;
       if (oldAdjustments.length > 0) {
-        // Use existing adjustments as baseline
+        // Use existing adjustments as baseline (already includes all rows)
         oldTotalPaid = oldAdjustments.reduce((s, a) => s + parseFloat(a.paidAmount || '0'), 0);
       } else {
-        // Use original transactions cash paid as baseline
-        const cashTxns = dateTxns.filter(t => t.type === 'CASH_SALE');
-        oldTotalPaid = cashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
+        // Use original transactions as baseline: CASH_SALE totals + paid customer debts for this date
+        const origCashTxns = txns.filter(t => {
+          if (!t.createdAt || t.type !== 'CASH_SALE' || t.isAdjustment) return false;
+          const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
+          return d.toISOString().slice(0, 10) === reportDate;
+        });
+        const cashSalePaid = origCashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
+
+        const allDebts = await db.select().from(customerDebtsTable);
+        const dateDebtPaid = allDebts
+          .filter(d => {
+            if (!d.createdAt || d.driverId !== driverId) return false;
+            const dd = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
+            return dd.toISOString().slice(0, 10) === reportDate;
+          })
+          .reduce((s, d) => s + parseFloat(d.paidAmount || '0'), 0);
+
+        oldTotalPaid = cashSalePaid + dateDebtPaid;
       }
-      const newTotalPaid = customerRows.reduce((s, r) => s + parseFloat(r.paidAmount), 0);
       const paidDelta = newTotalPaid - oldTotalPaid;
 
       // 7. Save adjustments and update balance
@@ -1646,14 +1670,26 @@ export async function registerRoutes(
       const oldAdjustments = await storage.getReportAdjustments(driverId, date);
       if (oldAdjustments.length > 0) {
         const oldTotalPaid = oldAdjustments.reduce((s, a) => s + parseFloat(a.paidAmount || '0'), 0);
-        // Get ORIGINAL (non-adjustment) transaction-based paid for this driver/date
+        // Get ORIGINAL (non-adjustment) paid for this driver/date:
+        // CASH_SALE totals + paid customer debts created on that date
         const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.driverId, driverId));
-        const cashTxns = txns.filter(t => {
+        const origCashTxns = txns.filter(t => {
           if (!t.createdAt || t.type !== 'CASH_SALE' || t.isAdjustment) return false;
           const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
           return d.toISOString().slice(0, 10) === date;
         });
-        const originalPaid = cashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
+        const cashSalePaid = origCashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
+
+        const allDebts = await db.select().from(customerDebtsTable);
+        const dateDebtPaid = allDebts
+          .filter(d => {
+            if (!d.createdAt || d.driverId !== driverId) return false;
+            const dd = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
+            return dd.toISOString().slice(0, 10) === date;
+          })
+          .reduce((s, d) => s + parseFloat(d.paidAmount || '0'), 0);
+
+        const originalPaid = cashSalePaid + dateDebtPaid;
         const reverseDelta = originalPaid - oldTotalPaid;
         if (Math.abs(reverseDelta) > 0.001) {
           await storage.updateDriverCashBalance(driverId, reverseDelta.toFixed(2));
