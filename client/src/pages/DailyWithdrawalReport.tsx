@@ -397,7 +397,10 @@ export default function DailyWithdrawalReportPage() {
 
       const res = await fetch('/api/report-adjustments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(currentUser?.role ? { 'x-user-role': currentUser.role } : {}),
+        },
         body: JSON.stringify(body),
       });
 
@@ -420,7 +423,10 @@ export default function DailyWithdrawalReportPage() {
   const resetAdjustments = async () => {
     if (!selectedDriverId || selectedDriverId === 'all') return;
     try {
-      const res = await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`, { method: 'DELETE' });
+      const res = await fetch(`/api/report-adjustments/${selectedDriverId}/${selectedDate}`, {
+        method: 'DELETE',
+        headers: currentUser?.role ? { 'x-user-role': currentUser.role } : {},
+      });
       if (!res.ok) throw new Error('فشل الحذف');
       await refetchAdjustments();
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
