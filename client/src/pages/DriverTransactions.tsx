@@ -494,8 +494,8 @@ export default function DriverTransactionsPage() {
 
   const handleBatchSubmit = async () => {
     const txList: InsertTransaction[] = [];
-    for (const customer of driverCustomers) {
-      for (const product of products) {
+    for (const customer of batchCustomers) {
+      for (const product of batchProducts) {
         const saleQty = getBatchQty(customer.id, product.id);
         if (saleQty > 0) {
           const cp = allCustomerPrices.find((x: any) => x.customerId === customer.id && x.productId === product.id);
@@ -784,6 +784,14 @@ export default function DriverTransactionsPage() {
   };
 
   const driverCustomers = customers.filter(c => !c.isDirectSale);
+  const batchCustomers = customers.filter(c => !c.isDirectSale && c.driverId === driverId);
+  const batchProducts = [...products].sort((a, b) => {
+    const aWhite = a.name.includes('ابيض') || a.name.includes('أبيض');
+    const bWhite = b.name.includes('ابيض') || b.name.includes('أبيض');
+    if (aWhite && !bWhite) return -1;
+    if (!aWhite && bWhite) return 1;
+    return 0;
+  });
 
   const getCustomerName = (customerId?: string) => {
     if (!customerId) return "-";
@@ -2788,7 +2796,7 @@ export default function DriverTransactionsPage() {
                 <tr className="bg-slate-100">
                   <th className="border border-slate-200 px-2 py-2 text-center font-bold w-8">م</th>
                   <th className="border border-slate-200 px-3 py-2 text-right font-bold min-w-[140px]">اسم العميل</th>
-                  {products.map(p => (
+                  {batchProducts.map(p => (
                     <th key={p.id} colSpan={2} className="border border-slate-200 px-2 py-2 text-center font-bold min-w-[110px] bg-blue-50">
                       {p.name}
                     </th>
@@ -2797,7 +2805,7 @@ export default function DriverTransactionsPage() {
                 <tr className="bg-slate-50 text-xs text-muted-foreground">
                   <th className="border border-slate-200 px-1 py-1"></th>
                   <th className="border border-slate-200 px-1 py-1"></th>
-                  {products.map(p => (
+                  {batchProducts.map(p => (
                     <>
                       <th key={`${p.id}-s`} className="border border-slate-200 px-1 py-1 text-center text-green-700 font-semibold">مبيعات</th>
                       <th key={`${p.id}-r`} className="border border-slate-200 px-1 py-1 text-center text-red-700 font-semibold">راجع</th>
@@ -2806,11 +2814,11 @@ export default function DriverTransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {driverCustomers.map((customer, idx) => (
+                {batchCustomers.map((customer, idx) => (
                   <tr key={customer.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
                     <td className="border border-slate-200 px-2 py-1.5 text-center text-muted-foreground">{idx + 1}</td>
                     <td className="border border-slate-200 px-3 py-1.5 font-medium">{customer.name}</td>
-                    {products.map(p => (
+                    {batchProducts.map(p => (
                       <>
                         <td key={`${customer.id}-${p.id}-s`} className="border border-slate-200 p-1">
                           <Input
@@ -2841,13 +2849,13 @@ export default function DriverTransactionsPage() {
                 {/* Total Row */}
                 <tr className="bg-slate-200 font-bold">
                   <td className="border border-slate-300 px-2 py-2 text-center" colSpan={2}>المجموع</td>
-                  {products.map(p => (
+                  {batchProducts.map(p => (
                     <>
                       <td key={`total-${p.id}-s`} className="border border-slate-300 px-2 py-2 text-center text-green-800">
-                        {driverCustomers.reduce((sum, c) => sum + getBatchQty(c.id, p.id), 0) || 0}
+                        {batchCustomers.reduce((sum, c) => sum + getBatchQty(c.id, p.id), 0) || 0}
                       </td>
                       <td key={`total-${p.id}-r`} className="border border-slate-300 px-2 py-2 text-center text-red-800">
-                        {driverCustomers.reduce((sum, c) => sum + getBatchQty(c.id, p.id, true), 0) || 0}
+                        {batchCustomers.reduce((sum, c) => sum + getBatchQty(c.id, p.id, true), 0) || 0}
                       </td>
                     </>
                   ))}
