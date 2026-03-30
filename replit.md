@@ -100,3 +100,4 @@ Preferred communication style: Simple, everyday language.
 - **Migration retry**: Up to 10 retries with 3s delay for DB connection readiness
 - **Environment**: `.env` file (not committed), `.env.example` as template
 - **Build command**: `docker compose up -d --build`
+- **SESSION_SECRET** (required in production): Random secret string for session cookies. Server fails fast on startup if missing in production. Generate with `openssl rand -hex 32`.
