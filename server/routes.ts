@@ -813,7 +813,8 @@ export async function registerRoutes(
   app.get("/api/driver-transactions/:driverId", async (req, res) => {
     try {
       const driverTransactions = await storage.getDriverTransactions(req.params.driverId);
-      res.json(driverTransactions);
+      // Exclude internal adjustment rows — same contract as /api/transactions
+      res.json(driverTransactions.filter(t => !t.isAdjustment));
     } catch (error) {
       res.status(500).json({ message: "خطأ في الخادم" });
     }
@@ -1418,6 +1419,12 @@ export async function registerRoutes(
     }
   });
 
+  // Helper: extract local Saudi date (UTC+3) from a Date object
+  const toSaudiDate = (d: Date): string => {
+    const saudi = new Date(d.getTime() + 3 * 60 * 60 * 1000);
+    return saudi.toISOString().slice(0, 10);
+  };
+
   app.post("/api/report-adjustments", async (req, res) => {
     try {
       const { driverId, reportDate, rows } = req.body;
@@ -1455,7 +1462,7 @@ export async function registerRoutes(
       const dateTxns = txns.filter(t => {
         if (!t.createdAt || t.isAdjustment) return false;
         const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
-        return d.toISOString().slice(0, 10) === reportDate && saleTypes.includes(t.type as string);
+        return toSaudiDate(d) === reportDate && saleTypes.includes(t.type as string);
       });
 
       const getQty = (productId: string | undefined) => {
@@ -1546,7 +1553,7 @@ export async function registerRoutes(
         const origCashTxns = txns.filter(t => {
           if (!t.createdAt || t.type !== 'CASH_SALE' || t.isAdjustment) return false;
           const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
-          return d.toISOString().slice(0, 10) === reportDate;
+          return toSaudiDate(d) === reportDate;
         });
         const cashSalePaid = origCashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
 
@@ -1555,7 +1562,7 @@ export async function registerRoutes(
           .filter(d => {
             if (!d.createdAt || d.driverId !== driverId) return false;
             const dd = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
-            return dd.toISOString().slice(0, 10) === reportDate;
+            return toSaudiDate(dd) === reportDate;
           })
           .reduce((s, d) => s + parseFloat(d.paidAmount || '0'), 0);
 
@@ -1578,8 +1585,7 @@ export async function registerRoutes(
         .filter(t => {
           if (!t.isAdjustment || !t.createdAt) return false;
           const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
-          const ds = d.toISOString().slice(0, 10);
-          return ds === reportDate;
+          return toSaudiDate(d) === reportDate;
         })
         .map(t => t.id);
 
@@ -1662,7 +1668,7 @@ export async function registerRoutes(
         const origCashTxns = txns.filter(t => {
           if (!t.createdAt || t.type !== 'CASH_SALE' || t.isAdjustment) return false;
           const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
-          return d.toISOString().slice(0, 10) === date;
+          return toSaudiDate(d) === date;
         });
         const cashSalePaid = origCashTxns.reduce((s, t) => s + parseFloat(t.totalAmount || '0'), 0);
 
@@ -1671,7 +1677,7 @@ export async function registerRoutes(
           .filter(d => {
             if (!d.createdAt || d.driverId !== driverId) return false;
             const dd = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
-            return dd.toISOString().slice(0, 10) === date;
+            return toSaudiDate(dd) === date;
           })
           .reduce((s, d) => s + parseFloat(d.paidAmount || '0'), 0);
 
@@ -1687,7 +1693,7 @@ export async function registerRoutes(
         .filter(t => {
           if (!t.isAdjustment || !t.createdAt) return false;
           const d = t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt);
-          return d.toISOString().slice(0, 10) === date;
+          return toSaudiDate(d) === date;
         })
         .map(t => t.id);
       for (const id of adjIds) {
